@@ -1,48 +1,16 @@
- const cloudinary = require("../config/cloudinary");
 const Pet = require("../model/pet");
 const Lost = require("../model/lost");
-const pet_register = async (req, res) => {
-    try {
-        const {user,name,gender,dob,weight,height,microchip_number,race,description,color,pet} = req.body
-        let featuredImage = ''
-        if (req.file) {
-          // Upload an image
-          const uploadResult = await cloudinary.uploader
-              .upload(
-                  req.file.path,
-                  { folder: 'mascotas', resource_type: 'auto' }
-              )
-              .catch((error) => {
-                 console.log("error")
-              });
-          featuredImage = uploadResult.secure_url
-         
-      }
-      console.log(featuredImage)
-     const data = Pet.create({
-      user: user,
-      pet_name: name,
-      pet_gender: gender,
-      pet_dob: dob,
-      pet: pet,
-      pet_race: race,
-      pet_height: height,
-      pet_weight: weight,
-      pet_microchip_number: microchip_number,
-      pet_description: description,
-      pet_color:color,
-      pet_image: featuredImage
-     });
-        res.json({ success: true, message: "Pet information saved successfully", data})
-      
-    } catch (error) {
-      console.log(error.message);
-      return res.json({ success: false, message: error.message });
-    }
-  };
+const cloudinary = require("cloudinary").v2;
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_APP_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
   const get_pet = async(req,res)=>{
     try {
       const { user} = req.body;
+      console.log(req.body);
       let data = await Pet.find({ user: user });
       res.json({ success: true, message: "Pet information fetched successfully", pets_list: data});
       
@@ -51,13 +19,12 @@ const pet_register = async (req, res) => {
       return res.json({ success: false, message: error.message });
     }
   }
-
   const petvaccine = async (req, res) => {
     try {
-      const  {user,vaccine,vaccine_date,vaccine_reminder,vaccine_price,veterinary_managed} = req.body
+      const  {id,vaccine,vaccine_date,vaccine_reminder,vaccine_price,veterinary_managed} = req.body
    
 
-      const check = await Pet.findOne({ user: user });
+      const check = await Pet.findOne({ _id: id });
       if (check) {
         const data = await Pet.findByIdAndUpdate(
           { _id: check._id },
@@ -80,10 +47,21 @@ const pet_register = async (req, res) => {
       return res.status(500).json({ success: false, message: error.message });
     }
   }
+
+  const getVaccineReminder = async(req,res)=>{
+    try {
+      
+      const vaccine = await Pet.findOne({ _id:req.body.id });
+      res.status(200).json({success: true, message: "vaccine reminder fetched successfully",data: vaccine});
+    } catch (error) {
+      console.error('Error fetching pets:', error);
+      res.status(500).json({success:false,  message: error.message });
+    }
+  }
   const petdeworming = async (req, res) => {
     try {
-      const  {user,type,method,deworming_date,deworming_reminder,deworming_price,used_product} = req.body
-      const check = await Pet.findOne({ user: user });
+      const  {id,type,method,deworming_date,deworming_reminder,deworming_price,used_product} = req.body
+      const check = await Pet.findOne({ _id: id });
       if (check) {
         const data = await Pet.findByIdAndUpdate(
           { _id: check._id },
@@ -110,8 +88,8 @@ const pet_register = async (req, res) => {
   }
   const petdisease = async (req, res) => {
     try {
-      const  {user,name,title,description,diagnosis_date,start_date,end_date,reminder_date,diagnosis,price} = req.body
-      const check = await Pet.findOne({ user: user });
+      const  {id,name,title,description,diagnosis_date,start_date,end_date,reminder_date,diagnosis,price} = req.body
+      const check = await Pet.findOne({ _id: id });
       if (check) {
         const data = await Pet.findByIdAndUpdate(
           { _id: check._id },
@@ -139,8 +117,8 @@ const pet_register = async (req, res) => {
   }
   const petsurgery = async (req, res) => {
     try {
-      const  {user,type,date,description,name,reminder_date,price} = req.body
-      const check = await Pet.findOne({ user: user });
+      const  {id,type,date,description,name,reminder_date,price} = req.body
+      const check = await Pet.findOne({ _id: id });
       if (check) {
         const data = await Pet.findByIdAndUpdate(
           { _id: check._id },
@@ -165,8 +143,8 @@ const pet_register = async (req, res) => {
   }
   const petmedicalcheckup = async (req, res) => {
     try {
-      const  {user,date,results,name,reminder_date,price} = req.body
-      const check = await Pet.findOne({ user: user });
+      const  {id,date,results,name,reminder_date,price} = req.body
+      const check = await Pet.findOne({ _id: id });
       if (check) {
         const data = await Pet.findByIdAndUpdate(
           { _id: check._id },
@@ -191,8 +169,8 @@ const pet_register = async (req, res) => {
   }
   const petallergy = async (req, res) => {
     try {
-      const  {user,type,title,symptoms,reminder_date} = req.body
-      const check = await Pet.findOne({ user: user });
+      const  {id,type,title,symptoms,reminder_date} = req.body
+      const check = await Pet.findOne({ _id: id });
       if (check) {
         const data = await Pet.findByIdAndUpdate(
           { _id: check._id },
@@ -217,8 +195,8 @@ const pet_register = async (req, res) => {
   const petdose = async (req, res) => {
     try {
       console.log(req.body);
-      const  {user,name,dose,frequency,reminder_date,start_date,end_date,price} = req.body
-      const check = await Pet.findOne({ user: user });
+      const  {id,name,dose,frequency,reminder_date,start_date,end_date,price} = req.body
+      const check = await Pet.findOne({ _id: id });
       if (check) {
         const data = await Pet.findByIdAndUpdate(
           { _id: check._id },
@@ -245,8 +223,8 @@ const pet_register = async (req, res) => {
   }
   const petdiet = async (req, res) => {
     try {
-      const  {user,name,description,recommend,price,date} = req.body
-      const check = await Pet.findOne({ user: user });
+      const  {id,name,description,recommend,price,date} = req.body
+      const check = await Pet.findOne({ _id: id });
       if (check) {
         const data = await Pet.findByIdAndUpdate(
           { _id: check._id },
@@ -270,8 +248,8 @@ const pet_register = async (req, res) => {
   }
   const petactivity = async (req, res) => {
     try {
-      const  {user,type,description,date,duration,travelled,altitude,location,difficult,fun} = req.body
-      const check = await Pet.findOne({ user: user });
+      const  {id,type,description,date,duration,travelled,altitude,location,difficult,fun} = req.body
+      const check = await Pet.findOne({ _id: id });
       if (check) {
         const data = await Pet.findByIdAndUpdate(
           { _id: check._id },
@@ -299,8 +277,8 @@ const pet_register = async (req, res) => {
   }
   const pethair = async (req, res) => {
     try {
-      const  {user,service,description,date,price} = req.body
-      const check = await Pet.findOne({ user: user });
+      const  {id,service,description,date,price} = req.body
+      const check = await Pet.findOne({ _id: id });
       if (check) {
         const data = await Pet.findByIdAndUpdate(
           { _id: check._id },
@@ -323,8 +301,8 @@ const pet_register = async (req, res) => {
   }
   const petEmergency = async (req, res) => {
     try {
-      const  {user,name,phone,email,address} = req.body
-      const check = await Pet.findOne({ user: user });
+      const  {id,name,phone,email,address} = req.body
+      const check = await Pet.findOne({ _id: id });
       if (check) {
         const data = await Pet.findByIdAndUpdate(
           { _id: check._id },
@@ -346,47 +324,7 @@ const pet_register = async (req, res) => {
     }
   }
 
-const lostPet = async (req, res) => {
-    try { 
-        const {user,name,location,date,time,contact,details} = req.body
-        console.log(req.body);
-if (!req?.files?.picture)
-      return res.status(400).json({success: false, message: "Please upload the pet image"});
 
-      const file = req.files.picture;
-    const result = await cloudinary.uploader.upload(file.tempFilePath, {
-      public_id: file.name,
-      resource_type: "image",
-      folder: "mascotas",
-    });
-     const data = await Lost.create({
-      user: user,
-      pet_name: name,
-      location: location,
-      date: date,
-      time: time,
-      contact: contact,
-      details: details,
-      pet_image: result.secure_url
-     });
-        res.json({ success: true, message: "Lost Pet information has been saved successfully", data})
-      
-    } catch (error) {
-      console.log(error.message);
-      return res.json({ success: false, message: error.message });
-    }
-  };
-
-  const allLostPets = async(req,res)=>{
- try {
-    const users = await Lost.find({ user:  req.body.user });
-    res.status(200).json({success: true, message: "lost pets fetched successfully",data: users});
-  } catch (error) {
-    console.error('Error fetching pets:', error);
-    res.status(500).json({success:false,  message: error.message });
-  }
-}
-  //post favorite
 const postFavorite = async (req, res) => {
   try {
     const {id} = req.body;
@@ -416,6 +354,43 @@ const postFavorite = async (req, res) => {
 };
 
 
+
+const pet_register = async (req, res) => {
+  try {
+      const {user,name,gender,dob,weight,height,microchip_number,race,description,color,pet} = req.body
+      console.log(req.body)
+      if (!req?.files?.picture)
+        return res.status(400).json({success: false, message: "Please upload the ad image image."});
+      const file = req.files.picture;
+      const result = await cloudinary.uploader.upload(file.tempFilePath, {
+        public_id: file.name,
+        resource_type: "image",
+        folder: "mascotas",
+      });
+      if(result){
+        const data = await Pet.create({
+          user: user,
+          pet_name: name,
+          pet_gender: gender,
+          pet_dob: dob,
+          pet: pet,
+          pet_race: race,
+          pet_height: height,
+          pet_weight: weight,
+          pet_microchip_number: microchip_number,
+          pet_description: description,
+          pet_color:color,
+          pet_image:  result.secure_url
+         });
+            res.json({ success: true, message: "Pet information saved successfully", data})
+      }
+  } catch (error) {
+    console.log(error.message);
+    return res.json({ success: false, message: error.message });
+  }
+};
+
+
   module.exports = {
     pet_register,
     get_pet,
@@ -430,7 +405,6 @@ const postFavorite = async (req, res) => {
     petactivity,
     pethair,
     petEmergency,
-    lostPet,
-    allLostPets,
-    postFavorite
+    postFavorite,
+    getVaccineReminder
   }

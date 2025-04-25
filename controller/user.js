@@ -33,7 +33,7 @@ const registerowner = async (req, res) => {
           { _id: check._id },
           {
             $set: {
-              "phone": phone,
+          "phone": phone,
           "firstname": firstname,
           "lastname": lastname,
           "address": address,
@@ -64,21 +64,15 @@ const registerowner = async (req, res) => {
       if (!passwordCompare) {
         return res.status(400).json({ success: false, message: "Please provide correct password." });
       }
-     // delete check.password;
-      res.status(200).json({ success: true, role: user.role, user_details: check });
-    //   const data = {
-    //     user: {
-    //       id: user.id
-    //     }
-    //   }
-    //   const tokenData = await user.findByIdAndUpdate(
-    //     { _id: check._id },
-    //     { $set: { device_token: token } },
-    //     { new: true });
-    //   if (tokenData) {
-    //     const accessToken = jwt.sign(data, process.env.JWT_SECRET_KEY);
-    //     res.json({ success: true, role: user.role, accessToken, id: check._id });
-    //   }
+      const tokenData = await user.findByIdAndUpdate(
+        { _id: check._id },
+        { $set: { device_token: token } },
+        { new: true });
+      if (tokenData) {
+        
+       // const accessToken = jwt.sign(data, process.env.JWT_SECRET_KEY);
+        res.json({ success: true,message: "user logged in",user_details: tokenData });
+      }
   
     } catch (error) {
       console.error(error.message);
@@ -101,14 +95,15 @@ const fetchUsers = async (req,res)=>{
 
 const badge = async (req,res)=>{
   try {
-      const  {id} = req.body
+      const  {id,name} = req.body
       const check = await user.findOne({ _id : id });
       if (check) {
         const data = await user.findByIdAndUpdate(
           { _id: check._id },
           {
             $set: {
-              "badge_subscription": true
+              "badge_subscription": true,
+              "badge_name": name
             },
           },
           { new: true }

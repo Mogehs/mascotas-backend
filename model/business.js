@@ -15,44 +15,47 @@ const businessSchema = new Schema({
         type: String
     },
     company_logo:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     phone:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     email:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     website:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     social:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     physical_address:{
-        type: String
+        type: String,
+        default: 'Not Found'
     },
     branches:{
+        type: String,
+        default: 'N/A'
+    },
+    additional:{
+        type: String,
+        default: 'N/A'
+    },
+    latitude:{
         type: String
     },
-    operation_timing:[String],
-    // content:{
-    //     type: String
-    // },
-    //  add_link:{
-    //     type: String
-    // },
-    //  payment_method:{
-    //  type: String
-    // },
-    //   billing_name:{
-    //     type: String
-    // },
-    //   billing_address:{
-    //     type: String
-    // },
-     tax_identification_number:{
+    longitude:{
         type: String
+    },
+    operation_timing: {},
+     tax_identification_number:{
+        type: String,
+        default: 'N/A'
     },
 },{
     timestamps: true

@@ -1,45 +1,102 @@
- const cloudinary = require("../config/cloudinary");
+const cloudinary = require("cloudinary").v2;
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_APP_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+});
 const Business = require("../model/business");
 const businessRegister = async (req, res) => {
     try {
-      console.log(req.body);
-        const {id,name,description,branch,type,phone,email,address,website,operation_timings,tax} = req.body
-        let featuredImage = ''
-        if (req.file) {
-          // Upload an image
-          const uploadResult = await cloudinary.uploader
-              .upload(
-                  req.file.path,
-                  { folder: 'mascotas', resource_type: 'auto' }
-              )
-              .catch((error) => {
-                 console.log("error")
-              });
-          featuredImage = uploadResult.secure_url
-         
-      }
-      console.log(featuredImage)
-     const data = Business.create({
-      id: id,
-      company_name: name,
-      company_type: type,
-      company_description: description,
-      company_logo: featuredImage,
-      phone: phone,
-      branches: branch,
-      email: email,
-      physical_address: address,
-      website: website,
-      operation_timing: operation_timings,
-      tax_identification_number: tax
-     });
-        res.status(200).json({ success: true, message: "Business information saved successfully", data})
       
+        const {id,name,type,description,branch,phone,email,website,address,operation_timings,tax,addition} = req.body
+        console.log(req.body);
+        const data = await Business.create({
+          id:id,
+          company_name: name,
+          company_type: type,
+          company_description: description,
+          branches: branch,
+          phone: phone,
+          email: email,
+          website: website,
+          additional: addition,
+          physical_address: address,
+          operation_timing: operation_timings,
+          tax_identification_number: tax
+         });
+            res.status(200).json({ success: true, message: "Business information saved successfully", business: data._id})
+         
     } catch (error) {
       console.log(error.message);
       return res.status(500).json({ success: false, message: error.message });
     }
   };
+
+  const uploadBusinessImage = async(req,res)=>{
+    try {
+       if (!req?.files?.picture)
+          return res.status(400).json({success: false, message: "Please upload the pet image."});
+        const file = req.files.picture;
+        const result = await cloudinary.uploader.upload(file.tempFilePath, {
+          public_id: file.name,
+          resource_type: "image",
+          folder: "mascotas",
+        });
+        console.log(result);
+        console.log(req.body.uid);
+        if(result){
+          const data = await Business.findByIdAndUpdate(
+                   { _id: req.body.uid },
+                   {
+                     $set: {
+                    company_logo: result.secure_url,
+                     },
+                   },
+                   { new: true }
+                 );
+          res.status(200).json({success: true, message: "Image uploaded successfully"});       
+        }   
+    } catch (error) {
+      console.log(error.message);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
+  const uploadLatlng = async(req,res)=>{
+    try {
+          const data = await Business.findByIdAndUpdate(
+                   { _id: req.body.uid },
+                   {
+                     $set: {
+                    latitude: req.body.lat,
+                    longitude: req.body.lon
+                     },
+                   },
+                   { new: true }
+                 );
+          res.status(200).json({success: true, message: "Business form have been completed successfully"});       
+          
+    } catch (error) {
+      console.log(error.message);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
+  const getBusiness = async(req,res)=>{
+    try {
+      
+      const data = await Business.find();
+      res.status(200).json({success: true, message: "Business are fetcched", data: data});
+
+    } catch (error) {
+      console.log(error.message);
+      res.status(500).json({success: false, message: error.message});
+    }
+  }
+
   module.exports = {
-   businessRegister
+   businessRegister,
+   uploadBusinessImage,
+   uploadLatlng,
+   getBusiness
   }

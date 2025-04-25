@@ -25,7 +25,15 @@ const lostSchema = new Schema({
     },
    pet_image:{
     type: String
-   } 
+   },
+   latitude:{
+    type: String,
+    default: "N/A"
+   },
+   longitude:{
+    type: String,
+    default: "N/A"
+   }
 },{
     timestamps: true
 },{

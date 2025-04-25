@@ -51,196 +51,261 @@ const petschema = new Schema({
         type: String
     },
     pet_vaccine:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     pet_vaccine_date:{
-        type: String
+        type: String,
+         default: 'N/A'
     },
     veterinary_managed:{
-        type: String
+        type: String,
+         default: 'N/A'
     },
     pet_vaccine_reminder_date:{
-        type: String
+        type: String,
+         default: 'N/A'
     },
     pet_vaccine_price:{
-        type: String
+        type: String,
+         default: 'N/A'
     },
     pet_deworming_type:{
-        type: String
+        type: String,
+         default: 'N/A'
     },
     pet_deworming_method:{
-        type: String
+        type: String,
+         default: 'N/A'
     },
     pet_deworming_date:{
-        typ: String
+        type: String,
+      default: 'N/A'
     },
     pet_deworming_reminder_date:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     used_product_in_deworming:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     pet_deworming_price:{
-        type: String
+        type: String,
+          default: 'N/A'
     },
     pet_disease_name:{
-        type: String
+        type: String,
+         default: 'N/A'
     },
     pet_disease_title:{
-        type: String
+        type: String,
+         default: 'N/A'
     },
     pet_disease_description:{
-        type: String
+        type: String,
+         default: 'N/A'
     },
     pet_date_diagnosis:{
-        type: String
+        type: String,
+         default: 'N/A'
     },
     pet_treatment_start_date:{
-        type: String
+        type: String,
+         default: 'N/A'
     },
     pet_treatment_end_date:{
-        type: String
+        type: String,
+        default: 'N/A'
+        
     },
     pet_treatment_remider_date:{
-   type: String
+   type: String,
+   default: 'N/A'
     },
     pet_veterinarian_diagnosis:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     pet_treatment_price:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     pet_surgery_type:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     pet_date_surgery:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     pet_description_surgery:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     veterinarian_name:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     post_operation_reminder:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     surgery_price:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     medical_check_up_date:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     check_results:{
-     type: String
+     type: String,
+     default: 'N/A'
     },
     veterinarian:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     next_check_up_reminder:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     check_up_price:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     allergy_type:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     allergy_title:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     allergy_symptoms:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     allergy_reminder_date:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     drug_name:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     dosage:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     frequency:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     dose_start_date:{
-       type: String
+       type: String,
+       default: 'N/A'
     },
     dose_end_date:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     dose_reminder:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     dose_price:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     diet_name:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     diet_description:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     recommend:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     diet_price:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     diet_review_date:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     activity_type:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     activity_description:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     activity_date:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     activity_duration:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     distance_traveled:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     altitude_reached:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     activity_location:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     difficulty:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     fun_level:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     hair_service:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     hair_description:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     date_served:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     hair_price:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     emergency_veterinarian_name:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     emergency_phone:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     emergency_email:{
-        type: String
+        type: String,
+        default: 'N/A'
     },
     emergency_address:{
-        type:  String
+        type:  String,
+        default: 'N/A'
     },
     likes:[likeSchema]
     
