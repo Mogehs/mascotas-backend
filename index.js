@@ -27,6 +27,7 @@ const fileUpload = require("express-fileupload");
 app.use(fileUpload({useTempFiles: true,limits: {fileSize: 500*2024*1024}}))
 app.use("/api/auth/",require("./route/user"));
 app.use("/api/pet/",require("./route/pet"));
+app.use("/api/medical/",require("./route/medicalhistory"));
 app.use("/api/language/",require('./route/language'));
 app.use("/api/order/",require("./route/order"));
 app.use("/api/lost/",require('./route/lost'));
