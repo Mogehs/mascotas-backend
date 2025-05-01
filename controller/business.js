@@ -5,6 +5,7 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET
 });
 const Business = require("../model/business");
+const User = require("../model/user")
 const businessRegister = async (req, res) => {
     try {
       
@@ -24,6 +25,15 @@ const businessRegister = async (req, res) => {
           operation_timing: operation_timings,
           tax_identification_number: tax
          });
+          await User.findByIdAndUpdate(
+          { _id: id },
+          {
+            $set: {
+              company_registered: true
+            },
+          },
+          { new: true }
+        );
             res.status(200).json({ success: true, message: "Business information saved successfully", business: data._id})
          
     } catch (error) {

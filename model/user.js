@@ -47,6 +47,10 @@ const userSchema = new Schema({
     },
     device_token:{
         type: String
+    },
+    company_registered:{
+        type: Boolean,
+        default: false
     }
 },{
     timestamps: true

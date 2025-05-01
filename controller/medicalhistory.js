@@ -1,21 +1,4 @@
 const Medical = require("../model/medicalhistory");
- // const check = await Pet.findOne({ _id: id });
-      // if (check) {
-      //   const data = await Pet.findByIdAndUpdate(
-      //     { _id: check._id },
-      //     {s
-      //       $set: { 
-      //        "pet_vaccine": vaccine,
-      //         "pet_vaccine_date": vaccine_date,
-      //         "pet_vaccine_reminder_date": vaccine_reminder,
-      //         "pet_vaccine_price": vaccine_price,
-      //         "veterinary_managed": veterinary_managed
-      //       },
-      //     },
-      //     { new: true }
-      //   );
-
-
 const petvaccine = async (req, res) => {
     try {
       const  {id,vaccine,vaccine_date,vaccine_reminder,vaccine_price,veterinary_managed} = req.body
@@ -28,6 +11,32 @@ const petvaccine = async (req, res) => {
               "pet": id
         });
         res.status(200).json({ success: true,message: "Vacuna añadida con éxito", id: data._id }); 
+    } catch (error) {
+      console.log(error.message);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  }
+  const updatevaccine = async (req, res) => {
+    try {
+      const  {id,vaccine,vaccine_date,vaccine_reminder,vaccine_price,veterinary_managed} = req.body
+      const check = await Medical.findOne({ _id: id });
+      if (check) {
+        const data = await Medical.findByIdAndUpdate(
+          { _id: check._id },
+          {
+            $set: {
+              "pet_vaccine": vaccine,
+              "pet_vaccine_date": vaccine_date,
+              "pet_vaccine_reminder_date": vaccine_reminder,
+              "pet_vaccine_price": vaccine_price,
+              "veterinary_managed": veterinary_managed,
+            },
+          },
+          { new: true }
+        );
+
+        res.status(200).json({ success: true,message: "Los datos de la vacuna han sido editados", id: data._id }); 
+      }
     } catch (error) {
       console.log(error.message);
       return res.status(500).json({ success: false, message: error.message });
@@ -61,14 +70,12 @@ const petvaccine = async (req, res) => {
               "pet_deworming_reminder_date": deworming_reminder,
               "used_product_in_deworming": used_product,
                "pet_deworming_price":deworming_price,
-            
             },
           },
           { new: true }
         );
         res.status(200).json({ success: true, message: "Desparasitación añadida con éxito", pet_details: data })
       }
-  
     } catch (error) {
       console.log(error.message);
       return res.status(500).json({ success: false, message: error.message });
@@ -311,9 +318,6 @@ const petvaccine = async (req, res) => {
       return res.status(500).json({ success: false, message: error.message });
     }
   }
-
-
-
   module.exports = {
     petvaccine,
     fetchMedicalHistory,
@@ -326,5 +330,6 @@ const petvaccine = async (req, res) => {
     petdiet,
     petactivity,
     pethair,
-    petEmergency
+    petEmergency,
+    updatevaccine
   }
