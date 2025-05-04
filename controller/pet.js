@@ -11,8 +11,8 @@ cloudinary.config({
     try {
       const { user} = req.body;
       console.log(req.body);
-      let data = await Pet.find({ user: user });
-      res.json({ success: true, message: "Pet information fetched successfully", pets_list: data});
+      let data = await Pet.find({ user: user }).populate('user', 'firstname lastname phone address')
+      res.json({ success: true, message: "Información de la mascota obtenida correctamente", pets_list: data});
       
     } catch (error) {
       console.log(error.message);
@@ -59,7 +59,7 @@ cloudinary.config({
     try {
       
       const vaccine = await Pet.findOne({ _id:req.body.id });
-      res.status(200).json({success: true, message: "vaccine reminder fetched successfully",data: vaccine});
+      res.status(200).json({success: true, message: "recordatorio de vacuna obtenido con éxito",data: vaccine});
     } catch (error) {
       console.error('Error fetching pets:', error);
       res.status(500).json({success:false,  message: error.message });
@@ -82,12 +82,12 @@ const postFavorite = async (req, res) => {
       { $unset: { likes: "" } },
       { new: true }
     );
-     res.status(200).json({ success: true, message: "You removed from the favorite" });
+     res.status(200).json({ success: true, message: "Te eliminaron de favoritos" });
   
     }else{
     data.likes.push(req.body);
     await data.save();
-    return res.status(200).json({ success: true, message: "You favorite the pet." });
+    return res.status(200).json({ success: true, message: "Tu favorita la mascota." });
     }
    
   } catch (error) {
@@ -125,7 +125,7 @@ const pet_register = async (req, res) => {
           pet_color:color,
           pet_image:  result.secure_url
          });
-            res.json({ success: true, message: "Pet information saved successfully", data})
+            res.json({ success: true, message: "La información de la mascota se guardó correctamente", data})
       }
   } catch (error) {
     console.log(error.message);

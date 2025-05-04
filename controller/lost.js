@@ -10,7 +10,7 @@ const lostPet = async (req, res) => {
   try { 
       const {user,name,location,date,time,contact,details,latitude,longitude} = req.body
 if (!req?.files?.picture)
-    return res.status(400).json({success: false, message: "Please upload the pet image"});
+    return res.status(400).json({success: false, message: "Por favor sube la imagen de la mascota"});
 
     const file = req.files.picture;
   const result = await cloudinary.uploader.upload(file.tempFilePath, {
@@ -41,7 +41,7 @@ if (!req?.files?.picture)
 const allLostPets = async(req,res)=>{
 try {
   const users = await Lost.find({ user:  req.body.user });
-  res.status(200).json({success: true, message: "lost pets fetched successfully",data: users});
+  res.status(200).json({success: true, message: "Mascotas perdidas recuperadas con éxito",data: users});
 } catch (error) {
   console.error('Error fetching pets:', error);
   res.status(500).json({success:false,  message: error.message });
