@@ -53,7 +53,43 @@ const petschema = new Schema({
     pet_description:{
         type: String
     },
-    likes:[likeSchema]
+    likes:[likeSchema],
+    isNeutered:{
+        type: String,
+        default: 'No'
+    },
+    temperament:{
+        type: [String]
+    },
+    pet_socialize:{
+        type: String,
+        default: 'No'
+    },
+    preferred_time:{
+        type: [String]
+    },
+    preferred_location:{
+        type: String,
+        default: 'N/A'
+    },
+    pet_size:{
+        type: String,
+        default: 'Todos'
+    },
+    distance:{
+        type: String
+    },
+    preferred_age:{
+        type: String,
+        default: '1-5 años'
+    },
+    notes_other:{
+        type: String,
+        default: 'Prefiere perros tranquilos'
+    }
+
+
+
     
 },{
     timestamps: true

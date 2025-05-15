@@ -133,9 +133,37 @@ const pet_register = async (req, res) => {
   }
 };
 
+const dogmatch = async(req,res)=>{
+  try {
+    const  {id,neutered,temperament,socialize,time,location,size,distance,age,notes} = req.body
+    const data = await Pet.findByIdAndUpdate(
+      { _id: id },
+      {
+        $set: {
+          "isNeutered": neutered,
+          "temperament": temperament,
+          "pet_socialize": socialize,
+          "preferred_time": time,
+          "preferred_location": location,
+           "pet_size":size,
+           "distance":distance,
+           "preferred_age":age,
+           "notes_other": notes
+        },
+      },
+      { new: true }
+    );
+    res.status(200).json({ success: true, message: "Se ha guardado la información del partido del perro", pet_details: data })
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
+
 
   module.exports = {
     pet_register,
     get_pet,
-    postFavorite
+    postFavorite,
+    dogmatch
   }
