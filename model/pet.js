@@ -27,7 +27,6 @@ const petschema = new Schema({
     pet_color:{
         type: String
     },
-  
     pet_image:{
         type:  String
     },
