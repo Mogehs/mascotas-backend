@@ -561,6 +561,38 @@ const petvaccine = async (req, res) => {
     }
   }
 
+  const registration = async (req, res) => {
+    try {
+      const  {id,type,description,date,duration,travelled,location,fun} = req.body
+
+      if (!req?.files?.picture)
+        return res.status(400).json({success: false, message: "Please upload the ad image image."});
+      const file = req.files.picture;
+      const result = await cloudinary.uploader.upload(file.tempFilePath, {
+        public_id: file.name,
+        resource_type: "image",
+        folder: "mascotas",
+      });
+      if(result){
+        const data = await Medical.create({
+          "personal_type": type,
+              "personal_description": description,
+              "personal_date": date,
+              "personal_duration": duration,
+              "personal_location": location,
+              "personal_travelled": travelled,
+              "personal_fun": fun,
+              "personal_image": result.secure_url,
+              "pet": id
+        });
+        res.status(200).json({ success: true,message: "Información de Registro personal y ocio guardada correctamente", id: data._id }); 
+      }
+    } catch (error) {
+      console.log(error.message);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
   module.exports = {
     petvaccine,
     fetchMedicalHistory,
@@ -585,5 +617,6 @@ const petvaccine = async (req, res) => {
     updatehair,
     updatesurgery,
     fetchMedicalDetails,
-    deleteMedical
+    deleteMedical,
+    registration
   }
