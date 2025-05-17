@@ -8,6 +8,7 @@ const app = express();
 const  mongoose = require("mongoose");
 const cors = require("cors");
 app.use(express.json());
+const cron = require('node-cron');
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
@@ -122,6 +123,17 @@ app.get("/chatHistory/:senderId/:receiverId",async(req,res)=>{
     res.status(500).json({error: 'Failed to fetch messages'})
   }
 })
+
+// function create_cron_date(seconds, minute, hour, day_of_month, month, day_of_week) {
+//   return `${seconds} ${minute} ${hour} ${day_of_month} ${month} ${day_of_week}`;
+// }
+
+// const everyMinuteCron = create_cron_date('*', '*/30', '*', '*', '*', '*');
+// cron.schedule(everyMinuteCron, () => {
+//   console.log('Running every minute:', new Date().toLocaleTimeString());
+// });
+
+
 
 
 const users = {}; 

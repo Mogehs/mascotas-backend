@@ -31,6 +31,9 @@ const medicalSchema = new Schema({
         type: String,
          default: 'N/A'
     },
+    pet_vaccine_image:{
+        type: String
+    },
     pet_deworming_type:{
         type: String,
          default: 'N/A'
@@ -54,6 +57,9 @@ const medicalSchema = new Schema({
     pet_deworming_price:{
         type: String,
           default: 'N/A'
+    },
+    pet_deworming_image:{
+        type: String
     },
     pet_disease_name:{
         type: String,
@@ -211,6 +217,9 @@ const medicalSchema = new Schema({
         type: String,
         default: 'N/A'
     },
+    activity_image:{
+        type: String
+    },
     activity_duration:{
         type: String,
         default: 'N/A'
@@ -242,6 +251,9 @@ const medicalSchema = new Schema({
     hair_description:{
         type: String,
         default: 'N/A'
+    },
+    hair_image:{
+        type: String,
     },
     date_served:{
         type: String,

@@ -1,16 +1,34 @@
 const Medical = require("../model/medicalhistory");
+const cloudinary = require("cloudinary").v2;
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_APP_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+});
 const petvaccine = async (req, res) => {
     try {
       const  {id,vaccine,vaccine_date,vaccine_reminder,vaccine_price,veterinary_managed} = req.body
+
+      if (!req?.files?.picture)
+        return res.status(400).json({success: false, message: "Please upload the ad image image."});
+      const file = req.files.picture;
+      const result = await cloudinary.uploader.upload(file.tempFilePath, {
+        public_id: file.name,
+        resource_type: "image",
+        folder: "mascotas",
+      });
+      if(result){
         const data = await Medical.create({
-              "pet_vaccine": vaccine,
-              "pet_vaccine_date": vaccine_date,
-              "pet_vaccine_reminder_date": vaccine_reminder,
-              "pet_vaccine_price": vaccine_price,
-              "veterinary_managed": veterinary_managed,
-              "pet": id
-        });
-        res.status(200).json({ success: true,message: "Vacuna añadida con éxito", id: data._id }); 
+          "pet_vaccine": vaccine,
+          "pet_vaccine_date": vaccine_date,
+          "pet_vaccine_reminder_date": vaccine_reminder,
+          "pet_vaccine_price": vaccine_price,
+          "veterinary_managed": veterinary_managed,
+          "pet_vaccine_image": result.secure_url,
+          "pet": id
+    });
+    res.status(200).json({ success: true,message: "Vacuna añadida con éxito", id: data._id }); 
+      }
     } catch (error) {
       console.log(error.message);
       return res.status(500).json({ success: false, message: error.message });
@@ -58,6 +76,15 @@ const petvaccine = async (req, res) => {
   const petdeworming = async (req, res) => {
     try {
       const  {id,type,method,deworming_date,deworming_reminder,deworming_price,used_product} = req.body
+      if (!req?.files?.picture)
+        return res.status(400).json({success: false, message: "Please upload the ad image image."});
+      const file = req.files.picture;
+      const result = await cloudinary.uploader.upload(file.tempFilePath, {
+        public_id: file.name,
+        resource_type: "image",
+        folder: "mascotas",
+      });
+       if(result){
         const data = await Medical.create({
           "pet_deworming_type": type,
           "pet_deworming_method": method,
@@ -65,9 +92,11 @@ const petvaccine = async (req, res) => {
           "pet_deworming_reminder_date": deworming_reminder,
           "used_product_in_deworming": used_product,
            "pet_deworming_price":deworming_price,
+           "pet_deworming_image": result.secure_url,
            "pet": id
         });
-        res.status(200).json({ success: true,message: "Desparasitación añadida con éxito", id: data._id }); 
+        res.status(200).json({ success: true,message: "Desparasitación añadida con éxito", id: data._id });
+       } 
     } catch (error) {
       console.log(error.message);
       return res.status(500).json({ success: false, message: error.message });
@@ -369,6 +398,16 @@ const petvaccine = async (req, res) => {
   const petactivity = async (req, res) => {
     try {
       const  {id,type,description,date,duration,travelled,altitude,location,difficult,fun} = req.body
+
+      if (!req?.files?.picture)
+        return res.status(400).json({success: false, message: "Please upload the ad image image."});
+      const file = req.files.picture;
+      const result = await cloudinary.uploader.upload(file.tempFilePath, {
+        public_id: file.name,
+        resource_type: "image",
+        folder: "mascotas",
+      });
+      if(result){
         const data = await Medical.create({
           "activity_type": type,
               "activity_description": description,
@@ -379,9 +418,11 @@ const petvaccine = async (req, res) => {
               "activity_location": location,
               "difficulty": difficult,
               "fun_level": fun,
+              "activity_image": result.secure_url,
               "pet": id
         });
         res.status(200).json({ success: true,message: "Información de actividades y ocio guardada correctamente", id: data._id }); 
+      }
     } catch (error) {
       console.log(error.message);
       return res.status(500).json({ success: false, message: error.message });
@@ -419,14 +460,26 @@ const petvaccine = async (req, res) => {
   const pethair = async (req, res) => {
     try {
       const  {id,service,description,date,price} = req.body
+
+      if (!req?.files?.picture)
+        return res.status(400).json({success: false, message: "Please upload the ad image image."});
+      const file = req.files.picture;
+      const result = await cloudinary.uploader.upload(file.tempFilePath, {
+        public_id: file.name,
+        resource_type: "image",
+        folder: "mascotas",
+      });
+      if(result){
         const data = await Medical.create({
           "hair_service": service,
               "hair_description": description,
               "date_served": date,
               "hair_price": price,
+              "hair_image": result.secure_url,
               "pet": id
         });
         res.status(200).json({ success: true,message: "La información del pelo de la mascota se guardó correctamente", id: data._id }); 
+      }
     } catch (error) {
       console.log(error.message);
       return res.status(500).json({ success: false, message: error.message });
