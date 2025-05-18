@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const{petvaccine,fetchMedicalHistory,petdeworming,petdisease,petsurgery,petmedicalcheckup,petallergy,petdose,petdiet,petactivity,pethair,petEmergency,updatevaccine,updatedeworming,updatedisease,updatesurgery,updatemedicalcheckup,updateallergy,updatedose,updatediet,updatehair,updateactivity,fetchMedicalDetails,deleteMedical,registration} = require("../controller/medicalhistory")
+const{petvaccine,fetchMedicalHistory,petdeworming,petdisease,petsurgery,petmedicalcheckup,petallergy,petdose,petdiet,petactivity,pethair,petEmergency,updatevaccine,updatedeworming,updatedisease,updatesurgery,updatemedicalcheckup,updateallergy,updatedose,updatediet,updatehair,updateactivity,fetchMedicalDetails,deleteMedical,registration,updateRegistration} = require("../controller/medicalhistory")
 
 router.post("/add_vaccine",petvaccine);
 router.post("/",fetchMedicalHistory);
@@ -27,6 +27,7 @@ router.post("/update-hair",updatehair)
 router.post("/veterinary-card",fetchMedicalDetails)
 router.post("/delete-medical",deleteMedical)
 router.post("/personal",registration)
+router.post("/update-registration",updateRegistration)
 
 
  module.exports = router

@@ -593,6 +593,34 @@ const petvaccine = async (req, res) => {
     }
   }
 
+  const updateRegistration = async (req, res) => {
+    try {
+      const  {id,type,description,date,duration,travelled,location,fun} = req.body
+      const check = await Medical.findOne({ pet: id });
+      if (check) {
+        const data = await Medical.findByIdAndUpdate(
+          { _id: check._id },
+          {
+            $set: {
+             "personal_type": type,
+              "personal_description": description,
+              "personal_date": date,
+              "personal_duration": duration,
+              "personal_location": location,
+              "personal_travelled": travelled,
+              "personal_fun": fun,
+            },
+          },
+          { new: true }
+        );
+        res.status(200).json({ success: true, message: "La información del pelo de la mascota se guardó correctamente", pet_details: data })
+      }
+    } catch (error) {
+      console.log(error.message);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
   module.exports = {
     petvaccine,
     fetchMedicalHistory,
@@ -618,5 +646,6 @@ const petvaccine = async (req, res) => {
     updatesurgery,
     fetchMedicalDetails,
     deleteMedical,
-    registration
+    registration,
+    updateRegistration
   }
