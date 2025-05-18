@@ -280,28 +280,35 @@ const medicalSchema = new Schema({
         default: 'N/A'
     },
     personal_type:{
-        type: String
+        type: String,
+         default: 'N/A'
     },
     personal_description:{
-        type: String
+        type: String,
+         default: 'N/A'
     },
     personal_date:{
-        type: String
+        type: String,
+         default: 'N/A'
     },
     personal_duration:{
-        type: String
+        type: String,
+         default: 'N/A'
     },
     personal_travelled:{
-        type: String
+        type: String,
+         default: 'N/A'
     },
     personal_image:{
-        type: String
+        type: String,
     },
     personal_location:{
-        type: String
+        type: String,
+         default: 'N/A'
     },
     personal_fun:{
-        type: String
+        type: String,
+         default: 'N/A'
     }
 },{
     timestamps: true
