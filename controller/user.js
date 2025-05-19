@@ -45,7 +45,7 @@ const registerowner = async (req, res) => {
           },
           { new: true }
         );
-      res.status(200).json({ success: true, message: "Your owner data information is saved successfully." })
+      res.status(200).json({ success: true, message: "La información de sus datos de propietario se ha guardado correctamente." })
       
     } catch (error) {
       console.log(error.message);
@@ -169,6 +169,18 @@ const resetPassword = async(req,res)=>{
 }
 
 
+const userDetails = async (req,res)=>{
+  try {
+    const users = await user.findOne({_id: req.body.user});
+    res.status(200).json({success: true, message: "Data found", data: users});
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).json({success: false, message: error.message});
+  }
+}
+
+
+
 
   module.exports =  {
     login,
@@ -178,6 +190,7 @@ const resetPassword = async(req,res)=>{
     badge,
     business,
     checkEmail,
-    resetPassword
+    resetPassword,
+    userDetails
 
   }
