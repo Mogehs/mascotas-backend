@@ -1,11 +1,10 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 const medicalSchema = new Schema({
-    // user:{
-    //     type:mongoose.Schema.Types.ObjectId,
-    //     ref:'user',
-    //     required:true
-    //    },
+    user:{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:'user',
+       },
      pet:{
         type:mongoose.Schema.Types.ObjectId,
         ref: 'petprofiles',

@@ -51,6 +51,10 @@ const userSchema = new Schema({
     company_registered:{
         type: Boolean,
         default: false
+    },
+    is_loggedin:{
+        type: Boolean,
+        default: false
     }
 },{
     timestamps: true

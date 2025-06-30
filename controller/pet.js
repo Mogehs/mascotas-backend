@@ -96,7 +96,22 @@ const postFavorite = async (req, res) => {
   }
 };
 
-
+const discard  = async(req,res)=>{
+  try {
+   
+    const data = await Pet.findOne({ _id: req.body.id });
+    if (!data) {
+      return res.status(400).json({ success: false, message: "Pet not found" })
+    }
+    data.discards.push(req.body);
+    await data.save();
+    res.status(200).json({ success: true, message: "Descartar el perfil." });
+   
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
 
 const pet_register = async (req, res) => {
   try {
@@ -160,10 +175,23 @@ const dogmatch = async(req,res)=>{
   }
 }
 
+const deletePet = async(req,res)=>{
+  try {
+
+    const pet = await Pet.findByIdAndDelete({_id: req.body.id});
+    res.status(200).json({success: true, message: "La mascota ha sido eliminada."})
+    
+  } catch (error) {
+    res.status(500).json({success: false, message: error.message});
+  }
+}
+
 
   module.exports = {
     pet_register,
     get_pet,
     postFavorite,
-    dogmatch
+    dogmatch,
+    deletePet,
+    discard
   }

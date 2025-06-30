@@ -8,7 +8,6 @@ const Business = require("../model/business");
 const User = require("../model/user")
 const businessRegister = async (req, res) => {
     try {
-      
         const {id,name,type,description,branch,phone,email,website,address,operation_timings,tax,addition} = req.body
         console.log(req.body);
         const data = await Business.create({
@@ -64,7 +63,7 @@ const businessRegister = async (req, res) => {
                    },
                    { new: true }
                  );
-          res.status(200).json({success: true, message: "Image uploaded successfully"});       
+          res.status(200).json({success: true, message: "Imagen cargada exitosamente"});       
         }   
     } catch (error) {
       console.log(error.message);
@@ -84,7 +83,7 @@ const businessRegister = async (req, res) => {
                    },
                    { new: true }
                  );
-          res.status(200).json({success: true, message: "Business form have been completed successfully"});       
+          res.status(200).json({success: true, message: "El formulario comercial se ha completado con éxito"});       
           
     } catch (error) {
       console.log(error.message);
@@ -104,9 +103,45 @@ const businessRegister = async (req, res) => {
     }
   }
 
+  const updateBusiness = async (req, res) => {
+    try {
+      console.log("working")
+        const {id,name,type,description,branch,phone,email,website,address,operation_timings,tax,addition} = req.body
+        console.log(req.body);
+
+        const data = await Business.findByIdAndUpdate(
+          { _id: id },
+          {
+            $set: {
+             company_name: name,
+             company_type: type,
+             company_description: description,
+             branches: branch,
+             phone: phone,
+             email: email,
+             website: website,
+             additional: addition,
+             physical_address: address,
+             operation_timing: operation_timings,
+             tax_identification_number: tax
+            },
+          },
+          { new: true }
+        );
+ res.status(200).json({success: true, message: "El formulario comercial se ha completado con éxito",business: data._id});              
+    
+   
+         
+    } catch (error) {
+      console.log(error.message);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  };
+
   module.exports = {
    businessRegister,
    uploadBusinessImage,
    uploadLatlng,
-   getBusiness
+   getBusiness,
+   updateBusiness
   }

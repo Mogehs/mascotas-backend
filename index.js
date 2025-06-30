@@ -9,6 +9,7 @@ const  mongoose = require("mongoose");
 const cors = require("cors");
 app.use(express.json());
 const cron = require('node-cron');
+const moment = require("moment")
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
@@ -124,17 +125,141 @@ app.get("/chatHistory/:senderId/:receiverId",async(req,res)=>{
   }
 })
 
-// function create_cron_date(seconds, minute, hour, day_of_month, month, day_of_week) {
-//   return `${seconds} ${minute} ${hour} ${day_of_month} ${month} ${day_of_week}`;
-// }
 
-// const everyMinuteCron = create_cron_date('*', '*/30', '*', '*', '*', '*');
-// cron.schedule(everyMinuteCron, () => {
-//   console.log('Running every minute:', new Date().toLocaleTimeString());
+const Medical = require("./model/medicalhistory");
+// const task = cron.schedule('* * * * *', async() => {
+//   try {
+//     const todayFormatted = moment().format('YYYY-MM-DD');
+//     console.log('Task started at:', todayFormatted);
+    
+//     const data = await Medical.find().populate('user', '_id device_token');
+    
+//     const notificationPromises = data.map(async (medical) => {
+//       let notification = null;
+//       if(medical.pet_vaccine_date != 'N/A'){
+//         const vaccineReminderDate = moment(medical.pet_vaccine_date).subtract(1, 'day').format('YYYY-MM-DD');
+//         console.log(vaccineReminderDate);
+//         console.log(todayFormatted);
+//         if (todayFormatted === vaccineReminderDate) {
+//           notification = {
+//             title: `Vaccine Reminder for ${medical.pet.pet_name}`,
+//             body: `Your pet ${medical.pet.pet_name} has a vaccine scheduled for tomorrow (${medical.pet_vaccine_date}). Don't forget!`
+//           }``;
+//           console.log(notification);
+//       } else if(medical.pet_deworming_date != 'N/A'){
+//         const dewormingReminderDate = moment(medical.pet_deworming_date).subtract(1, 'day').format('YYYY-MM-DD'); 
+//         if (todayFormatted === dewormingReminderDate) {
+//           notification = {
+//             title: `Deworming Reminder for ${medical.pet.pet_name}`,
+//             body: `Your pet ${medical.pet.pet_name} has a deworming scheduled for tomorrow (${medical.pet_deworming_date}). Don't forget!`
+//           };
+//           console.log(notification);
+//         }
+//             }
+//          }
+//       return null;
+//     });
+    
+//     await Promise.all(notificationPromises.filter(p => p !== null));
+//     console.log('Task completed successfully');
+//   } catch (error) {
+//     console.error('Error in scheduled task:', error);
+//   }
+// }, {
+//   scheduled: true,
+//   timezone: "America/New_York" // Set your timezone
 // });
 
+// task.start();
 
+// console.log('Cron job scheduled to run every minute');
+const {JWT} = require("google-auth-library");
+const axios = require("axios")
+const SCOPES = ["https://www.googleapis.com/auth/firebase.messaging"];
+const client = new JWT({
+    email: "firebase-adminsdk-fbsvc@appmascotas-44762.iam.gserviceaccount.com",
+    key: "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC2QHsc9iHSAIkn\n+lZEaCffoBuCC3Ur+96Zf63YQ7j74pmUFbrWJr5GXMUQtz30Qf5+qrKyT+M/cbgL\nAgY0tBtrIdVhotNGj0a3WAEiXJL+8PPFzxZ1pC9ZMVEzi+XH8hq/d6Jo1SDLqAI4\nwwEskHPXwLPSyBBmzJP+7eTfaNUJU7GNoo/DTrKcRStu/hWe7B8hbu1Ne8yDBJS1\noi0LPLCSiI4gTO2rJcEJmIxUPz0F6Lh4Mbz/66cSPlIoU28OmV9AiESHdez6TE5v\nnBowmgDt2tMJvNMGic4pvCHR22rZXiEMSsFx2x+CofZxHGXgx8dTY0x+OZH09j8M\nvDnduoCnAgMBAAECggEAA/3ylGZRxFNNrcn+dL4hTXUo1RbiKKX6MLuKt8d3+FB0\n07kMIB+2ID1s9ZpF6aE+bVDY3C4CyMN5aAhR0Xq2dQjHLz3NSejegCqVz8ZeU+Y8\nOLN6BvajMN1zLWFdlZ0Yd+QrcwdkEgHqloqy7mJ1nx6x8aZ/MXk+rqFQV5JoxCz/\nEPuiOgdBqy11wy7cP4OxMfhw87mIHa7fVBdX/YRKB/go9ZIKLDEA7fZoeIgyyH7m\nnQckwETBWYyqEY1MbiA1wtkwh421HlJprA7EKMGFxpulVD0+t8SrTOAixWEnX+8D\n9FAbBXGw76wfXxv1wtGqolWNXyM3x9IYJtO/FYUi0QKBgQD52kr3pEWs/FuSsIha\naIoRJt8I4Fi0+X1msfT22Iyh1RIUbhX/ZRLKVFKf4evGYsUxN22OAuZZfzQ80sIH\nTSBUupFO03kBzkidolJOJ4lUIPrhv8jyLGc0+iuqTwAO2izjmTHA0+FYOyDINpMm\nuNCCGD+Ttx3EKwkqpc4xGRFGEQKBgQC6vGbN8xQh/d9DkD/MFmHtlPnWTumEo9Wl\nJhCHogIVStkyUi5qnwgnIdGpOZXWR4fpWZknsToog/exmztFy+FjJToJGSaeTeR7\nqc+Cd94zVLDfkKY4lzDDiEwjbGZqVlQf4GgIz8hP0bQtNNwEbyJvleD83i/hk7wK\n4AmaVM5DNwKBgFTk8ywJyRLp/ENvcCUn+CGzz3y4neuACjfmp5FoKwCh4S7H6PmK\nYkQVOq3Qmcgir1X1u2fRXGt0aU9xXTQV5LJlYhIikK8oZEwLZ2Pe0y6etiAWhjSj\nGb5KcqO/jAl/4FjFKL6YP603CgB9aqpxiYdqrc+HHLoW1VqEU/ciyVfBAoGAalP+\n4cRIsXZCW9FWUlpoVoTeocX7N9imPUxoWyLHtuIQvJOI9JMrbETYglhU1leSry+i\ngrRqnklOj+YJIRwPcYnv+uBEWh2WPUga7XpdnrLZp+NQkqacUKpaWE1QH7qaWjBI\nbMQLlk+dHaScpzW00P7xxmqprvOVPkgFj8g8To8CgYBXHqRpP5i5uAEReufdZywF\ng35HdY9WznKC7axRbK/0+fmxDy/to+3d9q6wIkbxpDFBSlnT3sirMXKhSQoaJjid\nVRm+cbI/Jui9zsnpdMR7/RbrrWyVW0ZBDVea64jNuBdrPsyLK+Hy2wirEDtL0UtN\n/Zc5D2IGUO8Z159eje6aIQ==\n-----END PRIVATE KEY-----\n",
+    scopes: SCOPES
+})
 
+const task = cron.schedule('0 9 * * *', async () => {
+  try {
+    const todayFormatted = moment().format('YYYY-MM-DD');
+    const data = await Medical.find().populate('user', 'device_token').populate('pet', 'pet_name');;
+    const notificationPromises = data.map(async (medical) => {
+       if(medical.pet_vaccine_date != 'N/A'){
+        const vaccineReminderDate = moment(medical.pet_vaccine_date).subtract(1, 'day').format('YYYY-MM-DD');
+        if(todayFormatted === vaccineReminderDate){
+         let notification = {
+            title: `Recordatorio de desparasitación para: ${medical.pet.pet_name}`,
+            body: `Tu mascota ${medical.pet.pet_name} tiene una vacuna programada para mañana(${medical.pet_vaccine_date}). ¡No lo olvides!`
+          };
+          if(medical.user?.device_token !== ''){
+            console.log(medical.user?.device_token);
+            sendPushNotification(medical.user?.device_token,notification)
+          }
+        }
+       }else if(medical.pet_deworming_date != 'N/A'){
+        //const dewormingReminderDate = moment(medical.pet_deworming_reminder_date).subtract(1, 'day').format('YYYY-MM-DD');
+        if(todayFormatted === medical.pet_deworming_date){
+         let notification = {
+            title: `Recordatorio de vacunas para: ${medical.pet.pet_name}`,
+            body: `Tu mascota ${medical.pet.pet_name} tiene una desparasitación programada para mañana(${medical.pet_vaccine_date}). ¡No lo olvides!`
+          };
+          if(medical.user?.device_token !== ''){
+            console.log(medical.user?.device_token);
+            sendPushNotification(medical.user?.device_token,notification)
+          }
+        }
+       }
+      return null;
+    });
+    
+    await Promise.all(notificationPromises.filter(p => p !== null));
+    console.log('Task completed successfully at:', new Date().toISOString());
+  } catch (error) {
+    console.error('Error in scheduled task:', error);
+  }
+}, {
+  scheduled: true,
+  timezone: "Europe/Madrid"
+});
+
+task.start();
+
+console.log('Cron job scheduled to run every minute');
+async function sendPushNotification(deviceToken,notification) {
+
+  const tokens = await client.authorize();
+  const message = {
+    token: deviceToken,
+    notification: {
+      title: notification.title,
+      body: notification.body
+    },
+    data:{
+      "type": "reminder",
+    }
+  };
+
+  const headers = {
+    'Authorization': `Bearer ${tokens.access_token}`,
+    'Content-Type': 'application/json',
+  };
+
+  try {
+    const response = await axios.post(
+      'https://fcm.googleapis.com/v1/projects/appmascotas-44762/messages:send',
+      { message },
+      { headers }
+    );
+    console.log('Notification sent:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error sending notification:', error.response?.data || error.message);
+    throw error;
+  }
+}
 
 const users = {}; 
 const onlineUsers = new Map();

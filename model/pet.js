@@ -5,9 +5,23 @@ const likeSchema = new Schema({
    id: {
          type: mongoose.Schema.Types.ObjectId, ref: 'petprofiles'
     },
+    userID: {
+        type: mongoose.Schema.Types.ObjectId, ref: 'user'
+   },
 },{
   timestamps: true
 });
+
+const discardSchema = new Schema({
+    id: {
+          type: mongoose.Schema.Types.ObjectId, ref: 'petprofiles'
+     },
+     userID: {
+        type: mongoose.Schema.Types.ObjectId, ref: 'user'
+   },
+ },{
+   timestamps: true
+ });
 
 const petschema = new Schema({
     user:{
@@ -53,6 +67,7 @@ const petschema = new Schema({
         type: String
     },
     likes:[likeSchema],
+    discards:[discardSchema],
     isNeutered:{
         type: String,
         default: 'No'
@@ -86,10 +101,6 @@ const petschema = new Schema({
         type: String,
         default: 'Prefiere perros tranquilos'
     }
-
-
-
-    
 },{
     timestamps: true
 },{

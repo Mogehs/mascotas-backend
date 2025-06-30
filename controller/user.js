@@ -6,7 +6,7 @@ const Pet = require("../model/pet");
 const registeruser = async(req,res)=>{
   try {
     console.log(req.body);
-    const {email,password} = req.body
+    const {email,password,token} = req.body
   let check = await user.findOne({ email: email });
   if (check) {
     return res.status(400).json({ success: false, message: "Por favor proporcione el correo electrónico correcto." })
@@ -15,7 +15,8 @@ const registeruser = async(req,res)=>{
     const securePass = await bcrypt.hash(password, salt)
     check = await user.create({
         email: email,
-        password: securePass
+        password: securePass,
+        "device_token": token
     });
     res.status(200).json({ success: true, message: "Estás registrado exitosamente", uid: check._id })
   }
@@ -27,7 +28,7 @@ const registeruser = async(req,res)=>{
 
 const registerowner = async (req, res) => {
     try {
-        const {uid,firstname,lastname,phone,address,city,state,postalcode,role} = req.body
+        const {uid,firstname,lastname,phone,address,city,state,postalcode,role,token} = req.body
       let check = await user.findOne({ _id: uid });
  const data = await user.findByIdAndUpdate(
           { _id: check._id },
@@ -40,7 +41,8 @@ const registerowner = async (req, res) => {
           "city":city,
           "state": state,
           "postalcode": postalcode,
-          "role": role
+          "role": role,
+          "device_token": token
             },
           },
           { new: true }
@@ -53,7 +55,7 @@ const registerowner = async (req, res) => {
     }
   };
   const login = async (req, res) => {
-    const { email, password, token } = req.body;
+    const { email, password, token, is_login } = req.body;
     try {
       let check = await user.findOne({ email: email });
       if (!check) {
@@ -66,7 +68,7 @@ const registerowner = async (req, res) => {
       }
       const tokenData = await user.findByIdAndUpdate(
         { _id: check._id },
-        { $set: { device_token: token } },
+        { $set: { device_token: token, is_loggedin: true}},
         { new: true });
       if (tokenData) {
         
@@ -179,6 +181,46 @@ const userDetails = async (req,res)=>{
   }
 }
 
+const updateDeviceToken = async(req,res)=>{
+  try{
+  const data = await user.findOne({ _id: req.body.id });
+   const userData = await user.findByIdAndUpdate(
+    { _id: data._id },
+    { $set: { device_token: req.body.device_token }},
+    { new: true });
+  res.status(200).json({success:true, message: "Se ha actualizado el token del dispositivo."});
+  } catch (error) {
+    console.log(error.message);
+     return res.status(500).json({success:false, message: 'Internal server error'})
+}
+}
+
+const deleteDeviceToken = async(req,res)=>{
+  try{
+   const userData = await user.findByIdAndUpdate(
+    { _id: req.body.id },
+    { $set: { device_token: "",is_loggedin: false }},
+    { new: true });
+  res.status(200).json({success:true, message: "Has cerrado sesión en la aplicación exitosamente"});
+  } catch (error) {
+    console.log(error.message);
+     return res.status(500).json({success:false, message: 'Internal server error'})
+   }
+}
+
+const filterUsers = async (req,res)=>{
+  try {
+    const users = await Pet.find({distance: req.body.distance}).populate({
+      path: 'user',
+      select:
+        '_id firstname lastname city address phone state role',
+    });
+    res.status(200).json({success: true, message: "Data found", data: users});
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).json({success: false, message: error.message});
+  }
+}
 
 
 
@@ -191,6 +233,8 @@ const userDetails = async (req,res)=>{
     business,
     checkEmail,
     resetPassword,
-    userDetails
+    userDetails,
+    deleteDeviceToken,
+    filterUsers
 
   }
