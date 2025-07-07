@@ -24,6 +24,34 @@ const get_pet = async (req, res) => {
     return res.json({ success: false, message: error.message });
   }
 };
+
+const get_pet_id = async (req, res) => {
+  try {
+    const petId = req.params.id;
+
+    const data = await Pet.findOne({ _id: petId }).populate(
+      "user",
+      "firstname lastname phone address"
+    );
+
+    if (!data) {
+      return res.json({
+        success: false,
+        message: "Mascota no encontrada para este usuario",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Información de la mascota obtenida correctamente",
+      pet: data,
+    });
+  } catch (error) {
+    console.error(error.message);
+    return res.json({ success: false, message: error.message });
+  }
+};
+
 const petvaccine = async (req, res) => {
   try {
     const {
@@ -238,6 +266,7 @@ const deletePet = async (req, res) => {
 module.exports = {
   pet_register,
   get_pet,
+  get_pet_id,
   postFavorite,
   dogmatch,
   deletePet,
