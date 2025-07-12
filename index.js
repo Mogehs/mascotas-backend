@@ -36,6 +36,7 @@ app.use("/api/business/", require("./route/business"));
 app.use("/api/ads", require("./route/ads"));
 app.use("/api/ai", require("./route/ai"));
 app.use("/api/chat", require("./route/chat"));
+app.use("/api/qrcode", require("./route/qrcode"));
 
 // Legacy routes (keeping for backward compatibility)
 app.post("/api", require("./controller/ai").getVeterinaryAdvice);
