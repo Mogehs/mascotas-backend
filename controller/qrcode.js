@@ -56,9 +56,9 @@ const generateSingleQRCode = async () => {
 
     const savedQRCode = await QRCodeModel.create(qrCodeData);
 
-    const redirectURL = `${
-      process.env.FRONTEND_URL || "http://localhost:3000"
-    }/qr/${savedQRCode._id}`;
+    const redirectURL = `${"https://mactos-pet-page.vercel.app"}/qr/${
+      savedQRCode._id
+    }`;
 
     const qrCodeDataURL = await QRCode.toDataURL(redirectURL, {
       errorCorrectionLevel: "M",
