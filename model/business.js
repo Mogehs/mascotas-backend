@@ -83,15 +83,15 @@ const businessSchema = new Schema(
       },
       amount_paid: {
         type: Number,
-        default: 49, // €49/year
+        default: 49,
       },
       payment_method: {
         type: String,
       },
-      auto_renewal: {
-        type: Boolean,
-        default: true,
-      },
+      // auto_renewal: {
+      //   type: Boolean,
+      //   default: true,
+      // },
     },
     features: {
       can_create_featured_ads: {

@@ -2,9 +2,11 @@ const cron = require("node-cron");
 const moment = require("moment");
 const Medical = require("../model/medicalhistory");
 const { sendPushNotification } = require("../service/notification.service");
+const { expireSubscriptionsHelper } = require("../controller/business");
 
 const startCronJob = () => {
-  const task = cron.schedule(
+  // Medical reminders cron job - runs daily at 9 AM
+  const medicalReminderTask = cron.schedule(
     "0 9 * * *",
     async () => {
       try {
@@ -48,11 +50,11 @@ const startCronJob = () => {
 
         await Promise.all(notificationPromises.filter((p) => p !== null));
         console.log(
-          "Task completed successfully at:",
+          "Medical reminder task completed successfully at:",
           new Date().toISOString()
         );
       } catch (error) {
-        console.error("Error in scheduled task:", error);
+        console.error("Error in medical reminder scheduled task:", error);
       }
     },
     {
@@ -61,8 +63,39 @@ const startCronJob = () => {
     }
   );
 
-  task.start();
-  console.log("Cron job scheduled to run every minute");
+  // Subscription expiration cron job - runs daily at 12:01 AM
+  const subscriptionExpirationTask = cron.schedule(
+    "1 0 * * *",
+    async () => {
+      try {
+        console.log("Starting subscription expiration check...");
+        const result = await expireSubscriptionsHelper();
+
+        console.log(
+          "Subscription expiration task completed successfully at:",
+          new Date().toISOString(),
+          "- Expired subscriptions:",
+          result.expired_count
+        );
+      } catch (error) {
+        console.error(
+          "Error in subscription expiration scheduled task:",
+          error
+        );
+      }
+    },
+    {
+      scheduled: true,
+      timezone: "Europe/Madrid",
+    }
+  );
+
+  medicalReminderTask.start();
+  subscriptionExpirationTask.start();
+
+  console.log("Cron jobs scheduled:");
+  console.log("- Medical reminders: Every day at 9:00 AM");
+  console.log("- Subscription expiration check: Every day at 12:01 AM");
 };
 
 module.exports = {

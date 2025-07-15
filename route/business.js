@@ -12,6 +12,7 @@ const {
   renewSubscription,
   cancelSubscription,
   upgradeSubscription,
+  expireSubscriptions,
 } = require("../controller/business");
 
 const auth = require("../middleware/jwt");
@@ -24,10 +25,11 @@ router.get("/", getBusiness);
 router.post("/updateBusiness", updateBusiness);
 
 // PetPro Subscription routes
-router.post("/petpro/activate", auth, activatePetProSubscription);
-router.get("/petpro/status/:business_id", auth, checkSubscriptionStatus);
-router.post("/petpro/renew/:business_id", auth, renewSubscription);
-router.post("/petpro/cancel/:business_id", auth, cancelSubscription);
-router.post("/petpro/upgrade/:business_id", auth, upgradeSubscription);
+router.post("/petpro/activate", activatePetProSubscription);
+router.get("/petpro/status/:business_id", checkSubscriptionStatus);
+router.post("/petpro/renew/:business_id", renewSubscription);
+router.post("/petpro/cancel/:business_id", cancelSubscription);
+router.post("/petpro/upgrade/:business_id", upgradeSubscription);
+router.post("/petpro/expire-subscriptions", expireSubscriptions);
 
 module.exports = router;

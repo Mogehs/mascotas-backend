@@ -4,8 +4,10 @@ cloudinary.config({
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
+
 const Business = require("../model/business");
 const User = require("../model/user");
+
 const businessRegister = async (req, res) => {
   try {
     const {
@@ -69,8 +71,7 @@ const uploadBusinessImage = async (req, res) => {
       resource_type: "image",
       folder: "mascotas",
     });
-    console.log(result);
-    console.log(req.body.uid);
+
     if (result) {
       const data = await Business.findByIdAndUpdate(
         { _id: req.body.uid },
@@ -273,25 +274,8 @@ const checkSubscriptionStatus = async (req, res) => {
       business.petpro_subscription.end_date &&
       business.petpro_subscription.end_date < currentDate;
 
-    if (isExpired && business.petpro_subscription.is_active) {
-      // Auto-expire subscription
-      await Business.findByIdAndUpdate(business_id, {
-        $set: {
-          "petpro_subscription.is_active": false,
-          "petpro_subscription.payment_status": "expired",
-          "features.can_create_featured_ads": false,
-          "features.max_featured_ads": 0,
-          "features.can_sell_products": false,
-          "features.max_products": 0,
-          "features.can_create_promotions": false,
-          "features.max_promotions": 0,
-          "features.analytics_access": false,
-        },
-      });
-
-      business.petpro_subscription.is_active = false;
-      business.petpro_subscription.payment_status = "expired";
-    }
+    // Note: Manual expiration removed - now handled by cron job
+    // The cron job automatically expires subscriptions daily at 12:01 AM
 
     res.status(200).json({
       success: true,
@@ -372,7 +356,7 @@ const cancelSubscription = async (req, res) => {
         "petpro_subscription.auto_renewal": false,
         "features.can_create_featured_ads": false,
         "features.max_featured_ads": 0,
-        "features.can_sell_products": false,
+        "features.can_showcase_products": false,
         "features.max_products": 0,
         "features.can_create_promotions": false,
         "features.max_promotions": 0,
@@ -404,7 +388,7 @@ const upgradeSubscription = async (req, res) => {
         ? {
             can_create_featured_ads: true,
             max_featured_ads: 10,
-            can_sell_products: true,
+            can_showcase_products: true,
             max_products: 100,
             can_create_promotions: true,
             max_promotions: 20,
@@ -413,7 +397,7 @@ const upgradeSubscription = async (req, res) => {
         : {
             can_create_featured_ads: true,
             max_featured_ads: 3,
-            can_sell_products: true,
+            can_showcase_products: true,
             max_products: 25,
             can_create_promotions: true,
             max_promotions: 5,
@@ -451,6 +435,76 @@ const upgradeSubscription = async (req, res) => {
   }
 };
 
+// Helper function for subscription expiration (used by cron job and API)
+const expireSubscriptionsHelper = async () => {
+  try {
+    const currentDate = new Date();
+
+    // Find all businesses with active subscriptions that are expired
+    const expiredBusinesses = await Business.find({
+      "petpro_subscription.is_active": true,
+      "petpro_subscription.end_date": { $lt: currentDate },
+    });
+
+    console.log(
+      `Found ${expiredBusinesses.length} expired subscriptions to process`
+    );
+
+    // Expire each subscription
+    const expiredPromises = expiredBusinesses.map(async (business) => {
+      await Business.findByIdAndUpdate(business._id, {
+        $set: {
+          "petpro_subscription.is_active": false,
+          "petpro_subscription.payment_status": "expired",
+          "features.can_create_featured_ads": false,
+          "features.max_featured_ads": 0,
+          "features.can_showcase_products": false,
+          "features.max_products": 0,
+          "features.can_create_promotions": false,
+          "features.max_promotions": 0,
+          "features.analytics_access": false,
+        },
+      });
+
+      console.log(
+        `Expired subscription for business: ${business.company_name} (ID: ${business._id})`
+      );
+      return business._id;
+    });
+
+    const expiredIds = await Promise.all(expiredPromises);
+
+    return {
+      success: true,
+      expired_count: expiredIds.length,
+      expired_business_ids: expiredIds,
+    };
+  } catch (error) {
+    console.error("Error in expireSubscriptionsHelper:", error);
+    throw error;
+  }
+};
+
+// Manual endpoint to expire subscriptions (for testing)
+const expireSubscriptions = async (req, res) => {
+  try {
+    const result = await expireSubscriptionsHelper();
+
+    res.status(200).json({
+      success: true,
+      message: "Subscription expiration check completed",
+      data: result,
+    });
+  } catch (error) {
+    console.error("Manual expire subscriptions error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error expiring subscriptions",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   businessRegister,
   uploadBusinessImage,
@@ -462,4 +516,6 @@ module.exports = {
   renewSubscription,
   cancelSubscription,
   upgradeSubscription,
+  expireSubscriptions,
+  expireSubscriptionsHelper,
 };
