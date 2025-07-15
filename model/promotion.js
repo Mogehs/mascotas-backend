@@ -112,7 +112,6 @@ const promotionSchema = new Schema(
 
 // Indexes for better performance
 promotionSchema.index({ business_id: 1, is_active: 1 });
-promotionSchema.index({ promo_code: 1 });
 promotionSchema.index({ start_date: 1, end_date: 1 });
 
 // Validation to ensure end_date is after start_date

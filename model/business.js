@@ -88,6 +88,10 @@ const businessSchema = new Schema(
       payment_method: {
         type: String,
       },
+      stripe_payment_intent_id: {
+        type: String,
+        default: null,
+      },
       // auto_renewal: {
       //   type: Boolean,
       //   default: true,

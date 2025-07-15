@@ -30,6 +30,7 @@
     "nodemon": "^3.1.9",
     "qrcode": "^1.5.4",
     "socket.io": "^4.8.1",
+    "stripe": "^18.3.0",
     "uuid": "^11.1.0"
   },
   "repository": {

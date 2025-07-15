@@ -22,30 +22,31 @@ app.use(
   })
 );
 
-// Routes
+// Routess
 app.get("/", async (req, res) => {
   res.send("api is working");
 });
 
-// API Routes
-app.use("/api/auth/", require("./route/user"));
-app.use("/api/pet/", require("./route/pet"));
-app.use("/api/medical/", require("./route/medicalhistory"));
-app.use("/api/language/", require("./route/language"));
-app.use("/api/order/", require("./route/order"));
-app.use("/api/lost/", require("./route/lost"));
-app.use("/api/business/", require("./route/business"));
-app.use("/api/ads", require("./route/ads"));
-app.use("/api/ai", require("./route/ai"));
-app.use("/api/chat", require("./route/chat"));
-app.use("/api/qrcode", require("./route/qrcode"));
+// API Routess
+app.use("/api/auth/", require("./routes/user"));
+app.use("/api/pet/", require("./routes/pet"));
+app.use("/api/medical/", require("./routes/medicalhistory"));
+app.use("/api/language/", require("./routes/language"));
+app.use("/api/order/", require("./routes/order"));
+app.use("/api/lost/", require("./routes/lost"));
+app.use("/api/business/", require("./routes/business"));
+app.use("/api/ads", require("./routes/ads"));
+app.use("/api/ai", require("./routes/ai"));
+app.use("/api/chat", require("./routes/chat"));
+app.use("/api/qrcode", require("./routes/qrcode"));
 
 // New PetPro features
-app.use("/api/products", require("./route/product"));
-app.use("/api/promotions", require("./route/promotion"));
-app.use("/api/analytics", require("./route/analytics"));
+app.use("/api/products", require("./routes/product"));
+app.use("/api/promotions", require("./routes/promotion"));
+app.use("/api/analytics", require("./routes/analytics"));
+app.use("/api/payments", require("./routes/payment"));
 
-// Legacy routes (keeping for backward compatibility)
+// Legacy routess (keeping for backward compatibility)
 app.post("/api", require("./controller/ai").getVeterinaryAdvice);
 app.post("/trainer", require("./controller/ai").getTrainingAdvice);
 app.get(
