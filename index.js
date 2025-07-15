@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const http = require("http");
 const connectToMongo = require("./db");
+const cors = require("cors");
 
 // Import configurations and services
 const configureServer = require("./config/server");
@@ -15,14 +16,15 @@ const server = http.createServer(app);
 // Configure server middleware
 configureServer(app);
 
+app.use(
+  cors({
+    origin: "*",
+  })
+);
+
 // Routes
 app.get("/", async (req, res) => {
   res.send("api is working");
-});
-
-// Health check endpoint
-app.get("/render-health", (req, res) => {
-  res.send("Backend running well");
 });
 
 // API Routes
