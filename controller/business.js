@@ -174,10 +174,292 @@ const updateBusiness = async (req, res) => {
   }
 };
 
+// PetPro Subscription Management
+const activatePetProSubscription = async (req, res) => {
+  try {
+    const {
+      business_id,
+      subscription_type = "premium",
+      payment_method,
+      amount_paid = 49,
+    } = req.body;
+
+    const business = await Business.findById(business_id);
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message: "Business not found",
+      });
+    }
+
+    const currentDate = new Date();
+    const endDate = new Date(currentDate);
+    endDate.setFullYear(endDate.getFullYear() + 1); // 1 year subscription
+
+    // Define features based on subscription type
+    const features =
+      subscription_type === "premium"
+        ? {
+            can_create_featured_ads: true,
+            max_featured_ads: 10,
+            can_showcase_products: true,
+            max_products: 100,
+            can_create_promotions: true,
+            max_promotions: 20,
+            analytics_access: true,
+          }
+        : {
+            can_create_featured_ads: true,
+            max_featured_ads: 3,
+            can_showcase_products: true,
+            max_products: 25,
+            can_create_promotions: true,
+            max_promotions: 5,
+            analytics_access: true,
+          };
+
+    const updatedBusiness = await Business.findByIdAndUpdate(
+      business_id,
+      {
+        $set: {
+          "petpro_subscription.is_active": true,
+          "petpro_subscription.subscription_type": subscription_type,
+          "petpro_subscription.start_date": currentDate,
+          "petpro_subscription.end_date": endDate,
+          "petpro_subscription.payment_status": "paid",
+          "petpro_subscription.amount_paid": amount_paid,
+          "petpro_subscription.payment_method": payment_method,
+          features: features,
+        },
+      },
+      { new: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "PetPro subscription activated successfully",
+      data: {
+        subscription: updatedBusiness.petpro_subscription,
+        features: updatedBusiness.features,
+      },
+    });
+  } catch (error) {
+    console.error("Activate PetPro subscription error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error activating PetPro subscription",
+      error: error.message,
+    });
+  }
+};
+
+const checkSubscriptionStatus = async (req, res) => {
+  try {
+    const { business_id } = req.params;
+
+    const business = await Business.findById(business_id).select(
+      "petpro_subscription features statistics company_name"
+    );
+
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message: "Business not found",
+      });
+    }
+
+    const currentDate = new Date();
+    const isExpired =
+      business.petpro_subscription.end_date &&
+      business.petpro_subscription.end_date < currentDate;
+
+    if (isExpired && business.petpro_subscription.is_active) {
+      // Auto-expire subscription
+      await Business.findByIdAndUpdate(business_id, {
+        $set: {
+          "petpro_subscription.is_active": false,
+          "petpro_subscription.payment_status": "expired",
+          "features.can_create_featured_ads": false,
+          "features.max_featured_ads": 0,
+          "features.can_sell_products": false,
+          "features.max_products": 0,
+          "features.can_create_promotions": false,
+          "features.max_promotions": 0,
+          "features.analytics_access": false,
+        },
+      });
+
+      business.petpro_subscription.is_active = false;
+      business.petpro_subscription.payment_status = "expired";
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        business_name: business.company_name,
+        subscription: business.petpro_subscription,
+        features: business.features,
+        statistics: business.statistics,
+        is_expired: isExpired,
+      },
+    });
+  } catch (error) {
+    console.error("Check subscription status error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error checking subscription status",
+      error: error.message,
+    });
+  }
+};
+
+const renewSubscription = async (req, res) => {
+  try {
+    const { business_id } = req.params;
+    const { payment_method, amount_paid = 49 } = req.body;
+
+    const business = await Business.findById(business_id);
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message: "Business not found",
+      });
+    }
+
+    const currentDate = new Date();
+    const newEndDate = new Date(
+      Math.max(
+        currentDate.getTime(),
+        business.petpro_subscription.end_date?.getTime() || 0
+      )
+    );
+    newEndDate.setFullYear(newEndDate.getFullYear() + 1);
+
+    await Business.findByIdAndUpdate(business_id, {
+      $set: {
+        "petpro_subscription.is_active": true,
+        "petpro_subscription.end_date": newEndDate,
+        "petpro_subscription.payment_status": "paid",
+        "petpro_subscription.amount_paid": amount_paid,
+        "petpro_subscription.payment_method": payment_method,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Subscription renewed successfully",
+      new_end_date: newEndDate,
+    });
+  } catch (error) {
+    console.error("Renew subscription error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error renewing subscription",
+      error: error.message,
+    });
+  }
+};
+
+const cancelSubscription = async (req, res) => {
+  try {
+    const { business_id } = req.params;
+    const { reason } = req.body;
+
+    await Business.findByIdAndUpdate(business_id, {
+      $set: {
+        "petpro_subscription.is_active": false,
+        "petpro_subscription.payment_status": "cancelled",
+        "petpro_subscription.auto_renewal": false,
+        "features.can_create_featured_ads": false,
+        "features.max_featured_ads": 0,
+        "features.can_sell_products": false,
+        "features.max_products": 0,
+        "features.can_create_promotions": false,
+        "features.max_promotions": 0,
+        "features.analytics_access": false,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Subscription cancelled successfully",
+    });
+  } catch (error) {
+    console.error("Cancel subscription error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error cancelling subscription",
+      error: error.message,
+    });
+  }
+};
+
+const upgradeSubscription = async (req, res) => {
+  try {
+    const { business_id } = req.params;
+    const { new_subscription_type, payment_method, amount_paid } = req.body;
+
+    const features =
+      new_subscription_type === "premium"
+        ? {
+            can_create_featured_ads: true,
+            max_featured_ads: 10,
+            can_sell_products: true,
+            max_products: 100,
+            can_create_promotions: true,
+            max_promotions: 20,
+            analytics_access: true,
+          }
+        : {
+            can_create_featured_ads: true,
+            max_featured_ads: 3,
+            can_sell_products: true,
+            max_products: 25,
+            can_create_promotions: true,
+            max_promotions: 5,
+            analytics_access: true,
+          };
+
+    const updatedBusiness = await Business.findByIdAndUpdate(
+      business_id,
+      {
+        $set: {
+          "petpro_subscription.subscription_type": new_subscription_type,
+          "petpro_subscription.payment_method": payment_method,
+          "petpro_subscription.amount_paid": amount_paid,
+          features: features,
+        },
+      },
+      { new: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Subscription upgraded successfully",
+      data: {
+        subscription: updatedBusiness.petpro_subscription,
+        features: updatedBusiness.features,
+      },
+    });
+  } catch (error) {
+    console.error("Upgrade subscription error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error upgrading subscription",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   businessRegister,
   uploadBusinessImage,
   uploadLatlng,
   getBusiness,
   updateBusiness,
+  activatePetProSubscription,
+  checkSubscriptionStatus,
+  renewSubscription,
+  cancelSubscription,
+  upgradeSubscription,
 };

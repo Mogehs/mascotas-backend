@@ -59,6 +59,92 @@ const businessSchema = new Schema(
       type: String,
       default: "N/A",
     },
+    // PetPro Subscription Features
+    petpro_subscription: {
+      is_active: {
+        type: Boolean,
+        default: false,
+      },
+      subscription_type: {
+        type: String,
+        enum: ["basic", "premium"],
+        default: "basic",
+      },
+      start_date: {
+        type: Date,
+      },
+      end_date: {
+        type: Date,
+      },
+      payment_status: {
+        type: String,
+        enum: ["pending", "paid", "expired", "cancelled"],
+        default: "pending",
+      },
+      amount_paid: {
+        type: Number,
+        default: 49, // €49/year
+      },
+      payment_method: {
+        type: String,
+      },
+      auto_renewal: {
+        type: Boolean,
+        default: true,
+      },
+    },
+    features: {
+      can_create_featured_ads: {
+        type: Boolean,
+        default: false,
+      },
+      max_featured_ads: {
+        type: Number,
+        default: 0,
+      },
+      can_showcase_products: {
+        type: Boolean,
+        default: false,
+      },
+      max_products: {
+        type: Number,
+        default: 0,
+      },
+      can_create_promotions: {
+        type: Boolean,
+        default: false,
+      },
+      max_promotions: {
+        type: Number,
+        default: 0,
+      },
+      analytics_access: {
+        type: Boolean,
+        default: false,
+      },
+    },
+    statistics: {
+      total_views: {
+        type: Number,
+        default: 0,
+      },
+      total_clicks: {
+        type: Number,
+        default: 0,
+      },
+      monthly_views: {
+        type: Number,
+        default: 0,
+      },
+      monthly_clicks: {
+        type: Number,
+        default: 0,
+      },
+      last_stats_update: {
+        type: Date,
+        default: Date.now,
+      },
+    },
   },
   {
     timestamps: true,

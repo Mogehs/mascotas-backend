@@ -210,6 +210,77 @@ const pet_register = async (req, res) => {
   }
 };
 
+const update_pet = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      name,
+      gender,
+      dob,
+      weight,
+      height,
+      microchip_number,
+      race,
+      description,
+      color,
+      pet,
+    } = req.body;
+
+    // Check if pet exists
+    const existingPet = await Pet.findById(id);
+    if (!existingPet) {
+      return res.status(404).json({
+        success: false,
+        message: "Mascota no encontrada",
+      });
+    }
+
+    // Prepare update data
+    const updateData = {
+      pet_name: name || existingPet.pet_name,
+      pet_gender: gender || existingPet.pet_gender,
+      pet_dob: dob || existingPet.pet_dob,
+      pet: pet || existingPet.pet,
+      pet_race: race || existingPet.pet_race,
+      pet_height: height || existingPet.pet_height,
+      pet_weight: weight || existingPet.pet_weight,
+      pet_microchip_number:
+        microchip_number || existingPet.pet_microchip_number,
+      pet_description: description || existingPet.pet_description,
+      pet_color: color || existingPet.pet_color,
+    };
+
+    // Handle image upload if provided
+    if (req?.files?.picture) {
+      const file = req.files.picture;
+      const result = await cloudinary.uploader.upload(file.tempFilePath, {
+        public_id: file.name,
+        resource_type: "image",
+        folder: "mascotas",
+      });
+      if (result) {
+        updateData.pet_image = result.secure_url;
+      }
+    }
+
+    // Update the pet
+    const updatedPet = await Pet.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true }
+    ).populate("user", "firstname lastname phone address");
+
+    res.json({
+      success: true,
+      message: "La información de la mascota se actualizó correctamente",
+      data: updatedPet,
+    });
+  } catch (error) {
+    console.log(error.message);
+    return res.json({ success: false, message: error.message });
+  }
+};
+
 const dogmatch = async (req, res) => {
   try {
     const {
@@ -271,4 +342,5 @@ module.exports = {
   dogmatch,
   deletePet,
   discard,
+  update_pet,
 };

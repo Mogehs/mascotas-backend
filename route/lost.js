@@ -5,10 +5,12 @@ const {
   allLostPets,
   deletePet,
   updateLostPet,
+  getLostPetById,
 } = require("../controller/lost");
 
 router.post("/addLost", lostPet);
 router.post("/all-lost-pets", allLostPets);
+router.get("/:id", getLostPetById);
 router.post("/delete", deletePet);
 router.post("/update", updateLostPet);
 

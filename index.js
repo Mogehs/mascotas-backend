@@ -38,6 +38,11 @@ app.use("/api/ai", require("./route/ai"));
 app.use("/api/chat", require("./route/chat"));
 app.use("/api/qrcode", require("./route/qrcode"));
 
+// New PetPro features
+app.use("/api/products", require("./route/product"));
+app.use("/api/promotions", require("./route/promotion"));
+app.use("/api/analytics", require("./route/analytics"));
+
 // Legacy routes (keeping for backward compatibility)
 app.post("/api", require("./controller/ai").getVeterinaryAdvice);
 app.post("/trainer", require("./controller/ai").getTrainingAdvice);
