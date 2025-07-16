@@ -5,7 +5,11 @@ const fileUpload = require("express-fileupload");
 
 const configureServer = (app) => {
   app.use(express.json());
-  app.use(cors());
+  app.use(
+    cors({
+      origin: "*",
+    })
+  );
   app.use(bodyParser.json());
   app.use(
     fileUpload({ useTempFiles: true, limits: { fileSize: 500 * 2024 * 1024 } })

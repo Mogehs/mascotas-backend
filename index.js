@@ -16,12 +16,6 @@ const server = http.createServer(app);
 // Configure server middleware
 configureServer(app);
 
-app.use(
-  cors({
-    origin: "*",
-  })
-);
-
 // Routess
 app.get("/", async (req, res) => {
   res.send("api is working");

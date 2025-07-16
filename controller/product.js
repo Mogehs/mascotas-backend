@@ -3,6 +3,39 @@ const Product = require("../model/product");
 const Business = require("../model/business");
 const Analytics = require("../model/analytics");
 
+// Helper function for pagination
+const paginate = async (model, query, options) => {
+  const page = parseInt(options.page) || 1;
+  const limit = parseInt(options.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  let mongoQuery = model.find(query).skip(skip).limit(limit);
+
+  if (options.sort) {
+    mongoQuery = mongoQuery.sort(options.sort);
+  }
+
+  if (options.populate) {
+    mongoQuery = mongoQuery.populate(options.populate);
+  }
+
+  const docs = await mongoQuery.exec();
+  const totalDocs = await model.countDocuments(query);
+  const totalPages = Math.ceil(totalDocs / limit);
+
+  return {
+    docs,
+    totalDocs,
+    limit,
+    page,
+    totalPages,
+    hasNextPage: page < totalPages,
+    hasPrevPage: page > 1,
+    nextPage: page < totalPages ? page + 1 : null,
+    prevPage: page > 1 ? page - 1 : null,
+  };
+};
+
 // Helper function to track analytics
 const trackAnalytics = async (
   business_id,
@@ -22,18 +55,7 @@ const trackAnalytics = async (
       user_id,
       metadata,
     });
-  } catch {
-    module.exports = {
-      createProduct,
-      getBusinessProducts,
-      getProduct,
-      searchProducts,
-      updateProduct,
-      makeProductFeatured,
-      deleteProduct,
-      trackProductClick,
-      trackContactClick,
-    };
+  } catch (error) {
     console.error("Analytics tracking error:", error);
   }
 };
@@ -80,9 +102,13 @@ const createProduct = async (req, res) => {
 
     // Handle image uploads
     let imageUrls = [];
-    if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
-        const result = await cloudinary.uploader.upload(file.path, {
+    if (req.files && req.files.images) {
+      const imageFiles = Array.isArray(req.files.images)
+        ? req.files.images
+        : [req.files.images];
+
+      for (const file of imageFiles) {
+        const result = await cloudinary.uploader.upload(file.tempFilePath, {
           folder: "petpro_products",
           transformation: [
             { width: 800, height: 800, crop: "limit" },
@@ -154,7 +180,7 @@ const getBusinessProducts = async (req, res) => {
       },
     };
 
-    const products = await Product.paginate(query, options);
+    const products = await paginate(Product, query, options);
 
     res.status(200).json({
       success: true,
@@ -304,13 +330,12 @@ const searchProducts = async (req, res) => {
         path: "business_id",
         select:
           "company_name company_logo physical_address phone email petpro_subscription",
-        match: { "petpro_subscription.is_active": true }, // Only active PetPro businesses
+        match: { "petpro_subscription.is_active": true },
       },
     };
 
-    const products = await Product.paginate(query, options);
+    const products = await paginate(Product, query, options);
 
-    // Filter out products with null business_id (inactive subscriptions)
     products.docs = products.docs.filter(
       (product) => product.business_id !== null
     );
@@ -336,10 +361,14 @@ const updateProduct = async (req, res) => {
     const updateData = req.body;
 
     // Handle new image uploads
-    if (req.files && req.files.length > 0) {
+    if (req.files && req.files.images) {
+      const imageFiles = Array.isArray(req.files.images)
+        ? req.files.images
+        : [req.files.images];
+
       let newImageUrls = [];
-      for (const file of req.files) {
-        const result = await cloudinary.uploader.upload(file.path, {
+      for (const file of imageFiles) {
+        const result = await cloudinary.uploader.upload(file.tempFilePath, {
           folder: "petpro_products",
           transformation: [
             { width: 800, height: 800, crop: "limit" },

@@ -47,11 +47,7 @@ const productSchema = new Schema(
       type: Map,
       of: String, // Key-value pairs for product specs
     },
-    tags: [
-      {
-        type: String,
-      },
-    ],
+    tags: [String],
     weight: {
       type: Number, // in kg
     },
