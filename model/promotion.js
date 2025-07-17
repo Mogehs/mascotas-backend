@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const mongoosePaginate = require("mongoose-paginate-v2");
 const Schema = mongoose.Schema;
 
 const promotionSchema = new Schema(
@@ -23,7 +24,7 @@ const promotionSchema = new Schema(
     },
     value: {
       type: Number,
-      required: true, // Percentage or fixed amount
+      required: true,
     },
     minimum_order_amount: {
       type: Number,
@@ -41,11 +42,6 @@ const promotionSchema = new Schema(
         enum: ["food", "accessories", "toys", "health", "grooming", "other"],
       },
     ],
-    promo_code: {
-      type: String,
-      unique: true,
-      sparse: true, // Allows null values but ensures uniqueness when not null
-    },
     start_date: {
       type: Date,
       required: true,
@@ -56,32 +52,12 @@ const promotionSchema = new Schema(
     },
     usage_limit: {
       type: Number,
-      default: null, // null means unlimited
+      default: null,
     },
     usage_count: {
       type: Number,
       default: 0,
     },
-    user_limit: {
-      type: Number,
-      default: 1, // How many times a single user can use this promotion
-    },
-    used_by: [
-      {
-        user_id: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "user",
-        },
-        usage_count: {
-          type: Number,
-          default: 1,
-        },
-        used_at: {
-          type: Date,
-          default: Date.now,
-        },
-      },
-    ],
     is_active: {
       type: Boolean,
       default: true,
@@ -102,13 +78,16 @@ const promotionSchema = new Schema(
     },
     conversions: {
       type: Number,
-      default: 0, // How many times the promotion was actually used
+      default: 0,
     },
   },
   {
     timestamps: true,
   }
 );
+
+// Add pagination plugin
+promotionSchema.plugin(mongoosePaginate);
 
 // Indexes for better performance
 promotionSchema.index({ business_id: 1, is_active: 1 });
