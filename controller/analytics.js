@@ -3,6 +3,9 @@ const Business = require("../model/business");
 const Product = require("../model/product");
 const Promotion = require("../model/promotion");
 const Ads = require("../model/ads");
+const QRCode = require("../model/qrcode");
+const User = require("../model/user");
+const Pet = require("../model/pet");
 
 // Get business analytics overview
 const getBusinessAnalytics = async (req, res) => {
@@ -673,6 +676,44 @@ const updateBusinessStatistics = async (req, res) => {
   }
 };
 
+// Get admin analytics overview
+const getAdminAnalytics = async (req, res) => {
+  try {
+    // Get total QR codes
+    const totalQR = await QRCode.countDocuments();
+
+    // Get assigned QR codes (QR codes with petId)
+    const assignedQR = await QRCode.countDocuments({ petId: { $ne: null } });
+
+    // Get not assigned QR codes
+    const notAssignedQR = totalQR - assignedQR;
+
+    // Get total users
+    const totalUsers = await User.countDocuments();
+
+    // Get total pets
+    const totalPets = await Pet.countDocuments();
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalQR,
+        assignedQR,
+        notAssignedQR,
+        totalUsers,
+        totalPets,
+      },
+    });
+  } catch (error) {
+    console.error("Admin analytics error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching admin analytics",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getBusinessAnalytics,
   getProductAnalytics,
@@ -680,4 +721,5 @@ module.exports = {
   getAdAnalytics,
   getGeographicAnalytics,
   updateBusinessStatistics,
+  getAdminAnalytics,
 };

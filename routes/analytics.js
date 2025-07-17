@@ -41,4 +41,7 @@ router.get(
 // Update business statistics (internal/cron use)
 router.post("/update-statistics", analyticsController.updateBusinessStatistics);
 
+// Admin analytics overview
+router.get("/admin/overview", analyticsController.getAdminAnalytics);
+
 module.exports = router;

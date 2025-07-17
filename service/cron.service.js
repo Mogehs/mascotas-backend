@@ -1,8 +1,39 @@
 const cron = require("node-cron");
 const moment = require("moment");
 const Medical = require("../model/medicalhistory");
+const Product = require("../model/product");
 const { sendPushNotification } = require("../service/notification.service");
 const { expireSubscriptionsHelper } = require("../controller/business");
+
+// Helper function to expire featured products (duplicated here to avoid circular imports)
+const expireFeaturedProducts = async () => {
+  try {
+    const now = new Date();
+    const result = await Product.updateMany(
+      {
+        is_featured: true,
+        featured_until: { $lt: now },
+      },
+      {
+        is_featured: false,
+        featured_until: null,
+      }
+    );
+
+    return {
+      success: true,
+      expired_count: result.modifiedCount,
+      message: `${result.modifiedCount} featured products expired`,
+    };
+  } catch (error) {
+    console.error("Expire featured products error:", error);
+    return {
+      success: false,
+      error: error.message,
+      expired_count: 0,
+    };
+  }
+};
 
 const startCronJob = () => {
   // Medical reminders cron job - runs daily at 9 AM
@@ -90,12 +121,41 @@ const startCronJob = () => {
     }
   );
 
+  // Featured products expiration cron job - runs daily at 12:05 AM
+  const featuredProductsExpirationTask = cron.schedule(
+    "5 0 * * *",
+    async () => {
+      try {
+        console.log("Starting featured products expiration check...");
+        const result = await expireFeaturedProducts();
+
+        console.log(
+          "Featured products expiration task completed successfully at:",
+          new Date().toISOString(),
+          "- Expired featured products:",
+          result.expired_count
+        );
+      } catch (error) {
+        console.error(
+          "Error in featured products expiration scheduled task:",
+          error
+        );
+      }
+    },
+    {
+      scheduled: true,
+      timezone: "Europe/Madrid",
+    }
+  );
+
   medicalReminderTask.start();
   subscriptionExpirationTask.start();
+  featuredProductsExpirationTask.start();
 
   console.log("Cron jobs scheduled:");
   console.log("- Medical reminders: Every day at 9:00 AM");
   console.log("- Subscription expiration check: Every day at 12:01 AM");
+  console.log("- Featured products expiration check: Every day at 12:05 AM");
 };
 
 module.exports = {

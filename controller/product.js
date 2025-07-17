@@ -168,7 +168,18 @@ const getBusinessProducts = async (req, res) => {
     const query = { business_id, is_available: true };
 
     if (category) query.category = category;
-    if (is_featured !== undefined) query.is_featured = is_featured === "true";
+    if (is_featured !== undefined) {
+      if (is_featured === "true") {
+        // Only show featured products that haven't expired
+        query.is_featured = true;
+        query.$or = [
+          { featured_until: { $gte: new Date() } },
+          { featured_until: null },
+        ];
+      } else {
+        query.is_featured = false;
+      }
+    }
 
     const options = {
       page: parseInt(page),
@@ -269,80 +280,162 @@ const searchProducts = async (req, res) => {
       radius = 50,
       page = 1,
       limit = 20,
-      sort_by = "relevance",
+      sort_by = "featured",
       availability_status,
     } = req.query;
 
-    // Only show products from active PetPro businesses
     let query = {
       is_available: true,
     };
-    let sort = {};
 
-    // Text search
     if (q) {
       query.$text = { $search: q };
     }
 
-    // Category filter
     if (category) {
       query.category = category;
     }
 
-    // Availability filter
     if (availability_status) {
       query.availability_status = availability_status;
     }
 
-    // Price range filter
     if (min_price || max_price) {
       query.price = {};
       if (min_price) query.price.$gte = parseFloat(min_price);
       if (max_price) query.price.$lte = parseFloat(max_price);
     }
 
-    // Sorting
-    switch (sort_by) {
-      case "price_low":
-        sort = { price: 1 };
-        break;
-      case "price_high":
-        sort = { price: -1 };
-        break;
-      case "newest":
-        sort = { createdAt: -1 };
-        break;
-      case "popular":
-        sort = { views: -1 };
-        break;
-      case "featured":
-        sort = { is_featured: -1, createdAt: -1 };
-        break;
-      default:
-        sort = q ? { score: { $meta: "textScore" } } : { createdAt: -1 };
-    }
+    const now = new Date();
+    const pipeline = [
+      { $match: query },
 
-    const options = {
-      page: parseInt(page),
-      limit: parseInt(limit),
-      sort,
-      populate: {
-        path: "business_id",
-        select:
-          "company_name company_logo physical_address phone email petpro_subscription",
-        match: { "petpro_subscription.is_active": true },
+      {
+        $addFields: {
+          is_currently_featured: {
+            $cond: [
+              {
+                $and: [
+                  { $eq: ["$is_featured", true] },
+                  {
+                    $or: [
+                      { $gte: ["$featured_until", now] },
+                      { $eq: ["$featured_until", null] },
+                    ],
+                  },
+                ],
+              },
+              1,
+              0,
+            ],
+          },
+        },
       },
+
+      {
+        $lookup: {
+          from: "businesses",
+          localField: "business_id",
+          foreignField: "_id",
+          as: "business_id",
+        },
+      },
+
+      { $unwind: "$business_id" },
+
+      {
+        $match: {
+          "business_id.petpro_subscription.is_active": true,
+        },
+      },
+
+      ...(q ? [{ $addFields: { score: { $meta: "textScore" } } }] : []),
+
+      {
+        $sort: (() => {
+          let sortObj = { is_currently_featured: -1 };
+
+          switch (sort_by) {
+            case "price_low":
+              sortObj.price = 1;
+              break;
+            case "price_high":
+              sortObj.price = -1;
+              break;
+            case "newest":
+              sortObj.createdAt = -1;
+              break;
+            case "popular":
+              sortObj.views = -1;
+              break;
+            case "featured":
+              sortObj.createdAt = -1;
+              break;
+            default:
+              if (q) {
+                sortObj.score = -1;
+              } else {
+                sortObj.createdAt = -1;
+              }
+          }
+
+          return sortObj;
+        })(),
+      },
+
+      { $skip: (parseInt(page) - 1) * parseInt(limit) },
+      { $limit: parseInt(limit) },
+
+      {
+        $project: {
+          is_currently_featured: 0,
+          score: 0,
+        },
+      },
+    ];
+
+    const products = await Product.aggregate(pipeline);
+
+    const countPipeline = [
+      { $match: query },
+      {
+        $lookup: {
+          from: "businesses",
+          localField: "business_id",
+          foreignField: "_id",
+          as: "business_id",
+        },
+      },
+      { $unwind: "$business_id" },
+      {
+        $match: {
+          "business_id.petpro_subscription.is_active": true,
+        },
+      },
+      { $count: "total" },
+    ];
+
+    const countResult = await Product.aggregate(countPipeline);
+    const totalDocs = countResult.length > 0 ? countResult[0].total : 0;
+
+    const totalPages = Math.ceil(totalDocs / parseInt(limit));
+    const currentPage = parseInt(page);
+
+    const paginationData = {
+      docs: products,
+      totalDocs,
+      limit: parseInt(limit),
+      page: currentPage,
+      totalPages,
+      hasNextPage: currentPage < totalPages,
+      hasPrevPage: currentPage > 1,
+      nextPage: currentPage < totalPages ? currentPage + 1 : null,
+      prevPage: currentPage > 1 ? currentPage - 1 : null,
     };
-
-    const products = await paginate(Product, query, options);
-
-    products.docs = products.docs.filter(
-      (product) => product.business_id !== null
-    );
 
     res.status(200).json({
       success: true,
-      data: products,
+      data: paginationData,
     });
   } catch (error) {
     console.error("Search products error:", error);
@@ -453,6 +546,21 @@ const makeProductFeatured = async (req, res) => {
       });
     }
 
+    // Check current featured products count vs limit
+    const currentFeaturedCount = await Product.countDocuments({
+      business_id: product.business_id._id,
+      is_featured: true,
+      is_available: true,
+      $or: [{ featured_until: { $gte: new Date() } }, { featured_until: null }],
+    });
+
+    if (currentFeaturedCount >= product.business_id.features.max_featured_ads) {
+      return res.status(403).json({
+        success: false,
+        message: `Featured products limit reached. Current plan allows ${product.business_id.features.max_featured_ads} featured products. You currently have ${currentFeaturedCount} featured products.`,
+      });
+    }
+
     const featured_until = new Date();
     featured_until.setDate(featured_until.getDate() + parseInt(duration_days));
 
@@ -465,12 +573,64 @@ const makeProductFeatured = async (req, res) => {
       success: true,
       message: "Product is now featured",
       featured_until,
+      featured_count: currentFeaturedCount + 1,
+      max_featured_allowed: product.business_id.features.max_featured_ads,
     });
   } catch (error) {
     console.error("Make product featured error:", error);
     res.status(500).json({
       success: false,
       message: "Error making product featured",
+      error: error.message,
+    });
+  }
+};
+
+// Helper function to expire featured products
+const expireFeaturedProducts = async () => {
+  try {
+    const now = new Date();
+    const result = await Product.updateMany(
+      {
+        is_featured: true,
+        featured_until: { $lt: now },
+      },
+      {
+        is_featured: false,
+        featured_until: null,
+      }
+    );
+
+    return {
+      success: true,
+      expired_count: result.modifiedCount,
+      message: `${result.modifiedCount} featured products expired`,
+    };
+  } catch (error) {
+    console.error("Expire featured products error:", error);
+    return {
+      success: false,
+      error: error.message,
+      expired_count: 0,
+    };
+  }
+};
+
+// Endpoint to manually expire featured products
+const expireFeaturedProductsEndpoint = async (req, res) => {
+  try {
+    const result = await expireFeaturedProducts();
+
+    if (result.success) {
+      res.status(200).json(result);
+    } else {
+      res.status(500).json(result);
+    }
+  } catch (error) {
+    console.error("Expire featured products endpoint error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error expiring featured products",
       error: error.message,
     });
   }
@@ -603,4 +763,5 @@ module.exports = {
   deleteProduct,
   trackProductClick,
   trackContactClick,
+  expireFeaturedProducts: expireFeaturedProductsEndpoint,
 };
