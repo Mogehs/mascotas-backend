@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const mongoosePaginate = require("mongoose-paginate-v2");
 const Schema = mongoose.Schema;
 
 const adsSchema = new Schema(
@@ -64,7 +65,7 @@ const adsSchema = new Schema(
     },
     priority: {
       type: Number,
-      default: 1, // Higher number = higher priority
+      default: 1,
     },
     status: {
       type: String,
@@ -147,5 +148,8 @@ const adsSchema = new Schema(
 adsSchema.index({ business_id: 1, status: 1 });
 adsSchema.index({ is_featured: -1, priority: -1, createdAt: -1 });
 adsSchema.index({ category: 1, status: 1 });
+
+// Add pagination plugin
+adsSchema.plugin(mongoosePaginate);
 
 module.exports = mongoose.model("ads", adsSchema);

@@ -35,7 +35,6 @@ const trackAnalytics = async (
 
 const adsRegister = async (req, res) => {
   try {
-    console.log(req.body);
     const {
       id,
       business_id,
@@ -51,7 +50,6 @@ const adsRegister = async (req, res) => {
       schedule = {},
     } = req.body;
 
-    // Verify business exists and has permission for featured ads if requested
     if (is_featured) {
       const business = await Business.findById(business_id);
       if (!business || !business.features.can_create_featured_ads) {
@@ -417,7 +415,7 @@ const updateAd = async (req, res) => {
 const toggleAdStatus = async (req, res) => {
   try {
     const { ad_id } = req.params;
-    const { action } = req.body; // 'pause' or 'resume'
+    const { action } = req.body;
 
     const newStatus = action === "pause" ? "paused" : "active";
 
