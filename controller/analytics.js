@@ -23,7 +23,33 @@ const getBusinessAnalytics = async (req, res) => {
       });
     }
 
-    // Calculate date range
+    // For cached overview data, use the stored statistics
+    let overviewData = {
+      total_views: business.statistics.total_views,
+      total_clicks: business.statistics.total_clicks,
+      monthly_views: business.statistics.monthly_views,
+      monthly_clicks: business.statistics.monthly_clicks,
+      last_stats_update: business.statistics.last_stats_update,
+    };
+
+    // Calculate CTR from cached data
+    const overallCTR =
+      overviewData.total_views > 0
+        ? (
+            (overviewData.total_clicks / overviewData.total_views) *
+            100
+          ).toFixed(2)
+        : 0;
+
+    const monthlyCTR =
+      overviewData.monthly_views > 0
+        ? (
+            (overviewData.monthly_clicks / overviewData.monthly_views) *
+            100
+          ).toFixed(2)
+        : 0;
+
+    // For detailed analytics (if needed), calculate date range
     let dateRange = {};
     const currentDate = new Date();
 
@@ -49,108 +75,82 @@ const getBusinessAnalytics = async (req, res) => {
       };
     }
 
-    // Get overall statistics
-    const [
-      totalViews,
-      totalClicks,
-      adStats,
-      productStats,
-      promotionStats,
-      dailyStats,
-    ] = await Promise.all([
-      // Total views
-      Analytics.countDocuments({
-        business_id,
-        date: dateRange,
-        type: {
-          $in: ["ad_view", "product_view", "promotion_view", "profile_view"],
-        },
-      }),
-
-      // Total clicks
-      Analytics.countDocuments({
-        business_id,
-        date: dateRange,
-        type: { $in: ["ad_click", "product_click", "promotion_click"] },
-      }),
-
-      // Ad performance
-      Analytics.aggregate([
-        {
-          $match: {
-            business_id: business._id,
-            date: dateRange,
-            resource_type: "ad",
-          },
-        },
-        {
-          $group: {
-            _id: "$type",
-            count: { $sum: 1 },
-          },
-        },
-      ]),
-
-      // Product performance
-      Analytics.aggregate([
-        {
-          $match: {
-            business_id: business._id,
-            date: dateRange,
-            resource_type: "product",
-          },
-        },
-        {
-          $group: {
-            _id: "$type",
-            count: { $sum: 1 },
-          },
-        },
-      ]),
-
-      // Promotion performance
-      Analytics.aggregate([
-        {
-          $match: {
-            business_id: business._id,
-            date: dateRange,
-            resource_type: "promotion",
-          },
-        },
-        {
-          $group: {
-            _id: "$type",
-            count: { $sum: 1 },
-          },
-        },
-      ]),
-
-      // Daily breakdown
-      Analytics.aggregate([
-        {
-          $match: {
-            business_id: business._id,
-            date: dateRange,
-          },
-        },
-        {
-          $group: {
-            _id: {
-              date: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
-              type: "$type",
+    // Get detailed performance breakdown and daily stats (still from Analytics for detailed view)
+    const [adStats, productStats, promotionStats, dailyStats] =
+      await Promise.all([
+        // Ad performance
+        Analytics.aggregate([
+          {
+            $match: {
+              business_id: business._id,
+              date: dateRange,
+              resource_type: "ad",
             },
-            count: { $sum: 1 },
           },
-        },
-        {
-          $sort: { "_id.date": 1 },
-        },
-      ]),
-    ]);
+          {
+            $group: {
+              _id: "$type",
+              count: { $sum: 1 },
+            },
+          },
+        ]),
 
-    // Calculate CTR (Click-Through Rate)
-    const ctr =
-      totalViews > 0 ? ((totalClicks / totalViews) * 100).toFixed(2) : 0;
+        // Product performance
+        Analytics.aggregate([
+          {
+            $match: {
+              business_id: business._id,
+              date: dateRange,
+              resource_type: "product",
+            },
+          },
+          {
+            $group: {
+              _id: "$type",
+              count: { $sum: 1 },
+            },
+          },
+        ]),
+
+        // Promotion performance
+        Analytics.aggregate([
+          {
+            $match: {
+              business_id: business._id,
+              date: dateRange,
+              resource_type: "promotion",
+            },
+          },
+          {
+            $group: {
+              _id: "$type",
+              count: { $sum: 1 },
+            },
+          },
+        ]),
+
+        // Daily breakdown
+        Analytics.aggregate([
+          {
+            $match: {
+              business_id: business._id,
+              date: dateRange,
+            },
+          },
+          {
+            $group: {
+              _id: {
+                date: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
+                type: "$type",
+              },
+              count: { $sum: 1 },
+            },
+          },
+          {
+            $sort: { "_id.date": 1 },
+          },
+        ]),
+      ]);
 
     // Format ad stats
     const adViewsCount =
@@ -184,9 +184,13 @@ const getBusinessAnalytics = async (req, res) => {
       success: true,
       data: {
         overview: {
-          total_views: totalViews,
-          total_clicks: totalClicks,
-          overall_ctr: ctr,
+          total_views: overviewData.total_views,
+          total_clicks: overviewData.total_clicks,
+          monthly_views: overviewData.monthly_views,
+          monthly_clicks: overviewData.monthly_clicks,
+          overall_ctr: overallCTR,
+          monthly_ctr: monthlyCTR,
+          last_stats_update: overviewData.last_stats_update,
           period,
         },
         performance: {
@@ -662,15 +666,88 @@ const updateBusinessStatistics = async (req, res) => {
       });
     }
 
-    res.status(200).json({
+    // Only send response if this is called as HTTP endpoint
+    if (res) {
+      res.status(200).json({
+        success: true,
+        message: `Updated statistics for ${businesses.length} businesses`,
+      });
+    }
+
+    return {
       success: true,
+      updated_count: businesses.length,
       message: `Updated statistics for ${businesses.length} businesses`,
-    });
+    };
   } catch (error) {
     console.error("Update business statistics error:", error);
+
+    // Only send response if this is called as HTTP endpoint
+    if (res) {
+      res.status(500).json({
+        success: false,
+        message: "Error updating business statistics",
+        error: error.message,
+      });
+    }
+
+    return {
+      success: false,
+      error: error.message,
+      updated_count: 0,
+    };
+  }
+};
+
+// Get quick business statistics (cached data)
+const getQuickBusinessStats = async (req, res) => {
+  try {
+    const { business_id } = req.params;
+
+    // Verify business has analytics access
+    const business = await Business.findById(business_id);
+    if (!business || !business.features.analytics_access) {
+      return res.status(403).json({
+        success: false,
+        message: "Business does not have access to analytics.",
+      });
+    }
+
+    // Return cached statistics from Business model
+    const stats = {
+      total_views: business.statistics.total_views,
+      total_clicks: business.statistics.total_clicks,
+      monthly_views: business.statistics.monthly_views,
+      monthly_clicks: business.statistics.monthly_clicks,
+      overall_ctr:
+        business.statistics.total_views > 0
+          ? (
+              (business.statistics.total_clicks /
+                business.statistics.total_views) *
+              100
+            ).toFixed(2)
+          : 0,
+      monthly_ctr:
+        business.statistics.monthly_views > 0
+          ? (
+              (business.statistics.monthly_clicks /
+                business.statistics.monthly_views) *
+              100
+            ).toFixed(2)
+          : 0,
+      last_stats_update: business.statistics.last_stats_update,
+    };
+
+    res.status(200).json({
+      success: true,
+      data: stats,
+      message: "Quick statistics retrieved from cached data",
+    });
+  } catch (error) {
+    console.error("Get quick business stats error:", error);
     res.status(500).json({
       success: false,
-      message: "Error updating business statistics",
+      message: "Error fetching quick statistics",
       error: error.message,
     });
   }
@@ -721,5 +798,6 @@ module.exports = {
   getAdAnalytics,
   getGeographicAnalytics,
   updateBusinessStatistics,
+  getQuickBusinessStats,
   getAdminAnalytics,
 };
