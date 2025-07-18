@@ -41,7 +41,7 @@ app.use("/api/analytics", require("./routes/analytics"));
 app.use("/api/payments", require("./routes/payment"));
 
 // Super Admin routes
-app.use("/api/superadmin", require("./routes/superAdmin"));
+app.use("/api/superadmin", require("./routes/superadmin"));
 
 // Legacy routess (keeping for backward compatibility)
 app.post("/api", require("./controller/ai").getVeterinaryAdvice);
