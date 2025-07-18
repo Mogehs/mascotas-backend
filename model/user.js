@@ -34,6 +34,7 @@ const userSchema = new Schema(
     },
     role: {
       type: String,
+      default: "user",
     },
     business_subscription: {
       type: Boolean,
@@ -54,6 +55,10 @@ const userSchema = new Schema(
       default: false,
     },
     is_loggedin: {
+      type: Boolean,
+      default: false,
+    },
+    is_blocked: {
       type: Boolean,
       default: false,
     },

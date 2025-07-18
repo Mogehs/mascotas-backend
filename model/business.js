@@ -149,6 +149,10 @@ const businessSchema = new Schema(
         default: Date.now,
       },
     },
+    is_blocked: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
