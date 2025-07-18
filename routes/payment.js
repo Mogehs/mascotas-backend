@@ -10,7 +10,7 @@ const {
 
 // Payment Intent Routes
 router.post("/create-payment-intent", createPaymentIntent);
-router.post("/confirm-payment", confirmPayment);
+router.post("/confirm-payment/", confirmPayment);
 router.get("/history/:business_id", getPaymentHistory);
 
 // Stripe Webhook (no auth required - Stripe handles verification)

@@ -4,7 +4,7 @@ const Medical = require("../model/medicalhistory");
 const Product = require("../model/product");
 const Business = require("../model/business");
 const Analytics = require("../model/analytics");
-const { sendPushNotification } = require("../service/notification.service");
+const { sendMedicalReminder } = require("../service/notification.service");
 const { expireSubscriptionsHelper } = require("../controller/business");
 
 // Helper function to update business statistics
@@ -138,42 +138,96 @@ const startCronJob = () => {
           .populate("pet", "pet_name");
 
         const notificationPromises = data.map(async (medical) => {
+          const promises = [];
+
+          // Check for vaccine reminders (1 day before)
           if (medical.pet_vaccine_date != "N/A") {
             const vaccineReminderDate = moment(medical.pet_vaccine_date)
               .subtract(1, "day")
               .format("YYYY-MM-DD");
 
             if (todayFormatted === vaccineReminderDate) {
-              let notification = {
-                title: `Recordatorio de desparasitación para: ${medical.pet.pet_name}`,
-                body: `Tu mascota ${medical.pet.pet_name} tiene una vacuna programada para mañana(${medical.pet_vaccine_date}). ¡No lo olvides!`,
-              };
-
-              if (medical.user?.device_token !== "") {
-                console.log(medical.user?.device_token);
-                sendPushNotification(medical.user?.device_token, notification);
-              }
-            }
-          } else if (medical.pet_deworming_date != "N/A") {
-            if (todayFormatted === medical.pet_deworming_date) {
-              let notification = {
-                title: `Recordatorio de vacunas para: ${medical.pet.pet_name}`,
-                body: `Tu mascota ${medical.pet.pet_name} tiene una desparasitación programada para mañana(${medical.pet_vaccine_date}). ¡No lo olvides!`,
-              };
-
-              if (medical.user?.device_token !== "") {
-                console.log(medical.user?.device_token);
-                sendPushNotification(medical.user?.device_token, notification);
+              if (
+                medical.user?.device_token &&
+                medical.user.device_token !== ""
+              ) {
+                console.log(
+                  `Sending vaccine reminder to: ${medical.user.device_token} for pet: ${medical.pet.pet_name}`
+                );
+                promises.push(
+                  sendMedicalReminder(
+                    medical.user.device_token,
+                    medical.pet.pet_name,
+                    "vacunas",
+                    medical.pet_vaccine_date
+                  ).catch((error) => {
+                    console.error(
+                      `Failed to send vaccine reminder for ${medical.pet.pet_name}:`,
+                      error
+                    );
+                    return null;
+                  })
+                );
               }
             }
           }
-          return null;
+
+          // Check for deworming reminders (same day)
+          if (medical.pet_deworming_date != "N/A") {
+            if (todayFormatted === medical.pet_deworming_date) {
+              if (
+                medical.user?.device_token &&
+                medical.user.device_token !== ""
+              ) {
+                console.log(
+                  `Sending deworming reminder to: ${medical.user.device_token} for pet: ${medical.pet.pet_name}`
+                );
+                promises.push(
+                  sendMedicalReminder(
+                    medical.user.device_token,
+                    medical.pet.pet_name,
+                    "desparasitación",
+                    medical.pet_deworming_date
+                  ).catch((error) => {
+                    console.error(
+                      `Failed to send deworming reminder for ${medical.pet.pet_name}:`,
+                      error
+                    );
+                    return null;
+                  })
+                );
+              }
+            }
+          }
+
+          return Promise.all(promises);
         });
 
-        await Promise.all(notificationPromises.filter((p) => p !== null));
+        await Promise.all(notificationPromises);
+
+        // Count successful notifications
+        const sentNotifications = data.filter((medical) => {
+          const todayFormatted = moment().format("YYYY-MM-DD");
+          const hasVaccineReminder =
+            medical.pet_vaccine_date != "N/A" &&
+            todayFormatted ===
+              moment(medical.pet_vaccine_date)
+                .subtract(1, "day")
+                .format("YYYY-MM-DD") &&
+            medical.user?.device_token &&
+            medical.user.device_token !== "";
+          const hasDewormingReminder =
+            medical.pet_deworming_date != "N/A" &&
+            todayFormatted === medical.pet_deworming_date &&
+            medical.user?.device_token &&
+            medical.user.device_token !== "";
+          return hasVaccineReminder || hasDewormingReminder;
+        }).length;
+
         console.log(
           "Medical reminder task completed successfully at:",
-          new Date().toISOString()
+          new Date().toISOString(),
+          `- Notifications sent: ${sentNotifications}`
         );
       } catch (error) {
         console.error("Error in medical reminder scheduled task:", error);

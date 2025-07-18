@@ -1,9 +1,18 @@
 const express = require("express");
 const router = express.Router();
 const promotionController = require("../controller/promotion");
+const {
+  checkActiveSubscription,
+  checkPromotionsPermission,
+} = require("../middleware/subscription");
 
 // Create promotion
-router.post("/create", promotionController.createPromotion);
+router.post(
+  "/create",
+  checkActiveSubscription,
+  checkPromotionsPermission,
+  promotionController.createPromotion
+);
 
 // Get all promotions for a business
 router.get("/business/:business_id", promotionController.getBusinessPromotions);
@@ -15,12 +24,22 @@ router.get("/active", promotionController.getActivePromotions);
 router.get("/:promotion_id", promotionController.getPromotion);
 
 // Update promotion
-router.put("/:promotion_id", promotionController.updatePromotion);
+router.put(
+  "/:promotion_id",
+  checkActiveSubscription,
+  checkPromotionsPermission,
+  promotionController.updatePromotion
+);
 
 // Track promotion click
 router.post("/:promotion_id/click", promotionController.trackPromotionClick);
 
 // Delete promotion (deactivate)
-router.delete("/:promotion_id", promotionController.deletePromotion);
+router.delete(
+  "/:promotion_id",
+  checkActiveSubscription,
+  checkPromotionsPermission,
+  promotionController.deletePromotion
+);
 
 module.exports = router;

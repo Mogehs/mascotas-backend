@@ -5,6 +5,7 @@ const {
   getAllBusinessProfiles,
   toggleBusinessStatus,
   toggleUserStatus,
+  sendPushNotificationToUsers,
 } = require("../controller/superadmin");
 
 // Get all users
@@ -18,5 +19,8 @@ router.post("/business/toggle-status", toggleBusinessStatus);
 
 // Block/Unblock user
 router.post("/user/toggle-status", toggleUserStatus);
+
+// Send push notification to users
+router.post("/send-notification", sendPushNotificationToUsers);
 
 module.exports = router;

@@ -1,5 +1,6 @@
 const User = require("../model/user");
 const Business = require("../model/business");
+const { sendGeneralNotification } = require("../service/notification.service");
 
 // Get all users
 const getAllUsers = async (req, res) => {
@@ -171,9 +172,105 @@ const toggleUserStatus = async (req, res) => {
   }
 };
 
+// Send push notification to all users
+const sendPushNotificationToUsers = async (req, res) => {
+  try {
+    const { userId, title, message, notificationType, extraData } = req.body;
+
+    // Check if user is super admin
+    const adminUser = await User.findById(userId);
+    if (!adminUser || adminUser.role !== "super_admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Super admin privileges required.",
+      });
+    }
+
+    // Validate required fields
+    if (!title || !message) {
+      return res.status(400).json({
+        success: false,
+        message: "Title and message are required.",
+      });
+    }
+
+    let sentCount = 0;
+    let failedCount = 0;
+    let results = [];
+
+    // Get all users with device tokens (excluding blocked users and super admins)
+    const targetUsers = await User.find({
+      device_token: { $exists: true, $ne: null, $ne: "" },
+      is_blocked: { $ne: true },
+      role: { $ne: "super_admin" },
+    });
+
+    console.log(`Found ${targetUsers.length} users to send notifications to`);
+
+    if (targetUsers.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No users available to send notifications to.",
+        data: {
+          totalTargeted: 0,
+          sentCount: 0,
+          failedCount: 0,
+          results: [],
+        },
+      });
+    }
+
+    // Send notifications to all users
+    for (const user of targetUsers) {
+      try {
+        await sendGeneralNotification(
+          user.device_token,
+          title,
+          message,
+          notificationType || "admin_notification",
+          extraData || {}
+        );
+        sentCount++;
+        results.push({
+          userId: user._id,
+          username: user.username || user.firstname || user.email,
+          status: "sent",
+        });
+      } catch (error) {
+        console.error(
+          `Failed to send notification to user ${user._id}:`,
+          error.message
+        );
+        failedCount++;
+        results.push({
+          userId: user._id,
+          username: user.username || user.firstname || user.email,
+          status: "failed",
+          error: error.message,
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Notification broadcast completed! ${sentCount} delivered successfully, ${failedCount} failed.`,
+      data: {
+        totalTargeted: targetUsers.length,
+        sentCount,
+        failedCount,
+        results: results,
+      },
+    });
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getAllBusinessProfiles,
   toggleBusinessStatus,
   toggleUserStatus,
+  sendPushNotificationToUsers,
 };
