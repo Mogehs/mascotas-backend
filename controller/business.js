@@ -25,6 +25,48 @@ const businessRegister = async (req, res) => {
       addition,
     } = req.body;
     console.log(req.body);
+
+    // Basic required field validation
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    if (!name || name.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Company name is required",
+      });
+    }
+
+    if (!type || type.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Company type is required",
+      });
+    }
+
+    // Check if user exists
+    const userExists = await User.findById(id);
+    if (!userExists) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Check if user already has a business registered
+    const existingBusiness = await Business.findOne({ id: id });
+    if (existingBusiness) {
+      return res.status(400).json({
+        success: false,
+        message: "User already has a business registered",
+        business_id: existingBusiness._id,
+      });
+    }
+
     const data = await Business.create({
       id: id,
       company_name: name,
@@ -44,6 +86,7 @@ const businessRegister = async (req, res) => {
       {
         $set: {
           company_registered: true,
+          business_subscription: true,
         },
       },
       { new: true }
@@ -61,10 +104,30 @@ const businessRegister = async (req, res) => {
 
 const uploadBusinessImage = async (req, res) => {
   try {
-    if (!req?.files?.picture)
-      return res
-        .status(400)
-        .json({ success: false, message: "Please upload the pet image." });
+    // Validation for required fields
+    if (!req.body.uid) {
+      return res.status(400).json({
+        success: false,
+        message: "Business ID is required",
+      });
+    }
+
+    if (!req?.files?.picture) {
+      return res.status(400).json({
+        success: false,
+        message: "Please upload the business image",
+      });
+    }
+
+    // Check if business exists
+    const businessExists = await Business.findById(req.body.uid);
+    if (!businessExists) {
+      return res.status(404).json({
+        success: false,
+        message: "Business not found",
+      });
+    }
+
     const file = req.files.picture;
     const result = await cloudinary.uploader.upload(file.tempFilePath, {
       public_id: file.name,
@@ -94,12 +157,54 @@ const uploadBusinessImage = async (req, res) => {
 
 const uploadLatlng = async (req, res) => {
   try {
+    // Validation for required fields
+    if (!req.body.uid) {
+      return res.status(400).json({
+        success: false,
+        message: "Business ID is required",
+      });
+    }
+
+    if (!req.body.lat || !req.body.lon) {
+      return res.status(400).json({
+        success: false,
+        message: "Latitude and longitude are required",
+      });
+    }
+
+    // Validate latitude and longitude ranges
+    const lat = parseFloat(req.body.lat);
+    const lon = parseFloat(req.body.lon);
+
+    if (isNaN(lat) || lat < -90 || lat > 90) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid latitude. Must be between -90 and 90",
+      });
+    }
+
+    if (isNaN(lon) || lon < -180 || lon > 180) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid longitude. Must be between -180 and 180",
+      });
+    }
+
+    // Check if business exists
+    const businessExists = await Business.findById(req.body.uid);
+    if (!businessExists) {
+      return res.status(404).json({
+        success: false,
+        message: "Business not found",
+      });
+    }
+
     const data = await Business.findByIdAndUpdate(
       { _id: req.body.uid },
       {
         $set: {
-          latitude: req.body.lat,
-          longitude: req.body.lon,
+          latitude: lat,
+          longitude: lon,
         },
       },
       { new: true }
@@ -145,6 +250,23 @@ const updateBusiness = async (req, res) => {
     } = req.body;
     console.log(req.body);
 
+    // Basic required field validation
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Business ID is required",
+      });
+    }
+
+    // Check if business exists
+    const businessExists = await Business.findById(id);
+    if (!businessExists) {
+      return res.status(404).json({
+        success: false,
+        message: "Business not found",
+      });
+    }
+
     const data = await Business.findByIdAndUpdate(
       { _id: id },
       {
@@ -184,6 +306,37 @@ const activatePetProSubscription = async (req, res) => {
       payment_method,
       amount_paid = 49,
     } = req.body;
+
+    // Basic validation
+    if (!business_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Business ID is required",
+      });
+    }
+
+    if (!payment_method) {
+      return res.status(400).json({
+        success: false,
+        message: "Payment method is required",
+      });
+    }
+
+    // Validate subscription type
+    if (!["premium", "basic"].includes(subscription_type)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid subscription type. Must be 'premium' or 'basic'",
+      });
+    }
+
+    // Validate amount
+    if (amount_paid <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Amount paid must be greater than 0",
+      });
+    }
 
     const business = await Business.findById(business_id);
     if (!business) {
@@ -302,6 +455,29 @@ const renewSubscription = async (req, res) => {
     const { business_id } = req.params;
     const { payment_method, amount_paid = 49 } = req.body;
 
+    // Basic validation
+    if (!business_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Business ID is required",
+      });
+    }
+
+    if (!payment_method) {
+      return res.status(400).json({
+        success: false,
+        message: "Payment method is required",
+      });
+    }
+
+    // Validate amount
+    if (amount_paid <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Amount paid must be greater than 0",
+      });
+    }
+
     const business = await Business.findById(business_id);
     if (!business) {
       return res.status(404).json({
@@ -349,6 +525,30 @@ const cancelSubscription = async (req, res) => {
     const { business_id } = req.params;
     const { reason } = req.body;
 
+    // Basic validation
+    if (!business_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Business ID is required",
+      });
+    }
+
+    // Check if business exists and has active subscription
+    const business = await Business.findById(business_id);
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message: "Business not found",
+      });
+    }
+
+    if (!business.petpro_subscription.is_active) {
+      return res.status(400).json({
+        success: false,
+        message: "No active subscription to cancel",
+      });
+    }
+
     await Business.findByIdAndUpdate(business_id, {
       $set: {
         "petpro_subscription.is_active": false,
@@ -382,6 +582,59 @@ const upgradeSubscription = async (req, res) => {
   try {
     const { business_id } = req.params;
     const { new_subscription_type, payment_method, amount_paid } = req.body;
+
+    // Basic validation
+    if (!business_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Business ID is required",
+      });
+    }
+
+    if (!new_subscription_type) {
+      return res.status(400).json({
+        success: false,
+        message: "New subscription type is required",
+      });
+    }
+
+    if (!payment_method) {
+      return res.status(400).json({
+        success: false,
+        message: "Payment method is required",
+      });
+    }
+
+    if (!amount_paid || amount_paid <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid amount paid is required",
+      });
+    }
+
+    // Validate subscription type
+    if (!["premium", "basic"].includes(new_subscription_type)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid subscription type. Must be 'premium' or 'basic'",
+      });
+    }
+
+    // Check if business exists and has active subscription
+    const business = await Business.findById(business_id);
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message: "Business not found",
+      });
+    }
+
+    if (!business.petpro_subscription.is_active) {
+      return res.status(400).json({
+        success: false,
+        message: "No active subscription to upgrade",
+      });
+    }
 
     const features =
       new_subscription_type === "premium"
