@@ -1,8 +1,10 @@
 const User = require("../model/user");
 const Business = require("../model/business");
+const Order = require("../model/order");
+const QRCode = require("../model/qrcode");
 const { sendGeneralNotification } = require("../service/notification.service");
 
-// Get all users
+// Get all users with detailed analytics
 const getAllUsers = async (req, res) => {
   try {
     const { userId } = req.body;
@@ -16,12 +18,49 @@ const getAllUsers = async (req, res) => {
       });
     }
 
+    // Get users with their orders and QR codes
     const users = await User.find({}, "-password").sort({ createdAt: -1 });
+
+    // Enrich user data with subscription and order information
+    const enrichedUsers = await Promise.all(
+      users.map(async (user) => {
+        // Get user's orders
+        const orders = await Order.find({ user: user._id });
+
+        // Get user's QR codes (tags)
+        const qrCodes = await QRCode.find({ userId: user._id });
+
+        // Get user's business profile if they have one
+        const businessProfile = await Business.findOne({ id: user._id });
+
+        return {
+          ...user.toObject(),
+          analytics: {
+            totalOrders: orders.length,
+            totalSpent: orders.reduce(
+              (sum, order) => sum + parseFloat(order.amount || 0),
+              0
+            ),
+            totalQRCodes: qrCodes.length,
+            activeQRCodes: qrCodes.filter((qr) => qr.isActive).length,
+            hasBusiness: !!businessProfile,
+            businessSubscription: businessProfile?.petpro_subscription || null,
+            registrationDate: user.createdAt,
+            lastActivity: user.updatedAt,
+            subscriptions: {
+              business: user.business_subscription,
+              badge: user.badge_subscription,
+              badgeName: user.badge_name,
+            },
+          },
+        };
+      })
+    );
 
     res.status(200).json({
       success: true,
-      message: "Users fetched successfully",
-      data: users,
+      message: "Users with analytics fetched successfully",
+      data: enrichedUsers,
     });
   } catch (error) {
     console.log(error.message);
@@ -267,10 +306,221 @@ const sendPushNotificationToUsers = async (req, res) => {
   }
 };
 
+// Get user registration and subscription analytics
+const getUserAnalytics = async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    // Check if user is super admin
+    const adminUser = await User.findById(userId);
+    if (!adminUser || adminUser.role !== "super_admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Super admin privileges required.",
+      });
+    }
+
+    // Get total users count
+    const totalUsers = await User.countDocuments();
+
+    // Get users with business subscription
+    const businessSubscriptions = await User.countDocuments({
+      business_subscription: true,
+    });
+
+    // Get users with badge subscription
+    const badgeSubscriptions = await User.countDocuments({
+      badge_subscription: true,
+    });
+
+    // Get registrations by month (last 12 months)
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+
+    const monthlyRegistrations = await User.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: twelveMonthsAgo },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" },
+          },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $sort: { "_id.year": 1, "_id.month": 1 },
+      },
+    ]);
+
+    // Get active users (logged in recently)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const activeUsers = await User.countDocuments({
+      updatedAt: { $gte: thirtyDaysAgo },
+      is_blocked: { $ne: true },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "User analytics fetched successfully",
+      data: {
+        totalUsers,
+        activeUsers,
+        subscriptions: {
+          business: businessSubscriptions,
+          badge: badgeSubscriptions,
+          total: businessSubscriptions + badgeSubscriptions,
+        },
+        monthlyRegistrations,
+        userGrowth: {
+          totalUsers,
+          activeUsersLast30Days: activeUsers,
+          subscriptionRate:
+            (
+              ((businessSubscriptions + badgeSubscriptions) / totalUsers) *
+              100
+            ).toFixed(2) + "%",
+        },
+      },
+    });
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Get sales analytics (tags, PetPro subscriptions, orders)
+const getSalesAnalytics = async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    // Check if user is super admin
+    const adminUser = await User.findById(userId);
+    if (!adminUser || adminUser.role !== "super_admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Super admin privileges required.",
+      });
+    }
+
+    // Get QR Code (Tags) statistics
+    const totalQRCodes = await QRCode.countDocuments();
+    const activeQRCodes = await QRCode.countDocuments({ isActive: true });
+
+    // Get QR codes created in last 30 days
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const recentQRCodes = await QRCode.countDocuments({
+      createdAt: { $gte: thirtyDaysAgo },
+    });
+
+    // Get PetPro subscription statistics
+    const totalBusinesses = await Business.countDocuments();
+    const activeSubscriptions = await Business.countDocuments({
+      "petpro_subscription.is_active": true,
+    });
+    const paidSubscriptions = await Business.countDocuments({
+      "petpro_subscription.payment_status": "paid",
+    });
+
+    // Get subscription revenue
+    const subscriptionRevenue = await Business.aggregate([
+      {
+        $match: {
+          "petpro_subscription.payment_status": "paid",
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: "$petpro_subscription.amount_paid" },
+        },
+      },
+    ]);
+
+    // Get order statistics
+    const totalOrders = await Order.countDocuments();
+    const orderRevenue = await Order.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: { $toDouble: "$amount" } },
+        },
+      },
+    ]);
+
+    // Get monthly sales data
+    const monthlySales = await Order.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: thirtyDaysAgo },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" },
+          },
+          orderCount: { $sum: 1 },
+          revenue: { $sum: { $toDouble: "$amount" } },
+        },
+      },
+      {
+        $sort: { "_id.year": 1, "_id.month": 1 },
+      },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: "Sales analytics fetched successfully",
+      data: {
+        qrCodes: {
+          total: totalQRCodes,
+          active: activeQRCodes,
+          recentlyCreated: recentQRCodes,
+          activationRate:
+            ((activeQRCodes / totalQRCodes) * 100).toFixed(2) + "%",
+        },
+        petProSubscriptions: {
+          totalBusinesses,
+          activeSubscriptions,
+          paidSubscriptions,
+          conversionRate:
+            ((paidSubscriptions / totalBusinesses) * 100).toFixed(2) + "%",
+          subscriptionRevenue: subscriptionRevenue[0]?.totalRevenue || 0,
+        },
+        orders: {
+          totalOrders,
+          orderRevenue: orderRevenue[0]?.totalRevenue || 0,
+          averageOrderValue:
+            totalOrders > 0
+              ? ((orderRevenue[0]?.totalRevenue || 0) / totalOrders).toFixed(2)
+              : 0,
+        },
+        monthlySales,
+        totalRevenue:
+          (subscriptionRevenue[0]?.totalRevenue || 0) +
+          (orderRevenue[0]?.totalRevenue || 0),
+      },
+    });
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getAllBusinessProfiles,
   toggleBusinessStatus,
   toggleUserStatus,
   sendPushNotificationToUsers,
+  getUserAnalytics,
+  getSalesAnalytics,
 };
