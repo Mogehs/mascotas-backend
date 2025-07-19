@@ -9,25 +9,16 @@ const {
   updateAd,
   toggleAdStatus,
 } = require("../controller/ads");
-const {
-  checkActiveSubscription,
-  checkFeaturedAdsPermission,
-} = require("../middleware/subscription");
 
 // Existing routes
-router.post("/ad-register", checkActiveSubscription, adsRegister);
+router.post("/ad-register", adsRegister);
 router.get("/", findAds);
 
 // New enhanced routes
 router.get("/:ad_id", getAd);
 router.post("/:ad_id/click", trackAdClick);
-router.post(
-  "/:ad_id/feature",
-  checkActiveSubscription,
-  checkFeaturedAdsPermission,
-  makeAdFeatured
-);
-router.put("/:ad_id", checkActiveSubscription, updateAd);
-router.post("/:ad_id/toggle-status", checkActiveSubscription, toggleAdStatus);
+router.post("/:ad_id/feature", makeAdFeatured);
+router.put("/:ad_id", updateAd);
+router.post("/:ad_id/toggle-status", toggleAdStatus);
 
 module.exports = router;

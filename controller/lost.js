@@ -94,7 +94,6 @@ const lostPet = async (req, res) => {
 const allLostPets = async (req, res) => {
   try {
     const users = await Lost.find({ user: req.body.user });
-    console.log(users);
     res.status(200).json({
       success: true,
       message: "Mascotas perdidas recuperadas con éxito",

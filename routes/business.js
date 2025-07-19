@@ -15,8 +15,6 @@ const {
   expireSubscriptions,
 } = require("../controller/business");
 
-const auth = require("../middleware/jwt");
-
 // Existing routes
 router.post("/register", businessRegister);
 router.post("/image", uploadBusinessImage);
