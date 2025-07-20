@@ -231,6 +231,41 @@ const getBusiness = async (req, res) => {
   }
 };
 
+const getBusinessByUserId = async (req, res) => {
+  try {
+    const { user_id } = req.params;
+
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    // Find business by user ID and populate user details
+    const business = await Business.findOne({ id: user_id }).populate(
+      "id",
+      "username email phone"
+    );
+
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message: "No business found for this user",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Business details retrieved successfully",
+      data: business,
+    });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 const updateBusiness = async (req, res) => {
   try {
     console.log("working");
@@ -763,6 +798,7 @@ module.exports = {
   uploadBusinessImage,
   uploadLatlng,
   getBusiness,
+  getBusinessByUserId,
   updateBusiness,
   activatePetProSubscription,
   checkSubscriptionStatus,

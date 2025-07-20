@@ -6,6 +6,7 @@ const {
   uploadBusinessImage,
   uploadLatlng,
   getBusiness,
+  getBusinessByUserId,
   updateBusiness,
   activatePetProSubscription,
   checkSubscriptionStatus,
@@ -20,6 +21,7 @@ router.post("/register", businessRegister);
 router.post("/image", uploadBusinessImage);
 router.post("/latlng", uploadLatlng);
 router.get("/", getBusiness);
+router.get("/user/:user_id", getBusinessByUserId);
 router.post("/updateBusiness", updateBusiness);
 
 // PetPro Subscription routes
