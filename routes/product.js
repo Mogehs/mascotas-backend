@@ -1,16 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const productController = require("../controller/product");
-const {
-  checkActiveSubscription,
-  checkProductsPermission,
-} = require("../middleware/subscription");
 
-router.post(
-  "/create",
-
-  productController.createProduct
-);
+router.post("/create", productController.createProduct);
 
 router.get("/business/:business_id", productController.getBusinessProducts);
 
