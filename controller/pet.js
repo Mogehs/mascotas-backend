@@ -283,39 +283,31 @@ const update_pet = async (req, res) => {
 
 const dogmatch = async (req, res) => {
   try {
-    const {
-      id,
-      neutered,
-      temperament,
-      socialize,
-      time,
-      location,
-      size,
-      distance,
-      age,
-      notes,
-    } = req.body;
-    const data = await Pet.findByIdAndUpdate(
-      { _id: id },
-      {
-        $set: {
-          isNeutered: neutered,
-          temperament: temperament,
-          pet_socialize: socialize,
-          preferred_time: time,
-          preferred_location: location,
-          pet_size: size,
-          distance: distance,
-          preferred_age: age,
-          notes_other: notes,
-        },
-      },
-      { new: true }
-    );
+    const { neutered, temperament, socialize, time, location, size, age } =
+      req.body;
+
+    // Find dogs that match the given filters
+    const matchedDogs = await Pet.find({
+      isNeutered: neutered,
+      temperament: { $in: temperament },
+      pet_socialize: socialize,
+      pet_size: size,
+      preferred_age: age,
+      preferred_time: { $in: time },
+      preferred_location: location,
+    }).populate("user", "firstname lastname phone address");
+
+    if (!matchedDogs.length) {
+      return res.status(404).json({
+        success: false,
+        message: "No se encontraron perros que coincidan con los filtros.",
+      });
+    }
+
     res.status(200).json({
       success: true,
-      message: "Se ha guardado la información del partido del perro",
-      pet_details: data,
+      message: "Se encontraron perros que coinciden con los filtros.",
+      matchedDogs,
     });
   } catch (error) {
     console.log(error.message);
