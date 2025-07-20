@@ -63,7 +63,7 @@ const businessSchema = new Schema(
     petpro_subscription: {
       is_active: {
         type: Boolean,
-        default: false,
+        default: true, // Basic plan is active by default
       },
       subscription_type: {
         type: String,
@@ -72,21 +72,24 @@ const businessSchema = new Schema(
       },
       start_date: {
         type: Date,
+        default: Date.now, // Set start date to now for basic plan
       },
       end_date: {
         type: Date,
+        // Basic plan has no end date (permanent)
       },
       payment_status: {
         type: String,
-        enum: ["pending", "paid", "expired", "cancelled"],
-        default: "pending",
+        enum: ["pending", "paid", "expired", "cancelled", "free"],
+        default: "free", // Basic plan is free
       },
       amount_paid: {
         type: Number,
-        default: 49,
+        default: 0, // Basic plan is free
       },
       payment_method: {
         type: String,
+        default: "free", // Basic plan doesn't require payment
       },
       stripe_payment_intent_id: {
         type: String,
@@ -100,31 +103,31 @@ const businessSchema = new Schema(
     features: {
       can_create_featured_ads: {
         type: Boolean,
-        default: false,
+        default: true, // Basic plan can create featured ads
       },
       max_featured_ads: {
         type: Number,
-        default: 0,
+        default: 3, // Basic plan limit
       },
       can_showcase_products: {
         type: Boolean,
-        default: false,
+        default: true, // Basic plan can showcase products
       },
       max_products: {
         type: Number,
-        default: 0,
+        default: 25, // Basic plan limit
       },
       can_create_promotions: {
         type: Boolean,
-        default: false,
+        default: true, // Basic plan can create promotions
       },
       max_promotions: {
         type: Number,
-        default: 0,
+        default: 5, // Basic plan limit
       },
       analytics_access: {
         type: Boolean,
-        default: false,
+        default: true, // Basic plan has analytics access
       },
     },
     statistics: {
