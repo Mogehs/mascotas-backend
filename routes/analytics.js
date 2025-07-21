@@ -32,8 +32,6 @@ router.get(
   analyticsController.getGeographicAnalytics
 );
 
-router.post("/update-statistics", analyticsController.updateBusinessStatistics);
-
 router.get(
   "/business/:business_id/quick-stats",
 

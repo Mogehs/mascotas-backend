@@ -23,13 +23,134 @@ const getBusinessAnalytics = async (req, res) => {
       });
     }
 
-    // For cached overview data, use the stored statistics
-    let overviewData = {
-      total_views: business.statistics.total_views,
-      total_clicks: business.statistics.total_clicks,
-      monthly_views: business.statistics.monthly_views,
-      monthly_clicks: business.statistics.monthly_clicks,
-      last_stats_update: business.statistics.last_stats_update,
+    // Get real-time overview data instead of cached
+    const overviewDate = new Date();
+    const monthStart = new Date(
+      overviewDate.getFullYear(),
+      overviewDate.getMonth(),
+      1
+    );
+
+    const [
+      totalAnalyticsStats,
+      monthlyAnalyticsStats,
+      productOverviewStats,
+      adOverviewStats,
+      promotionOverviewStats,
+    ] = await Promise.all([
+      // Total analytics tracking
+      Analytics.aggregate([
+        {
+          $match: { business_id: business._id },
+        },
+        {
+          $group: {
+            _id: "$type",
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+
+      // Monthly analytics tracking
+      Analytics.aggregate([
+        {
+          $match: {
+            business_id: business._id,
+            date: { $gte: monthStart, $lte: overviewDate },
+          },
+        },
+        {
+          $group: {
+            _id: "$type",
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+
+      // Product totals from Product model
+      Product.aggregate([
+        {
+          $match: { business_id: business._id, is_available: true },
+        },
+        {
+          $group: {
+            _id: null,
+            total_views: { $sum: "$views" },
+            total_inquiries: { $sum: "$inquiries" },
+            total_contact_clicks: { $sum: "$contact_clicks" },
+          },
+        },
+      ]),
+
+      // Ad totals from Ads model
+      Ads.aggregate([
+        {
+          $match: { business_id: business._id, is_available: true },
+        },
+        {
+          $group: {
+            _id: null,
+            total_views: { $sum: "$views" },
+            total_clicks: { $sum: "$clicks" },
+          },
+        },
+      ]),
+
+      // Promotion totals from Promotion model
+      Promotion.aggregate([
+        {
+          $match: { business_id: business._id, is_active: true },
+        },
+        {
+          $group: {
+            _id: null,
+            total_views: { $sum: "$views" },
+            total_clicks: { $sum: "$clicks" },
+          },
+        },
+      ]),
+    ]);
+
+    // Combine real-time overview data
+    const productViewsTotal = productOverviewStats[0]?.total_views || 0;
+    const productInquiries = productOverviewStats[0]?.total_inquiries || 0;
+    const productContactClicks =
+      productOverviewStats[0]?.total_contact_clicks || 0;
+
+    const adViewsTotal = adOverviewStats[0]?.total_views || 0;
+    const adClicksTotal = adOverviewStats[0]?.total_clicks || 0;
+
+    const promotionViewsTotal = promotionOverviewStats[0]?.total_views || 0;
+    const promotionClicksTotal = promotionOverviewStats[0]?.total_clicks || 0;
+
+    const analyticsViews = totalAnalyticsStats
+      .filter((stat) => stat._id.includes("_view"))
+      .reduce((total, stat) => total + stat.count, 0);
+
+    const analyticsClicks = totalAnalyticsStats
+      .filter((stat) => stat._id.includes("_click"))
+      .reduce((total, stat) => total + stat.count, 0);
+
+    const monthlyAnalyticsViews = monthlyAnalyticsStats
+      .filter((stat) => stat._id.includes("_view"))
+      .reduce((total, stat) => total + stat.count, 0);
+
+    const monthlyAnalyticsClicks = monthlyAnalyticsStats
+      .filter((stat) => stat._id.includes("_click"))
+      .reduce((total, stat) => total + stat.count, 0);
+
+    const overviewData = {
+      total_views:
+        productViewsTotal + adViewsTotal + promotionViewsTotal + analyticsViews,
+      total_clicks:
+        productInquiries +
+        productContactClicks +
+        adClicksTotal +
+        promotionClicksTotal +
+        analyticsClicks,
+      monthly_views: monthlyAnalyticsViews,
+      monthly_clicks: monthlyAnalyticsClicks,
+      last_stats_update: overviewDate,
     };
 
     // Calculate CTR from cached data
@@ -238,89 +359,70 @@ const getProductAnalytics = async (req, res) => {
       });
     }
 
-    // Calculate date range
+    // Calculate date range for clicks analytics
     const currentDate = new Date();
     const daysBack =
       period === "7d" ? 7 : period === "30d" ? 30 : period === "90d" ? 90 : 365;
     const startDate = new Date(currentDate);
     startDate.setDate(startDate.getDate() - daysBack);
 
-    // Get top performing products
-    const topProducts = await Analytics.aggregate([
+    // Get products with their actual views from Product model and clicks from Analytics
+    const products = await Product.find({
+      business_id,
+      is_available: true,
+    }).select("name price images category views inquiries contact_clicks");
+
+    // Get clicks data from Analytics for the period
+    const clicksData = await Analytics.aggregate([
       {
         $match: {
           business_id: business._id,
           resource_type: "product",
+          type: { $in: ["product_click", "product_contact"] },
           date: { $gte: startDate, $lte: currentDate },
         },
       },
       {
         $group: {
-          _id: {
-            product_id: "$resource_id",
-            type: "$type",
-          },
-          count: { $sum: 1 },
+          _id: "$resource_id",
+          clicks: { $sum: 1 },
         },
-      },
-      {
-        $group: {
-          _id: "$_id.product_id",
-          views: {
-            $sum: {
-              $cond: [{ $eq: ["$_id.type", "product_view"] }, "$count", 0],
-            },
-          },
-          clicks: {
-            $sum: {
-              $cond: [{ $eq: ["$_id.type", "product_click"] }, "$count", 0],
-            },
-          },
-        },
-      },
-      {
-        $addFields: {
-          ctr: {
-            $cond: [
-              { $gt: ["$views", 0] },
-              { $multiply: [{ $divide: ["$clicks", "$views"] }, 100] },
-              0,
-            ],
-          },
-        },
-      },
-      {
-        $sort: { views: -1 },
-      },
-      {
-        $limit: parseInt(limit),
       },
     ]);
 
-    // Populate product details
-    const productIds = topProducts.map((p) => p._id);
-    const products = await Product.find({ _id: { $in: productIds } }).select(
-      "name price images category"
-    );
-
-    // Combine analytics with product details
-    const productAnalytics = topProducts.map((analytics) => {
-      const product = products.find(
-        (p) => p._id.toString() === analytics._id.toString()
+    // Combine product data with analytics
+    const productAnalytics = products.map((product) => {
+      const clickStats = clicksData.find(
+        (c) => c._id.toString() === product._id.toString()
       );
+      const clicks = clickStats ? clickStats.clicks : 0;
+      const views = product.views || 0;
+
       return {
-        product,
+        product: {
+          _id: product._id,
+          name: product.name,
+          price: product.price,
+          images: product.images,
+          category: product.category,
+        },
         analytics: {
-          views: analytics.views,
-          clicks: analytics.clicks,
-          ctr: analytics.ctr.toFixed(2),
+          views: views,
+          clicks: clicks,
+          inquiries: product.inquiries || 0,
+          contact_clicks: product.contact_clicks || 0,
+          ctr: views > 0 ? ((clicks / views) * 100).toFixed(2) : "0.00",
         },
       };
     });
 
+    // Sort by views (descending) and limit
+    productAnalytics.sort((a, b) => b.analytics.views - a.analytics.views);
+    const limitedResults = productAnalytics.slice(0, parseInt(limit));
+
     res.status(200).json({
       success: true,
-      data: productAnalytics,
+      data: limitedResults,
     });
   } catch (error) {
     console.error("Get product analytics error:", error);
@@ -596,110 +698,7 @@ const getGeographicAnalytics = async (req, res) => {
   }
 };
 
-// Update business statistics (cron job helper)
-const updateBusinessStatistics = async (req, res) => {
-  try {
-    const businesses = await Business.find({
-      "petpro_subscription.is_active": true,
-    });
-
-    for (const business of businesses) {
-      const currentDate = new Date();
-      const monthStart = new Date(
-        currentDate.getFullYear(),
-        currentDate.getMonth(),
-        1
-      );
-
-      // Get monthly stats
-      const monthlyStats = await Analytics.aggregate([
-        {
-          $match: {
-            business_id: business._id,
-            date: { $gte: monthStart, $lte: currentDate },
-          },
-        },
-        {
-          $group: {
-            _id: "$type",
-            count: { $sum: 1 },
-          },
-        },
-      ]);
-
-      const monthlyViews = monthlyStats
-        .filter((stat) => stat._id.includes("_view"))
-        .reduce((total, stat) => total + stat.count, 0);
-
-      const monthlyClicks = monthlyStats
-        .filter((stat) => stat._id.includes("_click"))
-        .reduce((total, stat) => total + stat.count, 0);
-
-      // Get total stats
-      const totalStats = await Analytics.aggregate([
-        {
-          $match: { business_id: business._id },
-        },
-        {
-          $group: {
-            _id: "$type",
-            count: { $sum: 1 },
-          },
-        },
-      ]);
-
-      const totalViews = totalStats
-        .filter((stat) => stat._id.includes("_view"))
-        .reduce((total, stat) => total + stat.count, 0);
-
-      const totalClicks = totalStats
-        .filter((stat) => stat._id.includes("_click"))
-        .reduce((total, stat) => total + stat.count, 0);
-
-      // Update business statistics
-      await Business.findByIdAndUpdate(business._id, {
-        "statistics.monthly_views": monthlyViews,
-        "statistics.monthly_clicks": monthlyClicks,
-        "statistics.total_views": totalViews,
-        "statistics.total_clicks": totalClicks,
-        "statistics.last_stats_update": currentDate,
-      });
-    }
-
-    // Only send response if this is called as HTTP endpoint
-    if (res) {
-      res.status(200).json({
-        success: true,
-        message: `Updated statistics for ${businesses.length} businesses`,
-      });
-    }
-
-    return {
-      success: true,
-      updated_count: businesses.length,
-      message: `Updated statistics for ${businesses.length} businesses`,
-    };
-  } catch (error) {
-    console.error("Update business statistics error:", error);
-
-    // Only send response if this is called as HTTP endpoint
-    if (res) {
-      res.status(500).json({
-        success: false,
-        message: "Error updating business statistics",
-        error: error.message,
-      });
-    }
-
-    return {
-      success: false,
-      error: error.message,
-      updated_count: 0,
-    };
-  }
-};
-
-// Get quick business statistics (cached data)
+// Get quick business statistics (real-time data)
 const getQuickBusinessStats = async (req, res) => {
   try {
     const { business_id } = req.params;
@@ -713,35 +712,170 @@ const getQuickBusinessStats = async (req, res) => {
       });
     }
 
-    // Return cached statistics from Business model
+    const currentDate = new Date();
+    const monthStart = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth(),
+      1
+    );
+
+    // Get real-time total statistics
+    const [totalStats, monthlyStats, productViews, adViews, promotionViews] =
+      await Promise.all([
+        // Total views and clicks from Analytics
+        Analytics.aggregate([
+          {
+            $match: { business_id: business._id },
+          },
+          {
+            $group: {
+              _id: "$type",
+              count: { $sum: 1 },
+            },
+          },
+        ]),
+
+        // Monthly views and clicks from Analytics
+        Analytics.aggregate([
+          {
+            $match: {
+              business_id: business._id,
+              date: { $gte: monthStart, $lte: currentDate },
+            },
+          },
+          {
+            $group: {
+              _id: "$type",
+              count: { $sum: 1 },
+            },
+          },
+        ]),
+
+        // Product views from Product model
+        Product.aggregate([
+          {
+            $match: { business_id: business._id, is_available: true },
+          },
+          {
+            $group: {
+              _id: null,
+              total_views: { $sum: "$views" },
+              total_inquiries: { $sum: "$inquiries" },
+              total_contact_clicks: { $sum: "$contact_clicks" },
+            },
+          },
+        ]),
+
+        // Ad views from Ads model
+        Ads.aggregate([
+          {
+            $match: { business_id: business._id, is_available: true },
+          },
+          {
+            $group: {
+              _id: null,
+              total_views: { $sum: "$views" },
+              total_clicks: { $sum: "$clicks" },
+            },
+          },
+        ]),
+
+        // Promotion views from Promotion model
+        Promotion.aggregate([
+          {
+            $match: { business_id: business._id, is_active: true },
+          },
+          {
+            $group: {
+              _id: null,
+              total_views: { $sum: "$views" },
+              total_clicks: { $sum: "$clicks" },
+            },
+          },
+        ]),
+      ]);
+
+    // Calculate analytics views and clicks
+    const analyticsViews = totalStats
+      .filter((stat) => stat._id.includes("_view"))
+      .reduce((total, stat) => total + stat.count, 0);
+
+    const analyticsClicks = totalStats
+      .filter((stat) => stat._id.includes("_click"))
+      .reduce((total, stat) => total + stat.count, 0);
+
+    const monthlyAnalyticsViews = monthlyStats
+      .filter((stat) => stat._id.includes("_view"))
+      .reduce((total, stat) => total + stat.count, 0);
+
+    const monthlyAnalyticsClicks = monthlyStats
+      .filter((stat) => stat._id.includes("_click"))
+      .reduce((total, stat) => total + stat.count, 0);
+
+    // Get actual views from models
+    const productViewsTotal = productViews[0]?.total_views || 0;
+    const productInquiries = productViews[0]?.total_inquiries || 0;
+    const productContactClicks = productViews[0]?.total_contact_clicks || 0;
+
+    const adViewsTotal = adViews[0]?.total_views || 0;
+    const adClicksTotal = adViews[0]?.total_clicks || 0;
+
+    const promotionViewsTotal = promotionViews[0]?.total_views || 0;
+    const promotionClicksTotal = promotionViews[0]?.total_clicks || 0;
+
+    // Combine totals (using actual model data + analytics tracking)
+    const totalViewsCombined =
+      productViewsTotal + adViewsTotal + promotionViewsTotal + analyticsViews;
+    const totalClicksCombined =
+      productInquiries +
+      productContactClicks +
+      adClicksTotal +
+      promotionClicksTotal +
+      analyticsClicks;
+
+    // For monthly, we'll use analytics data since model views are cumulative
+    const monthlyViews = monthlyAnalyticsViews;
+    const monthlyClicks = monthlyAnalyticsClicks;
+
     const stats = {
-      total_views: business.statistics.total_views,
-      total_clicks: business.statistics.total_clicks,
-      monthly_views: business.statistics.monthly_views,
-      monthly_clicks: business.statistics.monthly_clicks,
+      total_views: totalViewsCombined,
+      total_clicks: totalClicksCombined,
+      monthly_views: monthlyViews,
+      monthly_clicks: monthlyClicks,
       overall_ctr:
-        business.statistics.total_views > 0
-          ? (
-              (business.statistics.total_clicks /
-                business.statistics.total_views) *
-              100
-            ).toFixed(2)
-          : 0,
+        totalViewsCombined > 0
+          ? ((totalClicksCombined / totalViewsCombined) * 100).toFixed(2)
+          : "0.00",
       monthly_ctr:
-        business.statistics.monthly_views > 0
-          ? (
-              (business.statistics.monthly_clicks /
-                business.statistics.monthly_views) *
-              100
-            ).toFixed(2)
-          : 0,
-      last_stats_update: business.statistics.last_stats_update,
+        monthlyViews > 0
+          ? ((monthlyClicks / monthlyViews) * 100).toFixed(2)
+          : "0.00",
+      last_stats_update: currentDate,
+      breakdown: {
+        products: {
+          views: productViewsTotal,
+          inquiries: productInquiries,
+          contact_clicks: productContactClicks,
+        },
+        ads: {
+          views: adViewsTotal,
+          clicks: adClicksTotal,
+        },
+        promotions: {
+          views: promotionViewsTotal,
+          clicks: promotionClicksTotal,
+        },
+        analytics_tracking: {
+          views: analyticsViews,
+          clicks: analyticsClicks,
+        },
+      },
     };
 
     res.status(200).json({
       success: true,
       data: stats,
-      message: "Quick statistics retrieved from cached data",
+      message: "Real-time statistics calculated",
     });
   } catch (error) {
     console.error("Get quick business stats error:", error);
@@ -797,7 +931,6 @@ module.exports = {
   getPromotionAnalytics,
   getAdAnalytics,
   getGeographicAnalytics,
-  updateBusinessStatistics,
   getQuickBusinessStats,
   getAdminAnalytics,
 };

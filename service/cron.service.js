@@ -7,95 +7,6 @@ const Analytics = require("../model/analytics");
 const { sendMedicalReminder } = require("../service/notification.service");
 const { expireSubscriptionsHelper } = require("../controller/business");
 
-// Helper function to update business statistics
-const updateBusinessStatistics = async () => {
-  try {
-    console.log("Starting business statistics update...");
-    const businesses = await Business.find({
-      "petpro_subscription.is_active": true,
-    });
-
-    let updatedCount = 0;
-    for (const business of businesses) {
-      const currentDate = new Date();
-      const monthStart = new Date(
-        currentDate.getFullYear(),
-        currentDate.getMonth(),
-        1
-      );
-
-      // Get monthly stats
-      const monthlyStats = await Analytics.aggregate([
-        {
-          $match: {
-            business_id: business._id,
-            date: { $gte: monthStart, $lte: currentDate },
-          },
-        },
-        {
-          $group: {
-            _id: "$type",
-            count: { $sum: 1 },
-          },
-        },
-      ]);
-
-      const monthlyViews = monthlyStats
-        .filter((stat) => stat._id.includes("_view"))
-        .reduce((total, stat) => total + stat.count, 0);
-
-      const monthlyClicks = monthlyStats
-        .filter((stat) => stat._id.includes("_click"))
-        .reduce((total, stat) => total + stat.count, 0);
-
-      // Get total stats
-      const totalStats = await Analytics.aggregate([
-        {
-          $match: { business_id: business._id },
-        },
-        {
-          $group: {
-            _id: "$type",
-            count: { $sum: 1 },
-          },
-        },
-      ]);
-
-      const totalViews = totalStats
-        .filter((stat) => stat._id.includes("_view"))
-        .reduce((total, stat) => total + stat.count, 0);
-
-      const totalClicks = totalStats
-        .filter((stat) => stat._id.includes("_click"))
-        .reduce((total, stat) => total + stat.count, 0);
-
-      // Update business statistics
-      await Business.findByIdAndUpdate(business._id, {
-        "statistics.monthly_views": monthlyViews,
-        "statistics.monthly_clicks": monthlyClicks,
-        "statistics.total_views": totalViews,
-        "statistics.total_clicks": totalClicks,
-        "statistics.last_stats_update": currentDate,
-      });
-
-      updatedCount++;
-    }
-
-    return {
-      success: true,
-      updated_count: updatedCount,
-      message: `Updated statistics for ${updatedCount} businesses`,
-    };
-  } catch (error) {
-    console.error("Update business statistics error:", error);
-    return {
-      success: false,
-      error: error.message,
-      updated_count: 0,
-    };
-  }
-};
-
 // Helper function to expire featured products (duplicated here to avoid circular imports)
 const expireFeaturedProducts = async () => {
   try {
@@ -293,43 +204,14 @@ const startCronJob = () => {
     }
   );
 
-  // Business statistics update cron job - runs daily at 1:00 AM
-  const businessStatisticsUpdateTask = cron.schedule(
-    "0 1 * * *",
-    async () => {
-      try {
-        console.log("Starting business statistics update...");
-        const result = await updateBusinessStatistics();
-
-        console.log(
-          "Business statistics update task completed successfully at:",
-          new Date().toISOString(),
-          "- Updated businesses:",
-          result.updated_count
-        );
-      } catch (error) {
-        console.error(
-          "Error in business statistics update scheduled task:",
-          error
-        );
-      }
-    },
-    {
-      scheduled: true,
-      timezone: "Europe/Madrid",
-    }
-  );
-
   medicalReminderTask.start();
   subscriptionExpirationTask.start();
   featuredProductsExpirationTask.start();
-  businessStatisticsUpdateTask.start();
 
   console.log("Cron jobs scheduled:");
   console.log("- Medical reminders: Every day at 9:00 AM");
   console.log("- Subscription expiration check: Every day at 12:01 AM");
   console.log("- Featured products expiration check: Every day at 12:05 AM");
-  console.log("- Business statistics update: Every day at 1:00 AM");
 };
 
 module.exports = {
