@@ -20,10 +20,6 @@ router.post("/:product_id/interest", productController.trackProductClick);
 
 router.post("/:product_id/contact", productController.trackContactClick);
 
-router.delete(
-  "/:product_id",
-
-  productController.deleteProduct
-);
+router.delete("/:product_id", productController.deleteProduct);
 
 module.exports = router;

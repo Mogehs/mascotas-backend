@@ -233,10 +233,7 @@ const getProduct = async (req, res) => {
       });
     }
 
-    // Increment view count
-    await Product.findByIdAndUpdate(product_id, { $inc: { views: 1 } });
-
-    // Track analytics
+    // Track analytics (removed view count increment)
     await trackAnalytics(
       product.business_id._id,
       "product_view",
@@ -395,6 +392,15 @@ const searchProducts = async (req, res) => {
     ];
 
     const products = await Product.aggregate(pipeline);
+
+    // Update view count for all products in search results
+    if (products.length > 0) {
+      const productIds = products.map((product) => product._id);
+      await Product.updateMany(
+        { _id: { $in: productIds } },
+        { $inc: { views: 1 } }
+      );
+    }
 
     const countPipeline = [
       { $match: query },
