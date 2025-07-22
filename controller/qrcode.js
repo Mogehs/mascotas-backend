@@ -1,3 +1,5 @@
+const cloudinary = require("cloudinary").v2;
+
 const QRCode = require("qrcode");
 const QRCodeModel = require("../model/qrcode");
 const Pet = require("../model/pet");
