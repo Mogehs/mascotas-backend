@@ -131,10 +131,13 @@ const getQRCodeInfo = async (req, res) => {
         path: "petId",
         populate: {
           path: "user",
-          select: "-password -__v",
+          select: "name email phone",
         },
       })
-      .populate("userId", "-password -__v");
+      .populate({
+        path: "userId",
+        select: "name email phone",
+      });
 
     if (!qrCode) {
       return res.status(404).json({
@@ -143,19 +146,32 @@ const getQRCodeInfo = async (req, res) => {
       });
     }
 
+    const pet = qrCode.petId;
+    const petOwner = pet?.user || qrCode.userId;
+
+    // Build WhatsApp-style message (just text)
+    let whatsappMessage = `Hi, I found your pet.`;
+
+    if (pet) {
+      whatsappMessage = `Hi, I found your pet ${pet.name || ""}${
+        pet.color ? ", color " + pet.color : ""
+      }${pet.breed ? ", breed " + pet.breed : ""}. Please contact me.`;
+    }
+
     const responseData = {
       id: qrCode._id,
-      petId: qrCode.petId,
-      userId: qrCode.userId,
       url: qrCode.url,
       qrCodeImage: qrCode.qrCodeImage,
       isActive: qrCode.isActive,
       createdAt: qrCode.createdAt,
       updatedAt: qrCode.updatedAt,
-      isAssigned: !!qrCode.petId,
+      isAssigned: !!pet,
+      pet: pet || null,
+      owner: petOwner || null,
+      whatsappMessage,
     };
 
-    if (!qrCode.petId) {
+    if (!pet) {
       responseData.message =
         "QR code is not assigned to any pet. You can proceed to register a pet.";
     }
