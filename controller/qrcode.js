@@ -155,9 +155,9 @@ const getQRCodeInfo = async (req, res) => {
     let whatsappMessage = `Hi, I found your pet.`;
 
     if (pet) {
-      whatsappMessage = `Hi, I found your pet ${pet.name || ""}${
-        pet.color ? ", color " + pet.color : ""
-      }${pet.breed ? ", breed " + pet.breed : ""}. Please contact me.`;
+      whatsappMessage = `Hi, I found your pet ${pet.pet_name || ""}${
+        pet.pet_color ? ", color " + pet.pet_color : ""
+      }${pet.pet_breed ? ", breed " + pet.pet_breed : ""}. Please contact me.`;
     }
 
     const responseData = {
