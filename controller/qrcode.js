@@ -206,7 +206,6 @@ const assignPetToQRCode = async (req, res) => {
       pet_description,
       pet_color,
       pet,
-      pet_image,
     } = req.body;
 
     if (!qrId || !user) {
@@ -231,21 +230,37 @@ const assignPetToQRCode = async (req, res) => {
       });
     }
 
+    // Handle pet image upload
+    let petImageUrl = "";
+    if (req.files && req.files.pet_image) {
+      const file = req.files.pet_image;
+      const result = await cloudinary.uploader.upload(file.tempFilePath, {
+        folder: "petpro_pets",
+        transformation: [
+          { width: 800, height: 800, crop: "limit" },
+          { quality: "auto:good" },
+        ],
+      });
+      petImageUrl = result.secure_url;
+    }
+
+    // Create new pet
     const newPet = await Pet.create({
-      user: user,
-      pet_name: pet_name,
-      pet_gender: pet_gender,
-      pet_dob: pet_dob,
-      pet: pet,
-      pet_race: pet_race,
-      pet_height: pet_height,
-      pet_weight: pet_weight,
+      user,
+      pet_name,
+      pet_gender,
+      pet_dob,
+      pet,
+      pet_race,
+      pet_height,
+      pet_weight,
       pet_microchip_number: pet_microchip_number || "N/A",
-      pet_description: pet_description,
-      pet_color: pet_color,
-      pet_image: pet_image,
+      pet_description,
+      pet_color,
+      pet_image: petImageUrl || "", // assign uploaded image URL
     });
 
+    // Assign pet to QR code
     const updatedQRCode = await QRCodeModel.findByIdAndUpdate(
       qrId,
       {
