@@ -10,19 +10,19 @@ const {
   getSalesAnalytics,
 } = require("../controller/superadmin");
 
-router.post("/users", getAllUsers);
+router.get("/users", getAllUsers);
 
-router.post("/businesses", getAllBusinessProfiles);
+router.get("/businesses", getAllBusinessProfiles);
 
-router.post("/business/toggle-status", toggleBusinessStatus);
+router.get("/business/toggle-status", toggleBusinessStatus);
 
-router.post("/user/toggle-status", toggleUserStatus);
+router.get("/user/toggle-status", toggleUserStatus);
 
 router.post("/send-notification", sendPushNotificationToUsers);
 
 // Analytics routes
-router.post("/analytics/users", getUserAnalytics);
+router.get("/analytics/users", getUserAnalytics);
 
-router.post("/analytics/sales", getSalesAnalytics);
+router.get("/analytics/sales", getSalesAnalytics);
 
 module.exports = router;

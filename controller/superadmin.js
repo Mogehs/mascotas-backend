@@ -7,18 +7,7 @@ const { sendGeneralNotification } = require("../service/notification.service");
 // Get all users with detailed analytics
 const getAllUsers = async (req, res) => {
   try {
-    const { userId } = req.body;
-
-    // Check if user is super admin
-    const adminUser = await User.findById(userId);
-    if (!adminUser || adminUser.role !== "super_admin") {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied. Super admin privileges required.",
-      });
-    }
-
-    // Get users with their orders and QR codes
+    // Get users with their orders and QR codes (no admin validation needed)
     const users = await User.find({}, "-password").sort({ createdAt: -1 });
 
     // Enrich user data with subscription and order information
@@ -71,17 +60,7 @@ const getAllUsers = async (req, res) => {
 // Get all business profiles
 const getAllBusinessProfiles = async (req, res) => {
   try {
-    const { userId } = req.body;
-
-    // Check if user is super admin
-    const adminUser = await User.findById(userId);
-    if (!adminUser || adminUser.role !== "super_admin") {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied. Super admin privileges required.",
-      });
-    }
-
+    // Get all business profiles (no admin validation needed)
     const businesses = await Business.find({})
       .populate("id", "firstname lastname email")
       .sort({ createdAt: -1 });
@@ -100,14 +79,13 @@ const getAllBusinessProfiles = async (req, res) => {
 // Block/Unblock business profile
 const toggleBusinessStatus = async (req, res) => {
   try {
-    const { userId, businessId, action } = req.body;
+    const { businessId, action } = req.query;
 
-    // Check if user is super admin
-    const adminUser = await User.findById(userId);
-    if (!adminUser || adminUser.role !== "super_admin") {
-      return res.status(403).json({
+    // Validate required parameters
+    if (!businessId || !action) {
+      return res.status(400).json({
         success: false,
-        message: "Access denied. Super admin privileges required.",
+        message: "Business ID and action are required",
       });
     }
 
@@ -153,17 +131,9 @@ const toggleBusinessStatus = async (req, res) => {
 // Block/Unblock user
 const toggleUserStatus = async (req, res) => {
   try {
-    const { userId, targetUserId, action } = req.body;
+    const { targetUserId, action } = req.query;
 
-    // Check if user is super admin
-    const adminUser = await User.findById(userId);
-    if (!adminUser || adminUser.role !== "super_admin") {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied. Super admin privileges required.",
-      });
-    }
-
+    // Validate required parameters
     if (!targetUserId || !action) {
       return res.status(400).json({
         success: false,
@@ -214,16 +184,7 @@ const toggleUserStatus = async (req, res) => {
 // Send push notification to all users
 const sendPushNotificationToUsers = async (req, res) => {
   try {
-    const { userId, title, message, notificationType, extraData } = req.body;
-
-    // Check if user is super admin
-    const adminUser = await User.findById(userId);
-    if (!adminUser || adminUser.role !== "super_admin") {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied. Super admin privileges required.",
-      });
-    }
+    const { title, message, notificationType, extraData } = req.body;
 
     // Validate required fields
     if (!title || !message) {
@@ -309,18 +270,7 @@ const sendPushNotificationToUsers = async (req, res) => {
 // Get user registration and subscription analytics
 const getUserAnalytics = async (req, res) => {
   try {
-    const { userId } = req.body;
-
-    // Check if user is super admin
-    const adminUser = await User.findById(userId);
-    if (!adminUser || adminUser.role !== "super_admin") {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied. Super admin privileges required.",
-      });
-    }
-
-    // Get total users count
+    // Get total users count (no admin validation needed)
     const totalUsers = await User.countDocuments();
 
     // Get users with business subscription
@@ -397,18 +347,7 @@ const getUserAnalytics = async (req, res) => {
 // Get sales analytics (tags, PetPro subscriptions, orders)
 const getSalesAnalytics = async (req, res) => {
   try {
-    const { userId } = req.body;
-
-    // Check if user is super admin
-    const adminUser = await User.findById(userId);
-    if (!adminUser || adminUser.role !== "super_admin") {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied. Super admin privileges required.",
-      });
-    }
-
-    // Get QR Code (Tags) statistics
+    // Get QR Code (Tags) statistics (no admin validation needed)
     const totalQRCodes = await QRCode.countDocuments();
     const activeQRCodes = await QRCode.countDocuments({ isActive: true });
 
