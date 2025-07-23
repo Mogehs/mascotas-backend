@@ -80,6 +80,7 @@ const createProduct = async (req, res) => {
     } = req.body;
 
     const business = await Business.findById(business_id);
+
     if (!business || !business.features.can_showcase_products) {
       return res.status(403).json({
         success: false,
@@ -88,6 +89,12 @@ const createProduct = async (req, res) => {
       });
     }
 
+    if (business.is_blocked) {
+      return res.status(403).json({
+        success: false,
+        message: "Business is blocked by admin from showcasing products.",
+      });
+    }
     // Check product limit
     const currentProductCount = await Product.countDocuments({
       business_id,

@@ -56,6 +56,12 @@ const createPromotion = async (req, res) => {
       });
     }
 
+    if (business.is_blocked) {
+      return res.status(403).json({
+        success: false,
+        message: "Business is blocked by admin from showcasing products.",
+      });
+    }
     // Check promotion limit
     const activePromotions = await Promotion.countDocuments({
       business_id,

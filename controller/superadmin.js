@@ -79,7 +79,7 @@ const getAllBusinessProfiles = async (req, res) => {
 // Block/Unblock business profile
 const toggleBusinessStatus = async (req, res) => {
   try {
-    const { businessId, action } = req.query;
+    const { businessId, action } = req.body;
 
     // Validate required parameters
     if (!businessId || !action) {

@@ -60,6 +60,13 @@ const adsRegister = async (req, res) => {
         });
       }
 
+      if (business.is_blocked) {
+        return res.status(403).json({
+          success: false,
+          message: "Business is blocked by admin from showcasing products.",
+        });
+      }
+
       // Check featured ads limit
       const currentFeaturedAds = await ads.countDocuments({
         business_id,

@@ -14,7 +14,7 @@ router.get("/users", getAllUsers);
 
 router.get("/businesses", getAllBusinessProfiles);
 
-router.get("/business/toggle-status", toggleBusinessStatus);
+router.post("/business/toggle-status", toggleBusinessStatus);
 
 router.get("/user/toggle-status", toggleUserStatus);
 
