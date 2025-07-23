@@ -8,6 +8,8 @@ const {
   sendPushNotificationToUsers,
   getUserAnalytics,
   getSalesAnalytics,
+  getAllPets,
+  assignPetManually,
 } = require("../controller/superadmin");
 
 router.get("/users", getAllUsers);
@@ -24,5 +26,9 @@ router.post("/send-notification", sendPushNotificationToUsers);
 router.get("/analytics/users", getUserAnalytics);
 
 router.get("/analytics/sales", getSalesAnalytics);
+
+router.get("/pets", getAllPets);
+
+router.post("/:id/assign", assignPetManually);
 
 module.exports = router;

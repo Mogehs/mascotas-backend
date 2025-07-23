@@ -2,6 +2,7 @@ const User = require("../model/user");
 const Business = require("../model/business");
 const Order = require("../model/order");
 const QRCode = require("../model/qrcode");
+const Pet = require("../model/pet");
 const { sendGeneralNotification } = require("../service/notification.service");
 
 // Get all users with detailed analytics
@@ -454,6 +455,61 @@ const getSalesAnalytics = async (req, res) => {
   }
 };
 
+const getAllPets = async (req, res) => {
+  try {
+    const pets = await Pet.find({})
+      .populate("user", "_id firstname lastname email")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      message: "Pets fetched successfully",
+      data: pets,
+    });
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const assignPetManually = async (req, res) => {
+  const { id } = req.params;
+  const { userId, petId } = req.body;
+
+  try {
+    const qrCode = await QRCode.findById(id);
+    if (!qrCode) {
+      return res
+        .status(404)
+        .json({ success: false, message: "QR Code not found" });
+    }
+    if (qrCode.userId) {
+      return res.status(400).json({
+        success: false,
+        message: "QR Code is already assigned to a user",
+      });
+    }
+    if (!userId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "User ID is required" });
+    }
+
+    qrCode.userId = userId;
+    qrCode.petId = petId;
+    await qrCode.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Pet assigned successfully",
+      data: qrCode,
+    });
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getAllBusinessProfiles,
@@ -462,4 +518,6 @@ module.exports = {
   sendPushNotificationToUsers,
   getUserAnalytics,
   getSalesAnalytics,
+  getAllPets,
+  assignPetManually,
 };
