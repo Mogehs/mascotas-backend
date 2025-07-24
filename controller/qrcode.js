@@ -195,7 +195,6 @@ const getQRCodeInfo = async (req, res) => {
 
 const assignPetToQRCode = async (req, res) => {
   try {
-    const { qrId } = req.params;
     const {
       user,
       pet_name,
@@ -210,26 +209,40 @@ const assignPetToQRCode = async (req, res) => {
       pet,
     } = req.body;
 
-    if (!qrId || !user) {
+    let { qrId } = req.query;
+
+    if (!user) {
       return res.status(400).json({
         success: false,
-        message: "QR code ID and user ID are required",
+        message: "User ID is required",
       });
     }
 
-    const qrCode = await QRCodeModel.findById(qrId);
-    if (!qrCode) {
-      return res.status(404).json({
-        success: false,
-        message: "QR code not found",
-      });
-    }
+    let qrCode;
 
-    if (qrCode.petId) {
-      return res.status(400).json({
-        success: false,
-        message: "QR code is already assigned to a pet",
+    if (qrId) {
+      qrCode = await QRCodeModel.findById(qrId);
+      if (!qrCode) {
+        return res.status(404).json({
+          success: false,
+          message: "QR code not found",
+        });
+      }
+
+      if (qrCode.petId) {
+        return res.status(400).json({
+          success: false,
+          message: "QR code is already assigned to a pet",
+        });
+      }
+    } else {
+      // Create new QR code if not provided
+      qrCode = await QRCodeModel.create({
+        userId: user,
+        petId: null,
+        createdAt: new Date(),
       });
+      qrId = qrCode._id;
     }
 
     // Handle pet image upload
@@ -259,7 +272,7 @@ const assignPetToQRCode = async (req, res) => {
       pet_microchip_number: pet_microchip_number || "N/A",
       pet_description,
       pet_color,
-      pet_image: petImageUrl || "", // assign uploaded image URL
+      pet_image: petImageUrl || "",
     });
 
     // Assign pet to QR code

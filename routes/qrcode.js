@@ -16,7 +16,7 @@ router.get("/all", getAllQRCodes);
 
 router.get("/:qrId", getQRCodeInfo);
 
-router.post("/:qrId/assign-pet", assignPetToQRCode);
+router.post("/assign-pet", assignPetToQRCode);
 
 router.get("/health", (req, res) => {
   res.status(200).json({
