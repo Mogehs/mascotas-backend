@@ -236,13 +236,8 @@ const assignPetToQRCode = async (req, res) => {
         });
       }
     } else {
-      // Create new QR code if not provided
-      qrCode = await QRCodeModel.create({
-        userId: user,
-        petId: null,
-        createdAt: new Date(),
-      });
-      qrId = qrCode._id;
+      qrCode = await generateSingleQRCode();
+      qrId = qrCode.id;
     }
 
     // Handle pet image upload
