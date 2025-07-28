@@ -15,7 +15,7 @@ const createPaymentIntent = async (req, res) => {
     } = req.body;
 
     let business;
-    
+
     // Find business by business_id or user_id
     if (business_id) {
       business = await Business.findById(business_id);
@@ -39,24 +39,30 @@ const createPaymentIntent = async (req, res) => {
     if (subscription_type !== "premium") {
       return res.status(400).json({
         success: false,
-        message: "Only premium subscription is available. Basic plan has been discontinued.",
+        message:
+          "Only premium subscription is available. Basic plan has been discontinued.",
       });
     }
 
     // Check if user already has an active premium subscription
-    if (business.petpro_subscription.is_active && business.petpro_subscription.subscription_type === "premium") {
+    if (
+      business.petpro_subscription.is_active &&
+      business.petpro_subscription.subscription_type === "premium"
+    ) {
       const currentDate = new Date();
-      const isExpired = business.petpro_subscription.end_date &&
-                       business.petpro_subscription.end_date < currentDate;
+      const isExpired =
+        business.petpro_subscription.end_date &&
+        business.petpro_subscription.end_date < currentDate;
 
       if (!isExpired) {
         return res.status(400).json({
           success: false,
-          message: "You already have an active premium subscription. Use renewal instead.",
+          message:
+            "You already have an active premium subscription. Use renewal instead.",
           current_subscription: {
             type: business.petpro_subscription.subscription_type,
             end_date: business.petpro_subscription.end_date,
-          }
+          },
         });
       }
     }
@@ -65,7 +71,8 @@ const createPaymentIntent = async (req, res) => {
     const premiumPlan = {
       amount: 4900, // $49.00 in cents
       description: "PetPro Premium Subscription - 1 Year",
-      features: "Unlimited Products, Featured Ads & Promotions, Advanced Analytics",
+      features:
+        "Unlimited Products, Featured Ads & Promotions, Advanced Analytics",
     };
 
     // Create payment intent
@@ -99,9 +106,9 @@ const createPaymentIntent = async (req, res) => {
           description: premiumPlan.description,
           features: premiumPlan.features,
           business_name: business.company_name,
-          current_status: business.petpro_subscription.is_active ?
-            `Current: ${business.petpro_subscription.subscription_type}` :
-            "No active subscription - Subscribe to unlock unlimited features",
+          current_status: business.petpro_subscription.is_active
+            ? `Current: ${business.petpro_subscription.subscription_type}`
+            : "No active subscription - Subscribe to unlock unlimited features",
         },
       },
     });
@@ -120,7 +127,12 @@ const createPaymentIntent = async (req, res) => {
  */
 const confirmPayment = async (req, res) => {
   try {
-    const { payment_intent_id, business_id, user_id, subscription_type = "premium" } = req.body;
+    const {
+      payment_intent_id,
+      business_id,
+      user_id,
+      subscription_type = "premium",
+    } = req.body;
 
     // Retrieve payment intent from Stripe
     const paymentIntent = await stripe.paymentIntents.retrieve(
@@ -136,7 +148,7 @@ const confirmPayment = async (req, res) => {
     }
 
     let business;
-    
+
     // Find business by business_id or user_id
     if (business_id) {
       business = await Business.findById(business_id);
@@ -160,7 +172,7 @@ const confirmPayment = async (req, res) => {
     if (subscription_type !== "premium") {
       return res.status(400).json({
         success: false,
-        message: "Only premium subscription is available. Basic plan has been discontinued.",
+        message: "Only premium subscription is available",
       });
     }
 
@@ -169,7 +181,9 @@ const confirmPayment = async (req, res) => {
     if (paymentIntent.amount !== expectedAmount) {
       return res.status(400).json({
         success: false,
-        message: `Payment amount does not match premium subscription. Expected $49, received $${paymentIntent.amount / 100}`,
+        message: `Payment amount does not match premium subscription. Expected $49, received $${
+          paymentIntent.amount / 100
+        }`,
       });
     }
 
@@ -220,7 +234,8 @@ const confirmPayment = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Premium subscription activated successfully! You now have unlimited access to all features.",
+      message:
+        "Premium subscription activated successfully! You now have unlimited access to all features.",
       data: {
         subscription: updatedBusiness.petpro_subscription,
         features: updatedBusiness.features,
@@ -257,15 +272,16 @@ const getSubscriptionPlans = async (req, res) => {
           analytics_access: true,
           support: "Priority Support",
         },
-        description: "Complete business solution with unlimited access to all features",
+        description:
+          "Complete business solution with unlimited access to all features",
         benefits: [
           "Unlimited product showcases",
           "Unlimited featured ads",
           "Unlimited promotions",
           "Advanced analytics & insights",
           "Priority customer support",
-          "No feature restrictions"
-        ]
+          "No feature restrictions",
+        ],
       },
     };
 
@@ -275,8 +291,10 @@ const getSubscriptionPlans = async (req, res) => {
       data: {
         available_plan: plans.premium,
         pricing_model: "Premium only - No basic plan available",
-        current_offer: "Subscribe to Premium and unlock unlimited business features!",
-        no_free_tier: "All features require Premium subscription - No free limits available",
+        current_offer:
+          "Subscribe to Premium and unlock unlimited business features!",
+        no_free_tier:
+          "All features require Premium subscription - No free limits available",
       },
     });
   } catch (error) {
@@ -314,17 +332,18 @@ const getPaymentHistory = async (req, res) => {
           date: business.petpro_subscription.start_date,
           amount: business.petpro_subscription.amount_paid || 0,
           subscription_type: business.petpro_subscription.subscription_type,
-          payment_method: business.petpro_subscription.payment_method || "stripe",
+          payment_method:
+            business.petpro_subscription.payment_method || "stripe",
           payment_id: business.petpro_subscription.stripe_payment_intent_id,
           status: business.petpro_subscription.payment_status,
-        }
-      ]
+        },
+      ],
     };
 
     res.status(200).json({
       success: true,
       message: "Payment history retrieved successfully",
-      data: paymentHistory
+      data: paymentHistory,
     });
   } catch (error) {
     console.error("Get payment history error:", error);
@@ -341,18 +360,14 @@ const getPaymentHistory = async (req, res) => {
  */
 const handleStripeWebhook = async (req, res) => {
   try {
-    const sig = req.headers['stripe-signature'];
+    const sig = req.headers["stripe-signature"];
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
     let event;
 
     // Verify webhook signature
     try {
-      event = stripe.webhooks.constructEvent(
-        req.body,
-        sig,
-        webhookSecret
-      );
+      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
     } catch (err) {
       console.error(`Webhook signature verification failed: ${err.message}`);
       return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -360,18 +375,22 @@ const handleStripeWebhook = async (req, res) => {
 
     // Handle different event types
     switch (event.type) {
-      case 'payment_intent.succeeded':
+      case "payment_intent.succeeded":
         const paymentIntent = event.data.object;
-        console.log(`PaymentIntent for ${paymentIntent.amount} was successful!`);
+        console.log(
+          `PaymentIntent for ${paymentIntent.amount} was successful!`
+        );
         // Update business subscription status if needed
         break;
 
-      case 'payment_intent.payment_failed':
+      case "payment_intent.payment_failed":
         const failedPayment = event.data.object;
-        console.error(`Payment failed: ${failedPayment.last_payment_error?.message}`);
+        console.error(
+          `Payment failed: ${failedPayment.last_payment_error?.message}`
+        );
         break;
 
-      case 'charge.succeeded':
+      case "charge.succeeded":
         const charge = event.data.object;
         console.log(`Charge succeeded: ${charge.id}`);
         break;
