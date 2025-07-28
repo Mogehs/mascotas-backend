@@ -11,7 +11,7 @@ const {
 
 // Payment Intent Routes
 router.post("/create-payment-intent", createPaymentIntent);
-router.post("/confirm-payment/", confirmPayment);
+router.post("/confirm-payment", confirmPayment);
 router.get("/history/:business_id", getPaymentHistory);
 router.get("/subscription-plans", getSubscriptionPlans);
 

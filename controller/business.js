@@ -57,6 +57,15 @@ const businessRegister = async (req, res) => {
       });
     }
 
+    // Check if user has an active subscription
+    if (!userExists.business_subscription) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Active subscription required to create a business. Please subscribe first.",
+      });
+    }
+
     // Check if user already has a business registered
     const existingBusiness = await Business.findOne({ id: id });
     if (existingBusiness) {
@@ -80,39 +89,29 @@ const businessRegister = async (req, res) => {
       physical_address: address,
       operation_timing: operation_timings,
       tax_identification_number: tax,
-      // No subscription by default - user must subscribe to get features
     });
+
     await User.findByIdAndUpdate(
       { _id: id },
       {
         $set: {
           company_registered: true,
-          business_subscription: false, // No subscription by default
         },
       },
       { new: true }
     );
+
     res.status(200).json({
       success: true,
-      message:
-        "Business registered successfully. Subscribe to unlock features.",
+      message: "Business registered successfully.",
       business: data._id,
-      subscription_info: {
-        type: "none",
-        status: "inactive",
-        features: {
-          max_featured_ads: 0,
-          max_products: 0,
-          max_promotions: 0,
-          analytics_access: false,
-        },
-        message:
-          "Please subscribe to unlock business features and start showcasing your products.",
-      },
     });
   } catch (error) {
-    console.log(error.message);
-    return res.status(500).json({ success: false, message: error.message });
+    console.log(error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
