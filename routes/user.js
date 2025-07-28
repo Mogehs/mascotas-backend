@@ -13,6 +13,7 @@ const {
   userDetails,
   deleteDeviceToken,
   filterUsers,
+  updateUser,
 } = require("../controller/user");
 
 router.post("/register", registeruser);
@@ -26,5 +27,6 @@ router.post("/forgotPassword", resetPassword);
 router.post("/owner", userDetails);
 router.post("/logout", deleteDeviceToken);
 router.post("/filter-users", filterUsers);
+router.put("/update", updateUser);
 
 module.exports = router;

@@ -280,6 +280,36 @@ const filterUsers = async (req, res) => {
   }
 };
 
+// Update user details (all fields editable)
+const updateUser = async (req, res) => {
+  try {
+    const { id, ...updateFields } = req.body;
+    if (!id) {
+      return res
+        .status(400)
+        .json({ success: false, message: "User ID is required." });
+    }
+    const updatedUser = await user.findByIdAndUpdate(
+      id,
+      { $set: updateFields },
+      { new: true }
+    );
+    if (!updatedUser) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found." });
+    }
+    res.status(200).json({
+      success: true,
+      message: "User updated successfully.",
+      data: updatedUser,
+    });
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   login,
   registeruser,
@@ -292,4 +322,5 @@ module.exports = {
   userDetails,
   deleteDeviceToken,
   filterUsers,
+  updateUser,
 };
