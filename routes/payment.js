@@ -6,12 +6,14 @@ const {
   confirmPayment,
   handleStripeWebhook,
   getPaymentHistory,
+  getSubscriptionPlans,
 } = require("../controller/payment");
 
 // Payment Intent Routes
 router.post("/create-payment-intent", createPaymentIntent);
 router.post("/confirm-payment/", confirmPayment);
 router.get("/history/:business_id", getPaymentHistory);
+router.get("/subscription-plans", getSubscriptionPlans);
 
 // Stripe Webhook (no auth required - Stripe handles verification)
 router.post(

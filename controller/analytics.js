@@ -13,13 +13,57 @@ const getBusinessAnalytics = async (req, res) => {
     const { business_id } = req.params;
     const { period = "30d", start_date, end_date } = req.query;
 
-    // Verify business has analytics access
+    // Get business and check subscription status
     const business = await Business.findById(business_id);
-    if (!business || !business.features.analytics_access) {
+    
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message: "Business not found",
+      });
+    }
+
+    // Check if business has active premium subscription
+    if (!business.petpro_subscription.is_active) {
       return res.status(403).json({
         success: false,
-        message:
-          "Business does not have access to analytics. Please upgrade to PetPro.",
+        message: "Premium subscription required to access analytics. Please subscribe to unlock this feature.",
+        subscription_status: {
+          is_active: false,
+          subscription_type: business.petpro_subscription.subscription_type,
+        },
+        action_required: "Subscribe to Premium to access detailed business analytics and insights."
+      });
+    }
+
+    // Check if subscription is expired
+    const subscriptionCheckDate = new Date();
+    const isExpired = business.petpro_subscription.end_date &&
+                     business.petpro_subscription.end_date < subscriptionCheckDate;
+
+    if (isExpired) {
+      return res.status(403).json({
+        success: false,
+        message: "Your subscription has expired. Please renew to continue accessing analytics.",
+        subscription_status: {
+          is_active: business.petpro_subscription.is_active,
+          subscription_type: business.petpro_subscription.subscription_type,
+          is_expired: true,
+          end_date: business.petpro_subscription.end_date,
+        },
+        action_required: "Renew your Premium subscription to continue accessing analytics."
+      });
+    }
+
+    // Check if business has analytics access
+    if (!business.features.analytics_access) {
+      return res.status(403).json({
+        success: false,
+        message: "Analytics access requires Premium subscription. Please subscribe to unlock this feature.",
+        current_limits: {
+          analytics_access: business.features.analytics_access,
+          subscription_type: business.petpro_subscription.subscription_type,
+        }
       });
     }
 
@@ -350,12 +394,57 @@ const getProductAnalytics = async (req, res) => {
     const { business_id } = req.params;
     const { period = "30d", limit = 10 } = req.query;
 
-    // Verify business has analytics access
+    // Get business and check subscription status
     const business = await Business.findById(business_id);
-    if (!business || !business.features.analytics_access) {
+    
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message: "Business not found",
+      });
+    }
+
+    // Check if business has active premium subscription
+    if (!business.petpro_subscription.is_active) {
       return res.status(403).json({
         success: false,
-        message: "Business does not have access to analytics",
+        message: "Premium subscription required to access product analytics. Please subscribe to unlock this feature.",
+        subscription_status: {
+          is_active: false,
+          subscription_type: business.petpro_subscription.subscription_type,
+        },
+        action_required: "Subscribe to Premium to access detailed product analytics and insights."
+      });
+    }
+
+    // Check if subscription is expired
+    const subscriptionCheckDate = new Date();
+    const isExpired = business.petpro_subscription.end_date &&
+                     business.petpro_subscription.end_date < subscriptionCheckDate;
+
+    if (isExpired) {
+      return res.status(403).json({
+        success: false,
+        message: "Your subscription has expired. Please renew to continue accessing analytics.",
+        subscription_status: {
+          is_active: business.petpro_subscription.is_active,
+          subscription_type: business.petpro_subscription.subscription_type,
+          is_expired: true,
+          end_date: business.petpro_subscription.end_date,
+        },
+        action_required: "Renew your Premium subscription to continue accessing analytics."
+      });
+    }
+
+    // Check if business has analytics access
+    if (!business.features.analytics_access) {
+      return res.status(403).json({
+        success: false,
+        message: "Analytics access requires Premium subscription. Please subscribe to unlock this feature.",
+        current_limits: {
+          analytics_access: business.features.analytics_access,
+          subscription_type: business.petpro_subscription.subscription_type,
+        }
       });
     }
 
@@ -440,12 +529,57 @@ const getPromotionAnalytics = async (req, res) => {
     const { business_id } = req.params;
     const { period = "30d" } = req.query;
 
-    // Verify business has analytics access
+    // Get business and check subscription status
     const business = await Business.findById(business_id);
-    if (!business || !business.features.analytics_access) {
+    
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message: "Business not found",
+      });
+    }
+
+    // Check if business has active premium subscription
+    if (!business.petpro_subscription.is_active) {
       return res.status(403).json({
         success: false,
-        message: "Business does not have access to analytics.",
+        message: "Premium subscription required to access promotion analytics. Please subscribe to unlock this feature.",
+        subscription_status: {
+          is_active: false,
+          subscription_type: business.petpro_subscription.subscription_type,
+        },
+        action_required: "Subscribe to Premium to access detailed promotion analytics and insights."
+      });
+    }
+
+    // Check if subscription is expired
+    const subscriptionCheckDate = new Date();
+    const isExpired = business.petpro_subscription.end_date &&
+                     business.petpro_subscription.end_date < subscriptionCheckDate;
+
+    if (isExpired) {
+      return res.status(403).json({
+        success: false,
+        message: "Your subscription has expired. Please renew to continue accessing analytics.",
+        subscription_status: {
+          is_active: business.petpro_subscription.is_active,
+          subscription_type: business.petpro_subscription.subscription_type,
+          is_expired: true,
+          end_date: business.petpro_subscription.end_date,
+        },
+        action_required: "Renew your Premium subscription to continue accessing analytics."
+      });
+    }
+
+    // Check if business has analytics access
+    if (!business.features.analytics_access) {
+      return res.status(403).json({
+        success: false,
+        message: "Analytics access requires Premium subscription. Please subscribe to unlock this feature.",
+        current_limits: {
+          analytics_access: business.features.analytics_access,
+          subscription_type: business.petpro_subscription.subscription_type,
+        }
       });
     }
 
@@ -486,7 +620,7 @@ const getPromotionAnalytics = async (req, res) => {
           promotion.clicks > 0
             ? ((promotion.conversions / promotion.clicks) * 100).toFixed(2)
             : 0,
-      },
+      }
     }));
 
     res.status(200).json({
@@ -509,12 +643,28 @@ const getAdAnalytics = async (req, res) => {
     const { business_id } = req.params;
     const { period = "30d" } = req.query;
 
-    // Verify business has analytics access
+    // Get business and check subscription status
     const business = await Business.findById(business_id);
-    if (!business || !business.features.analytics_access) {
+    
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message: "Business not found",
+      });
+    }
+
+    // Check if business has active premium subscription
+    if (!business.petpro_subscription.is_active || 
+        !business.features.analytics_access ||
+        business.petpro_subscription.subscription_type !== "premium") {
       return res.status(403).json({
         success: false,
-        message: "Business does not have access to analytics.",
+        message: "Premium subscription required to access ad analytics. Please subscribe to unlock this feature.",
+        subscription_status: {
+          is_active: business.petpro_subscription.is_active,
+          subscription_type: business.petpro_subscription.subscription_type,
+        },
+        action_required: "Subscribe to Premium to access detailed ad analytics and insights."
       });
     }
 

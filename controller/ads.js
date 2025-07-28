@@ -50,13 +50,58 @@ const adsRegister = async (req, res) => {
       schedule = {},
     } = req.body;
 
+    // Get business and check subscription status
+    const business = await Business.findById(business_id);
+
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message: "Business not found",
+      });
+    }
+
+    // Check if business has active subscription
+    if (!business.petpro_subscription.is_active) {
+      return res.status(403).json({
+        success: false,
+        message: "Active subscription required to create ads. Please subscribe to unlock this feature.",
+        subscription_status: {
+          is_active: false,
+          subscription_type: business.petpro_subscription.subscription_type,
+        },
+        action_required: "Subscribe to start creating ads and reach more customers."
+      });
+    }
+
+    // Check if subscription is expired
+    const currentDate = new Date();
+    const isExpired = business.petpro_subscription.end_date &&
+                     business.petpro_subscription.end_date < currentDate;
+
+    if (isExpired) {
+      return res.status(403).json({
+        success: false,
+        message: "Your subscription has expired. Please renew to continue creating ads.",
+        subscription_status: {
+          is_active: business.petpro_subscription.is_active,
+          subscription_type: business.petpro_subscription.subscription_type,
+          is_expired: true,
+          end_date: business.petpro_subscription.end_date,
+        },
+        action_required: "Renew your subscription to continue creating ads."
+      });
+    }
+
+    // Check if business can create featured ads (for featured ads only)
     if (is_featured) {
-      const business = await Business.findById(business_id);
-      if (!business || !business.features.can_create_featured_ads) {
+      if (!business.features.can_create_featured_ads) {
         return res.status(403).json({
           success: false,
-          message:
-            "Business does not have permission to create featured ads. Please upgrade to PetPro.",
+          message: "Featured ads creation requires an active subscription. Please subscribe to unlock this feature.",
+          current_limits: {
+            max_featured_ads: business.features.max_featured_ads,
+            subscription_type: business.petpro_subscription.subscription_type,
+          }
         });
       }
 
@@ -67,18 +112,23 @@ const adsRegister = async (req, res) => {
         });
       }
 
-      // Check featured ads limit
-      const currentFeaturedAds = await ads.countDocuments({
-        business_id,
-        is_featured: true,
-        status: "active",
-      });
-
-      if (currentFeaturedAds >= business.features.max_featured_ads) {
-        return res.status(403).json({
-          success: false,
-          message: `Featured ads limit reached. Current plan allows ${business.features.max_featured_ads} featured ads.`,
+      // Check featured ads limit (only if not unlimited)
+      if (business.features.max_featured_ads !== -1) {
+        const currentFeaturedAds = await ads.countDocuments({
+          business_id,
+          is_featured: true,
+          status: "active",
         });
+
+        if (currentFeaturedAds >= business.features.max_featured_ads) {
+          return res.status(403).json({
+            success: false,
+            message: `Featured ads limit reached. Current plan allows ${business.features.max_featured_ads} featured ads. Upgrade to Premium for unlimited featured ads.`,
+            current_count: currentFeaturedAds,
+            max_allowed: business.features.max_featured_ads,
+            upgrade_message: "Upgrade to Premium for unlimited featured ads."
+          });
+        }
       }
     }
 

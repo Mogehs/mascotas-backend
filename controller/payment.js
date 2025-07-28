@@ -1,60 +1,85 @@
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const Business = require("../model/business");
+const User = require("../model/user");
 
 /**
- * Create payment intent for PetPro subscription
+ * Create payment intent for PetPro premium subscription only
  */
 const createPaymentIntent = async (req, res) => {
   try {
     const {
       business_id,
-      subscription_type = "premium",
+      user_id, // Can use either business_id or user_id
+      subscription_type = "premium", // Only premium available
       currency = "usd",
     } = req.body;
 
-    // Validate business exists
-    const business = await Business.findById(business_id);
+    let business;
+    
+    // Find business by business_id or user_id
+    if (business_id) {
+      business = await Business.findById(business_id);
+    } else if (user_id) {
+      business = await Business.findOne({ id: user_id });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: "Either business_id or user_id is required",
+      });
+    }
+
     if (!business) {
       return res.status(404).json({
         success: false,
-        message: "Business not found",
+        message: "Business not found. Please register your business first.",
       });
     }
 
-    // Define pricing based on subscription type
-    const pricing = {
-      premium: {
-        amount: 4900, // $49.00 in cents
-        description: "PetPro Premium Subscription - 1 Year",
-        features:
-          "Featured Ads (10), Products (100), Promotions (20), Analytics",
-      },
-      basic: {
-        amount: 2900, // $29.00 in cents
-        description: "PetPro Basic Subscription - 1 Year",
-        features: "Featured Ads (3), Products (25), Promotions (5), Analytics",
-      },
-    };
-
-    const selectedPlan = pricing[subscription_type];
-    if (!selectedPlan) {
+    // Only allow premium subscription
+    if (subscription_type !== "premium") {
       return res.status(400).json({
         success: false,
-        message: "Invalid subscription type. Choose 'premium' or 'basic'",
+        message: "Only premium subscription is available. Basic plan has been discontinued.",
       });
     }
+
+    // Check if user already has an active premium subscription
+    if (business.petpro_subscription.is_active && business.petpro_subscription.subscription_type === "premium") {
+      const currentDate = new Date();
+      const isExpired = business.petpro_subscription.end_date &&
+                       business.petpro_subscription.end_date < currentDate;
+
+      if (!isExpired) {
+        return res.status(400).json({
+          success: false,
+          message: "You already have an active premium subscription. Use renewal instead.",
+          current_subscription: {
+            type: business.petpro_subscription.subscription_type,
+            end_date: business.petpro_subscription.end_date,
+          }
+        });
+      }
+    }
+
+    // Premium subscription pricing
+    const premiumPlan = {
+      amount: 4900, // $49.00 in cents
+      description: "PetPro Premium Subscription - 1 Year",
+      features: "Unlimited Products, Featured Ads & Promotions, Advanced Analytics",
+    };
 
     // Create payment intent
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: selectedPlan.amount,
+      amount: premiumPlan.amount,
       currency: currency,
-      description: selectedPlan.description,
+      description: premiumPlan.description,
       metadata: {
-        business_id: business_id,
+        business_id: business._id.toString(),
         business_name: business.company_name,
-        subscription_type: subscription_type,
-        features: selectedPlan.features,
+        subscription_type: "premium",
+        features: premiumPlan.features,
         duration: "1 year",
+        user_id: business.id.toString(),
       },
       automatic_payment_methods: {
         enabled: true,
@@ -67,13 +92,16 @@ const createPaymentIntent = async (req, res) => {
       data: {
         client_secret: paymentIntent.client_secret,
         payment_intent_id: paymentIntent.id,
-        amount: selectedPlan.amount,
+        amount: premiumPlan.amount,
         currency: currency,
         subscription_details: {
-          type: subscription_type,
-          description: selectedPlan.description,
-          features: selectedPlan.features,
+          type: "premium",
+          description: premiumPlan.description,
+          features: premiumPlan.features,
           business_name: business.company_name,
+          current_status: business.petpro_subscription.is_active ?
+            `Current: ${business.petpro_subscription.subscription_type}` :
+            "No active subscription - Subscribe to unlock unlimited features",
         },
       },
     });
@@ -88,11 +116,11 @@ const createPaymentIntent = async (req, res) => {
 };
 
 /**
- * Confirm payment and activate subscription
+ * Confirm payment and activate premium subscription
  */
 const confirmPayment = async (req, res) => {
   try {
-    const { payment_intent_id, business_id, subscription_type } = req.body;
+    const { payment_intent_id, business_id, user_id, subscription_type = "premium" } = req.body;
 
     // Retrieve payment intent from Stripe
     const paymentIntent = await stripe.paymentIntents.retrieve(
@@ -102,20 +130,25 @@ const confirmPayment = async (req, res) => {
     if (paymentIntent.status !== "succeeded") {
       return res.status(400).json({
         success: false,
-        message: "Payment not completed",
+        message: "Payment not completed successfully",
         payment_status: paymentIntent.status,
       });
     }
 
-    // Verify business_id matches metadata
-    if (paymentIntent.metadata.business_id !== business_id) {
+    let business;
+    
+    // Find business by business_id or user_id
+    if (business_id) {
+      business = await Business.findById(business_id);
+    } else if (user_id) {
+      business = await Business.findOne({ id: user_id });
+    } else {
       return res.status(400).json({
         success: false,
-        message: "Business ID mismatch",
+        message: "Either business_id or user_id is required",
       });
     }
 
-    const business = await Business.findById(business_id);
     if (!business) {
       return res.status(404).json({
         success: false,
@@ -123,46 +156,63 @@ const confirmPayment = async (req, res) => {
       });
     }
 
+    // Only allow premium subscription
+    if (subscription_type !== "premium") {
+      return res.status(400).json({
+        success: false,
+        message: "Only premium subscription is available. Basic plan has been discontinued.",
+      });
+    }
+
+    // Validate payment amount for premium
+    const expectedAmount = 4900; // $49 for premium
+    if (paymentIntent.amount !== expectedAmount) {
+      return res.status(400).json({
+        success: false,
+        message: `Payment amount does not match premium subscription. Expected $49, received $${paymentIntent.amount / 100}`,
+      });
+    }
+
     const currentDate = new Date();
     const endDate = new Date(currentDate);
     endDate.setFullYear(endDate.getFullYear() + 1); // 1 year subscription
 
-    // Define features based on subscription type
-    const features =
-      subscription_type === "premium"
-        ? {
-            can_create_featured_ads: true,
-            max_featured_ads: 10,
-            can_showcase_products: true,
-            max_products: 100,
-            can_create_promotions: true,
-            max_promotions: 20,
-            analytics_access: true,
-          }
-        : {
-            can_create_featured_ads: true,
-            max_featured_ads: 3,
-            can_showcase_products: true,
-            max_products: 25,
-            can_create_promotions: true,
-            max_promotions: 5,
-            analytics_access: true,
-          };
+    // Premium features - unlimited everything
+    const premiumFeatures = {
+      can_create_featured_ads: true,
+      max_featured_ads: -1, // Unlimited
+      can_showcase_products: true,
+      max_products: -1, // Unlimited
+      can_create_promotions: true,
+      max_promotions: -1, // Unlimited
+      analytics_access: true,
+    };
 
-    // Activate subscription
+    // Update business with subscription details
     const updatedBusiness = await Business.findByIdAndUpdate(
-      business_id,
+      business._id,
       {
         $set: {
           "petpro_subscription.is_active": true,
-          "petpro_subscription.subscription_type": subscription_type,
+          "petpro_subscription.subscription_type": "premium",
           "petpro_subscription.start_date": currentDate,
           "petpro_subscription.end_date": endDate,
           "petpro_subscription.payment_status": "paid",
-          "petpro_subscription.amount_paid": paymentIntent.amount / 100, // Convert from cents
+          "petpro_subscription.amount_paid": paymentIntent.amount / 100, // Convert cents to dollars
           "petpro_subscription.payment_method": "stripe",
           "petpro_subscription.stripe_payment_intent_id": payment_intent_id,
-          features: features,
+          features: premiumFeatures,
+        },
+      },
+      { new: true }
+    );
+
+    // Update user subscription status
+    await User.findByIdAndUpdate(
+      { _id: business.id },
+      {
+        $set: {
+          business_subscription: true,
         },
       },
       { new: true }
@@ -170,15 +220,13 @@ const confirmPayment = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Payment confirmed and subscription activated successfully",
+      message: "Premium subscription activated successfully! You now have unlimited access to all features.",
       data: {
         subscription: updatedBusiness.petpro_subscription,
         features: updatedBusiness.features,
-        payment_details: {
-          amount_paid: paymentIntent.amount / 100,
-          currency: paymentIntent.currency,
-          payment_intent_id: payment_intent_id,
-        },
+        business_name: business.company_name,
+        activation_date: currentDate,
+        expiry_date: endDate,
       },
     });
   } catch (error) {
@@ -192,44 +240,53 @@ const confirmPayment = async (req, res) => {
 };
 
 /**
- * Webhook handler for Stripe events
+ * Get subscription plans and pricing - Premium only
  */
-const handleStripeWebhook = async (req, res) => {
-  const sig = req.headers["stripe-signature"];
-  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
-  let event;
-
+const getSubscriptionPlans = async (req, res) => {
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-  } catch (err) {
-    console.error("Webhook signature verification failed:", err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
+    const plans = {
+      premium: {
+        name: "Premium Plan",
+        price: 49,
+        currency: "USD",
+        duration: "1 Year",
+        features: {
+          max_featured_ads: "Unlimited",
+          max_products: "Unlimited",
+          max_promotions: "Unlimited",
+          analytics_access: true,
+          support: "Priority Support",
+        },
+        description: "Complete business solution with unlimited access to all features",
+        benefits: [
+          "Unlimited product showcases",
+          "Unlimited featured ads",
+          "Unlimited promotions",
+          "Advanced analytics & insights",
+          "Priority customer support",
+          "No feature restrictions"
+        ]
+      },
+    };
+
+    res.status(200).json({
+      success: true,
+      message: "Premium subscription plan retrieved successfully",
+      data: {
+        available_plan: plans.premium,
+        pricing_model: "Premium only - No basic plan available",
+        current_offer: "Subscribe to Premium and unlock unlimited business features!",
+        no_free_tier: "All features require Premium subscription - No free limits available",
+      },
+    });
+  } catch (error) {
+    console.error("Get subscription plans error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error retrieving subscription plans",
+      error: error.message,
+    });
   }
-
-  // Handle the event
-  switch (event.type) {
-    case "payment_intent.succeeded":
-      const paymentIntent = event.data.object;
-      console.log("Payment succeeded:", paymentIntent.id);
-
-      // You can add additional logic here if needed
-      // The main activation is handled by the confirmPayment endpoint
-
-      break;
-    case "payment_intent.payment_failed":
-      const failedPayment = event.data.object;
-      console.log("Payment failed:", failedPayment.id);
-
-      // You can add logic to handle failed payments
-      // e.g., send notification to business owner
-
-      break;
-    default:
-      console.log(`Unhandled event type: ${event.type}`);
-  }
-
-  res.json({ received: true });
 };
 
 /**
@@ -239,9 +296,8 @@ const getPaymentHistory = async (req, res) => {
   try {
     const { business_id } = req.params;
 
-    const business = await Business.findById(business_id).select(
-      "petpro_subscription company_name"
-    );
+    // Find business
+    const business = await Business.findById(business_id);
 
     if (!business) {
       return res.status(404).json({
@@ -250,34 +306,25 @@ const getPaymentHistory = async (req, res) => {
       });
     }
 
-    // Get payments from Stripe
-    const paymentIntents = await stripe.paymentIntents.list({
-      limit: 10,
-    });
-
-    // Filter payments for this business
-    const businessPayments = paymentIntents.data.filter(
-      (payment) => payment.metadata.business_id === business_id
-    );
-
-    const paymentHistory = businessPayments.map((payment) => ({
-      id: payment.id,
-      amount: payment.amount / 100,
-      currency: payment.currency,
-      status: payment.status,
-      created: new Date(payment.created * 1000),
-      description: payment.description,
-      subscription_type: payment.metadata.subscription_type,
-    }));
+    // Get subscription payment history
+    const paymentHistory = {
+      current_subscription: business.petpro_subscription,
+      payment_records: [
+        {
+          date: business.petpro_subscription.start_date,
+          amount: business.petpro_subscription.amount_paid || 0,
+          subscription_type: business.petpro_subscription.subscription_type,
+          payment_method: business.petpro_subscription.payment_method || "stripe",
+          payment_id: business.petpro_subscription.stripe_payment_intent_id,
+          status: business.petpro_subscription.payment_status,
+        }
+      ]
+    };
 
     res.status(200).json({
       success: true,
       message: "Payment history retrieved successfully",
-      data: {
-        business_name: business.company_name,
-        current_subscription: business.petpro_subscription,
-        payment_history: paymentHistory,
-      },
+      data: paymentHistory
     });
   } catch (error) {
     console.error("Get payment history error:", error);
@@ -289,9 +336,66 @@ const getPaymentHistory = async (req, res) => {
   }
 };
 
+/**
+ * Handle Stripe webhook events
+ */
+const handleStripeWebhook = async (req, res) => {
+  try {
+    const sig = req.headers['stripe-signature'];
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+    let event;
+
+    // Verify webhook signature
+    try {
+      event = stripe.webhooks.constructEvent(
+        req.body,
+        sig,
+        webhookSecret
+      );
+    } catch (err) {
+      console.error(`Webhook signature verification failed: ${err.message}`);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    // Handle different event types
+    switch (event.type) {
+      case 'payment_intent.succeeded':
+        const paymentIntent = event.data.object;
+        console.log(`PaymentIntent for ${paymentIntent.amount} was successful!`);
+        // Update business subscription status if needed
+        break;
+
+      case 'payment_intent.payment_failed':
+        const failedPayment = event.data.object;
+        console.error(`Payment failed: ${failedPayment.last_payment_error?.message}`);
+        break;
+
+      case 'charge.succeeded':
+        const charge = event.data.object;
+        console.log(`Charge succeeded: ${charge.id}`);
+        break;
+
+      default:
+        console.log(`Unhandled event type ${event.type}`);
+    }
+
+    // Return a 200 response to acknowledge receipt of the event
+    res.status(200).json({ received: true });
+  } catch (error) {
+    console.error("Webhook error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error handling webhook",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   createPaymentIntent,
   confirmPayment,
-  handleStripeWebhook,
+  getSubscriptionPlans,
   getPaymentHistory,
+  handleStripeWebhook,
 };

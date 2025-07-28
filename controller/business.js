@@ -80,31 +80,34 @@ const businessRegister = async (req, res) => {
       physical_address: address,
       operation_timing: operation_timings,
       tax_identification_number: tax,
-      // Basic plan is automatically activated by model defaults
+      // No subscription by default - user must subscribe to get features
     });
     await User.findByIdAndUpdate(
       { _id: id },
       {
         $set: {
           company_registered: true,
-          business_subscription: true, // User has basic subscription by default
+          business_subscription: false, // No subscription by default
         },
       },
       { new: true }
     );
     res.status(200).json({
       success: true,
-      message: "Business registered successfully with basic plan activated",
+      message:
+        "Business registered successfully. Subscribe to unlock features.",
       business: data._id,
       subscription_info: {
-        type: "basic",
-        status: "active",
+        type: "none",
+        status: "inactive",
         features: {
-          max_featured_ads: 3,
-          max_products: 25,
-          max_promotions: 5,
-          analytics_access: true,
+          max_featured_ads: 0,
+          max_products: 0,
+          max_promotions: 0,
+          analytics_access: false,
         },
+        message:
+          "Please subscribe to unlock business features and start showcasing your products.",
       },
     });
   } catch (error) {
@@ -343,14 +346,14 @@ const updateBusiness = async (req, res) => {
   }
 };
 
-// PetPro Premium Subscription Activation (Basic is default)
+// Subscription Activation - Now only handles premium
 const activatePetProSubscription = async (req, res) => {
   try {
     const {
       business_id,
-      subscription_type = "premium", // Only premium needs activation now
+      subscription_type = "premium", // Only premium available
       payment_method = "stripe",
-      amount_paid = 49,
+      amount_paid = 0,
     } = req.body;
 
     // Basic validation
@@ -361,27 +364,19 @@ const activatePetProSubscription = async (req, res) => {
       });
     }
 
-    if (!payment_method) {
+    if (!subscription_type) {
       return res.status(400).json({
         success: false,
-        message: "Payment method is required",
+        message: "Subscription type is required (premium only)",
       });
     }
 
-    // Only allow premium subscription activation through this API
+    // Only allow premium subscription
     if (subscription_type !== "premium") {
       return res.status(400).json({
         success: false,
         message:
-          "This API only handles premium subscription activation. Basic plan is activated by default.",
-      });
-    }
-
-    // Validate amount
-    if (amount_paid <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Amount paid must be greater than 0",
+          "Only premium subscription is available. Basic plan has been discontinued.",
       });
     }
 
@@ -397,16 +392,26 @@ const activatePetProSubscription = async (req, res) => {
     const endDate = new Date(currentDate);
     endDate.setFullYear(endDate.getFullYear() + 1); // 1 year subscription
 
-    // Premium features only (basic is default)
+    // Premium plan features - unlimited everything
     const premiumFeatures = {
       can_create_featured_ads: true,
-      max_featured_ads: 10,
+      max_featured_ads: -1, // Unlimited
       can_showcase_products: true,
-      max_products: 100,
+      max_products: -1, // Unlimited
       can_create_promotions: true,
-      max_promotions: 20,
+      max_promotions: -1, // Unlimited
       analytics_access: true,
     };
+
+    const expectedAmount = 49; // $49 for premium
+
+    // Validate payment amount
+    if (amount_paid < expectedAmount) {
+      return res.status(400).json({
+        success: false,
+        message: `Insufficient payment. Premium plan costs $${expectedAmount}, received $${amount_paid}`,
+      });
+    }
 
     const updatedBusiness = await Business.findByIdAndUpdate(
       business_id,
@@ -425,6 +430,17 @@ const activatePetProSubscription = async (req, res) => {
       { new: true }
     );
 
+    // Update user subscription status
+    await User.findByIdAndUpdate(
+      { _id: business.id },
+      {
+        $set: {
+          business_subscription: true,
+        },
+      },
+      { new: true }
+    );
+
     res.status(200).json({
       success: true,
       message: "Premium subscription activated successfully",
@@ -434,10 +450,10 @@ const activatePetProSubscription = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Activate premium subscription error:", error);
+    console.error("Activate subscription error:", error);
     res.status(500).json({
       success: false,
-      message: "Error activating premium subscription",
+      message: "Error activating subscription",
       error: error.message,
     });
   }
@@ -601,34 +617,46 @@ const cancelSubscription = async (req, res) => {
       });
     }
 
-    // If cancelling premium, revert to basic plan features
+    // Cancel premium subscription - revert to no subscription
     if (business.petpro_subscription.subscription_type === "premium") {
       await Business.findByIdAndUpdate(business_id, {
         $set: {
-          "petpro_subscription.subscription_type": "basic",
-          "petpro_subscription.payment_status": "free",
+          "petpro_subscription.is_active": false,
+          "petpro_subscription.subscription_type": "none",
+          "petpro_subscription.payment_status": "cancelled",
           "petpro_subscription.amount_paid": 0,
-          "petpro_subscription.payment_method": "free",
-          "petpro_subscription.end_date": null, // Basic plan has no end date
-          "features.can_create_featured_ads": true,
-          "features.max_featured_ads": 3, // Basic plan limits
-          "features.can_showcase_products": true,
-          "features.max_products": 25,
-          "features.can_create_promotions": true,
-          "features.max_promotions": 5,
-          "features.analytics_access": true,
+          "petpro_subscription.payment_method": "none",
+          "petpro_subscription.end_date": null,
+          "features.can_create_featured_ads": false,
+          "features.max_featured_ads": 0,
+          "features.can_showcase_products": false,
+          "features.max_products": 0,
+          "features.can_create_promotions": false,
+          "features.max_promotions": 0,
+          "features.analytics_access": false,
         },
       });
 
+      // Update user subscription status
+      await User.findByIdAndUpdate(
+        { _id: business.id },
+        {
+          $set: {
+            business_subscription: false,
+          },
+        },
+        { new: true }
+      );
+
       res.status(200).json({
         success: true,
-        message: "Premium subscription cancelled. Reverted to basic plan.",
+        message:
+          "Premium subscription cancelled. All features disabled until you subscribe again.",
       });
     } else {
-      // If trying to cancel basic plan, don't allow it
       return res.status(400).json({
         success: false,
-        message: "Cannot cancel basic plan. Basic plan is permanent and free.",
+        message: "No active premium subscription found to cancel.",
       });
     }
   } catch (error) {
@@ -771,27 +799,39 @@ const expireSubscriptionsHelper = async () => {
       `Found ${expiredBusinesses.length} expired premium subscriptions to process`
     );
 
-    // Revert each premium subscription to basic plan
+    // Revert each premium subscription to no subscription (0 limits)
     const expiredPromises = expiredBusinesses.map(async (business) => {
       await Business.findByIdAndUpdate(business._id, {
         $set: {
-          "petpro_subscription.subscription_type": "basic",
-          "petpro_subscription.payment_status": "free",
+          "petpro_subscription.is_active": false,
+          "petpro_subscription.subscription_type": "none",
+          "petpro_subscription.payment_status": "expired",
           "petpro_subscription.amount_paid": 0,
-          "petpro_subscription.payment_method": "free",
-          "petpro_subscription.end_date": null, // Basic plan has no end date
-          "features.can_create_featured_ads": true,
-          "features.max_featured_ads": 3, // Basic plan limits
-          "features.can_showcase_products": true,
-          "features.max_products": 25,
-          "features.can_create_promotions": true,
-          "features.max_promotions": 5,
-          "features.analytics_access": true,
+          "petpro_subscription.payment_method": "none",
+          "petpro_subscription.end_date": null,
+          "features.can_create_featured_ads": false,
+          "features.max_featured_ads": 0,
+          "features.can_showcase_products": false,
+          "features.max_products": 0,
+          "features.can_create_promotions": false,
+          "features.max_promotions": 0,
+          "features.analytics_access": false,
         },
       });
 
+      // Update user subscription status
+      await User.findByIdAndUpdate(
+        { _id: business.id },
+        {
+          $set: {
+            business_subscription: false,
+          },
+        },
+        { new: true }
+      );
+
       console.log(
-        `Reverted premium subscription to basic for business: ${business.company_name} (ID: ${business._id})`
+        `Expired premium subscription for business: ${business.company_name} (ID: ${business._id}) - All features disabled`
       );
       return business._id;
     });
@@ -800,8 +840,8 @@ const expireSubscriptionsHelper = async () => {
 
     return {
       success: true,
-      reverted_to_basic_count: expiredIds.length,
-      reverted_business_ids: expiredIds,
+      expired_count: expiredIds.length,
+      expired_business_ids: expiredIds,
     };
   } catch (error) {
     console.error("Error in expireSubscriptionsHelper:", error);

@@ -2,7 +2,7 @@ const Business = require("../model/business");
 
 /**
  * Middleware to check if a business has an active subscription
- * Use this middleware on routes that require premium features
+ * Now checks for actual subscription instead of assuming basic plan
  */
 const checkActiveSubscription = async (req, res, next) => {
   try {
@@ -36,12 +36,15 @@ const checkActiveSubscription = async (req, res, next) => {
       return res.status(403).json({
         success: false,
         message:
-          "Premium subscription required. Please activate or renew your PetPro subscription.",
+          "Active subscription required. Please subscribe to access business features.",
         subscription_status: {
           is_active: business.petpro_subscription.is_active,
+          subscription_type: business.petpro_subscription.subscription_type,
           is_expired: isExpired,
           end_date: business.petpro_subscription.end_date,
         },
+        action_required:
+          "Please subscribe to unlock business features and start showcasing your products.",
       });
     }
 
@@ -69,13 +72,19 @@ const checkFeaturedAdsPermission = async (req, res, next) => {
       return res.status(403).json({
         success: false,
         message:
-          "Featured ads creation not allowed with current subscription plan",
+          "Featured ads creation requires an active subscription. Please subscribe to unlock this feature.",
+        current_limits: {
+          max_featured_ads: business.features.max_featured_ads,
+          subscription_type: business.petpro_subscription.subscription_type,
+        },
       });
     }
 
-    // Check if they've reached their limit
-    // You might want to add a count check here based on existing featured ads
-    // This would require querying your ads collection
+    // Check if they've reached their limit (if not unlimited)
+    if (business.features.max_featured_ads > 0) {
+      // You might want to add a count check here based on existing featured ads
+      // This would require querying your ads collection
+    }
 
     next();
   } catch (error) {
@@ -98,7 +107,12 @@ const checkProductsPermission = async (req, res, next) => {
     if (!business.features.can_showcase_products) {
       return res.status(403).json({
         success: false,
-        message: "Product showcase not allowed with current subscription plan",
+        message:
+          "Product showcase requires an active subscription. Please subscribe to unlock this feature.",
+        current_limits: {
+          max_products: business.features.max_products,
+          subscription_type: business.petpro_subscription.subscription_type,
+        },
       });
     }
 
@@ -124,7 +138,11 @@ const checkPromotionsPermission = async (req, res, next) => {
       return res.status(403).json({
         success: false,
         message:
-          "Promotions creation not allowed with current subscription plan",
+          "Promotion creation requires an active subscription. Please subscribe to unlock this feature.",
+        current_limits: {
+          max_promotions: business.features.max_promotions,
+          subscription_type: business.petpro_subscription.subscription_type,
+        },
       });
     }
 
@@ -142,23 +160,65 @@ const checkPromotionsPermission = async (req, res, next) => {
 /**
  * Middleware to check if a business has analytics access
  */
-const checkAnalyticsAccess = async (req, res, next) => {
+const checkAnalyticsPermission = async (req, res, next) => {
   try {
     const business = req.business; // Should be set by checkActiveSubscription
 
     if (!business.features.analytics_access) {
       return res.status(403).json({
         success: false,
-        message: "Analytics access not allowed with current subscription plan",
+        message:
+          "Analytics access requires an active subscription. Please subscribe to unlock this feature.",
+        current_subscription: business.petpro_subscription.subscription_type,
       });
     }
 
     next();
   } catch (error) {
-    console.error("Analytics access check error:", error);
+    console.error("Analytics permission check error:", error);
     res.status(500).json({
       success: false,
-      message: "Error checking analytics access",
+      message: "Error checking analytics permission",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Middleware to get business info by user ID (for user-based routes)
+ */
+const getBusinessByUserId = async (req, res, next) => {
+  try {
+    const { user_id } = req.body || req.params;
+
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    const business = await Business.findOne({ id: user_id }).select(
+      "petpro_subscription features company_name _id"
+    );
+
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "No business found for this user. Please register your business first.",
+      });
+    }
+
+    // Add business info to request
+    req.business = business;
+    req.business_id = business._id;
+    next();
+  } catch (error) {
+    console.error("Get business by user ID middleware error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error finding business for user",
       error: error.message,
     });
   }
@@ -169,5 +229,6 @@ module.exports = {
   checkFeaturedAdsPermission,
   checkProductsPermission,
   checkPromotionsPermission,
-  checkAnalyticsAccess,
+  checkAnalyticsPermission,
+  getBusinessByUserId,
 };

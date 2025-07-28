@@ -81,11 +81,60 @@ const createProduct = async (req, res) => {
 
     const business = await Business.findById(business_id);
 
-    if (!business || !business.features.can_showcase_products) {
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message: "Business not found",
+      });
+    }
+
+    // Check if business has active subscription
+    if (!business.petpro_subscription.is_active) {
       return res.status(403).json({
         success: false,
         message:
-          "Business does not have permission to showcase products. Please upgrade to PetPro.",
+          "Active subscription required to showcase products. Please subscribe to unlock this feature.",
+        subscription_status: {
+          is_active: false,
+          subscription_type: business.petpro_subscription.subscription_type,
+        },
+        action_required:
+          "Subscribe to start showcasing your products and reach more customers.",
+      });
+    }
+
+    // Check if subscription is expired
+    const currentDate = new Date();
+    const isExpired =
+      business.petpro_subscription.end_date &&
+      business.petpro_subscription.end_date < currentDate;
+
+    if (isExpired) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Your subscription has expired. Please renew to continue showcasing products.",
+        subscription_status: {
+          is_active: business.petpro_subscription.is_active,
+          subscription_type: business.petpro_subscription.subscription_type,
+          is_expired: true,
+          end_date: business.petpro_subscription.end_date,
+        },
+        action_required:
+          "Renew your subscription to continue showcasing products.",
+      });
+    }
+
+    // Check if business can showcase products
+    if (!business.features.can_showcase_products) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Product showcase not allowed with current subscription. Please upgrade your subscription.",
+        current_limits: {
+          max_products: business.features.max_products,
+          subscription_type: business.petpro_subscription.subscription_type,
+        },
       });
     }
 
@@ -95,16 +144,19 @@ const createProduct = async (req, res) => {
         message: "Business is blocked by admin from showcasing products.",
       });
     }
-    // Check product limit
-    const currentProductCount = await Product.countDocuments({
-      business_id,
-      is_available: true,
-    });
-    if (currentProductCount >= business.features.max_products) {
-      return res.status(403).json({
-        success: false,
-        message: `Product showcase limit reached. Current plan allows ${business.features.max_products} products.`,
+
+    // Check product limit (only if not unlimited)
+    if (business.features.max_products !== -1) {
+      const currentProductCount = await Product.countDocuments({
+        business_id,
+        is_available: true,
       });
+      if (currentProductCount >= business.features.max_products) {
+        return res.status(403).json({
+          success: false,
+          message: `Product showcase limit reached. Current plan allows ${business.features.max_products} products.`,
+        });
+      }
     }
 
     // Handle image uploads
@@ -504,7 +556,9 @@ const updateProduct = async (req, res) => {
     }
 
     // Handle tags
-    if (updateData.tags && typeof updateData.tags === "string") {
+    if (updateData.tags && updateData.tags instanceof Array) {
+      updateData.tags = updateData.tags.map((tag) => tag.trim());
+    } else if (updateData.tags && typeof updateData.tags === "string") {
       updateData.tags = updateData.tags.split(",").map((tag) => tag.trim());
     }
 

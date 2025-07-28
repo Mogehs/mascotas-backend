@@ -46,34 +46,84 @@ const createPromotion = async (req, res) => {
       terms_conditions,
     } = req.body;
 
-    // Verify business has permission to create promotions
+    // Get business and check subscription status
     const business = await Business.findById(business_id);
-    if (!business || !business.features.can_create_promotions) {
+
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message: "Business not found",
+      });
+    }
+
+    // Check if business has active subscription
+    if (!business.petpro_subscription.is_active) {
       return res.status(403).json({
         success: false,
-        message:
-          "Business does not have permission to create promotions. Please upgrade to PetPro.",
+        message: "Active subscription required to create promotions. Please subscribe to unlock this feature.",
+        subscription_status: {
+          is_active: false,
+          subscription_type: business.petpro_subscription.subscription_type,
+        },
+        action_required: "Subscribe to start creating promotions and boost your sales."
+      });
+    }
+
+    // Check if subscription is expired
+    const currentDate = new Date();
+    const isExpired = business.petpro_subscription.end_date &&
+                     business.petpro_subscription.end_date < currentDate;
+
+    if (isExpired) {
+      return res.status(403).json({
+        success: false,
+        message: "Your subscription has expired. Please renew to continue creating promotions.",
+        subscription_status: {
+          is_active: business.petpro_subscription.is_active,
+          subscription_type: business.petpro_subscription.subscription_type,
+          is_expired: true,
+          end_date: business.petpro_subscription.end_date,
+        },
+        action_required: "Renew your subscription to continue creating promotions."
+      });
+    }
+
+    // Check if business can create promotions
+    if (!business.features.can_create_promotions) {
+      return res.status(403).json({
+        success: false,
+        message: "Promotion creation requires an active subscription. Please subscribe to unlock this feature.",
+        current_limits: {
+          max_promotions: business.features.max_promotions,
+          subscription_type: business.petpro_subscription.subscription_type,
+        }
       });
     }
 
     if (business.is_blocked) {
       return res.status(403).json({
         success: false,
-        message: "Business is blocked by admin from showcasing products.",
+        message: "Business is blocked by admin from creating promotions.",
       });
     }
-    // Check promotion limit
-    const activePromotions = await Promotion.countDocuments({
-      business_id,
-      is_active: true,
-      end_date: { $gte: new Date() },
-    });
 
-    if (activePromotions >= business.features.max_promotions) {
-      return res.status(403).json({
-        success: false,
-        message: `Active promotion limit reached. Current plan allows ${business.features.max_promotions} promotions.`,
+    // Check promotion limit (only if not unlimited)
+    if (business.features.max_promotions !== -1) {
+      const activePromotions = await Promotion.countDocuments({
+        business_id,
+        is_active: true,
+        end_date: { $gte: new Date() },
       });
+
+      if (activePromotions >= business.features.max_promotions) {
+        return res.status(403).json({
+          success: false,
+          message: `Active promotion limit reached. Current plan allows ${business.features.max_promotions} promotions. Upgrade to Premium for unlimited promotions.`,
+          current_count: activePromotions,
+          max_allowed: business.features.max_promotions,
+          upgrade_message: "Upgrade to Premium for unlimited promotions."
+        });
+      }
     }
 
     // Handle banner image upload
