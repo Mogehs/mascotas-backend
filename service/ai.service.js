@@ -1,7 +1,7 @@
 const OPENROUTER_API_KEY =
-  "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";
-const YOUR_SITE_URL = "https://fe12-144-48-134-48.ngrok-free.app";
-const YOUR_SITE_NAME = "NGROK";
+  "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";
+// const YOUR_SITE_URL = "https://fe12-144-48-134-48.ngrok-free.app";
+// const YOUR_SITE_NAME = "NGROK";
 
 const getVeterinaryAdvice = async (message) => {
   console;
@@ -11,8 +11,8 @@ const getVeterinaryAdvice = async (message) => {
       method: "POST",
       headers: {
         Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "HTTP-Referer": YOUR_SITE_URL,
-        "X-Title": YOUR_SITE_NAME,
+        // "HTTP-Referer": YOUR_SITE_URL,
+        // "X-Title": YOUR_SITE_NAME,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -39,8 +39,8 @@ const getTrainingAdvice = async (message) => {
       method: "POST",
       headers: {
         Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "HTTP-Referer": YOUR_SITE_URL,
-        "X-Title": YOUR_SITE_NAME,
+        // "HTTP-Referer": YOUR_SITE_URL,
+        // "X-Title": YOUR_SITE_NAME,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
