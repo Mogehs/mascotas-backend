@@ -1,28 +1,25 @@
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-// const YOUR_SITE_URL = "https://fe12-144-48-134-48.ngrok-free.app";
-// const YOUR_SITE_NAME = "NGROK";
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
 
 const getVeterinaryAdvice = async (message) => {
-  console;
   const response = await fetch(
-    "https://openrouter.ai/api/v1/chat/completions",
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GOOGLE_API_KEY}`,
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        // "HTTP-Referer": YOUR_SITE_URL,
-        // "X-Title": YOUR_SITE_NAME,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "deepseek/deepseek-chat",
-        messages: [
+        contents: [
           {
-            role: "system",
-            content:
-              "You are a helpful veterinary assistant. Provide professional advice for common pet health issues,but always recommend consulting a real veterinarian for serious concerns.",
+            role: "user",
+            parts: [
+              {
+                text:
+                  "You are a helpful veterinary assistant. Provide professional advice for common pet health issues, but always recommend consulting a real veterinarian for serious concerns.\n\n" +
+                  message,
+              },
+            ],
           },
-          { role: "user", content: message },
         ],
       }),
     }
@@ -33,24 +30,24 @@ const getVeterinaryAdvice = async (message) => {
 
 const getTrainingAdvice = async (message) => {
   const response = await fetch(
-    "https://openrouter.ai/api/v1/chat/completions",
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GOOGLE_API_KEY}`,
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        // "HTTP-Referer": YOUR_SITE_URL,
-        // "X-Title": YOUR_SITE_NAME,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "deepseek/deepseek-chat",
-        messages: [
+        contents: [
           {
-            role: "system",
-            content:
-              "You are a professional dog training assistant. Offer helpful, accurate, and concise advice on dog training topics. Focus on positive reinforcement techniques and ethical training methods. If they ask you about harmful or abusive training methods, politely redirect them to positive alternatives. Include practical steps and examples where appropriate.",
+            role: "user",
+            parts: [
+              {
+                text:
+                  "You are a professional dog training assistant. Offer helpful, accurate, and concise advice on dog training topics. Focus on positive reinforcement techniques and ethical training methods. If they ask you about harmful or abusive training methods, politely redirect them to positive alternatives. Include practical steps and examples where appropriate.\n\n" +
+                  message,
+              },
+            ],
           },
-          { role: "user", content: message },
         ],
       }),
     }
