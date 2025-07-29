@@ -1,5 +1,5 @@
 const OPENROUTER_API_KEY =
-  "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";
+  "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";
 const YOUR_SITE_URL = "https://fe12-144-48-134-48.ngrok-free.app";
 const YOUR_SITE_NAME = "NGROK";
 
