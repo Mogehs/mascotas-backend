@@ -285,8 +285,6 @@ const dogmatch = async (req, res) => {
   try {
     const { neutered, temperament, socialize, time, location, size, age } =
       req.body;
-
-    // Find dogs that match the given filters
     const matchedDogs = await Pet.find({
       isNeutered: neutered,
       temperament: { $in: temperament },

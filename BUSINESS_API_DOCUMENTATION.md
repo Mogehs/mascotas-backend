@@ -21,8 +21,9 @@ Authorization: Bearer <your_jwt_token>
 ## Table of Contents
 
 1. [Business Registration & Management](#business-registration--management)
-2. [PetPro Subscription Management](#petpro-subscription-management)
-3. [Error Responses](#error-responses)
+2. [Location & Map Services](#location--map-services)
+3. [PetPro Subscription Management](#petpro-subscription-management)
+4. [Error Responses](#error-responses)
 
 ---
 
@@ -49,7 +50,9 @@ Authorization: Bearer <your_jwt_token>
   "address": "string", // Optional - Physical address
   "operation_timings": {}, // Optional - Operation timings object
   "tax": "string", // Optional - Tax identification number
-  "addition": "string" // Optional - Additional information
+  "addition": "string", // Optional - Additional information
+  "latitude": "number", // Optional - Latitude (-90 to 90)
+  "longitude": "number" // Optional - Longitude (-180 to 180)
 }
 ```
 
@@ -229,7 +232,9 @@ picture: file                      // Required - Image file (uploaded as form da
   "address": "string", // Optional - Physical address
   "operation_timings": {}, // Optional - Operation timings object
   "tax": "string", // Optional - Tax identification number
-  "addition": "string" // Optional - Additional information
+  "addition": "string", // Optional - Additional information
+  "latitude": "number", // Optional - Latitude (-90 to 90)
+  "longitude": "number" // Optional - Longitude (-180 to 180)
 }
 ```
 
@@ -251,9 +256,125 @@ picture: file                      // Required - Image file (uploaded as form da
 
 ---
 
+## Location & Map Services
+
+### 6. Get Businesses by Location (Nearby)
+
+**Endpoint:** `GET /business/nearby`
+
+**Description:** Get businesses within a specified radius from a given location for map display.
+
+**Query Parameters:**
+
+```
+latitude: number    // Required - Center point latitude (-90 to 90)
+longitude: number   // Required - Center point longitude (-180 to 180)
+radius: number      // Optional - Search radius in kilometers (default: 10)
+```
+
+**Example Request:**
+
+```
+GET /business/nearby?latitude=40.7128&longitude=-74.0060&radius=5
+```
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Found 15 businesses within 5km",
+  "data": [
+    {
+      "_id": "business_id",
+      "company_name": "Pet Store ABC",
+      "company_type": "Pet Store",
+      "company_description": "Your friendly neighborhood pet store",
+      "company_logo": "https://cloudinary.com/logo.jpg",
+      "phone": "+1234567890",
+      "email": "info@petstoreABC.com",
+      "website": "https://petstoreABC.com",
+      "physical_address": "123 Main St, City, State",
+      "latitude": 40.713,
+      "longitude": -74.0065,
+      "location": {
+        "type": "Point",
+        "coordinates": [-74.0065, 40.713]
+      },
+      "is_blocked": false,
+      "id": {
+        "username": "store_owner",
+        "email": "owner@email.com",
+        "phone": "+1234567890"
+      }
+    }
+  ],
+  "center": {
+    "latitude": 40.7128,
+    "longitude": -74.006
+  },
+  "radius": 5
+}
+```
+
+**Error Responses:**
+
+- `400` - Missing latitude or longitude
+- `400` - Invalid coordinate ranges
+- `400` - Invalid radius value
+- `500` - Server error
+
+---
+
+### 7. Get All Businesses for Map
+
+**Endpoint:** `GET /business/map`
+
+**Description:** Get all businesses that have valid location coordinates for displaying on a map.
+
+**Request Body:** None
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Found 25 businesses with location data",
+  "data": [
+    {
+      "_id": "business_id",
+      "company_name": "Pet Store ABC",
+      "company_type": "Pet Store",
+      "physical_address": "123 Main St, City, State",
+      "latitude": 40.713,
+      "longitude": -74.0065,
+      "location": {
+        "type": "Point",
+        "coordinates": [-74.0065, 40.713]
+      },
+      "company_logo": "https://cloudinary.com/logo.jpg",
+      "phone": "+1234567890",
+      "email": "info@petstoreABC.com",
+      "website": "https://petstoreABC.com",
+      "id": {
+        "username": "store_owner",
+        "email": "owner@email.com",
+        "phone": "+1234567890"
+      }
+    }
+  ]
+}
+```
+
+**Error Responses:**
+
+- `500` - Server error
+
+---
+
 ## PetPro Subscription Management
 
-### 6. Activate PetPro Subscription
+### 8. Activate PetPro Subscription
 
 **Endpoint:** `POST /business/petpro/activate`
 
@@ -325,7 +446,7 @@ picture: file                      // Required - Image file (uploaded as form da
 
 ---
 
-### 7. Check Subscription Status
+### 9. Check Subscription Status
 
 **Endpoint:** `GET /business/petpro/status/:business_id`
 
@@ -379,7 +500,7 @@ picture: file                      // Required - Image file (uploaded as form da
 
 ---
 
-### 8. Renew Subscription
+### 10. Renew Subscription
 
 **Endpoint:** `POST /business/petpro/renew/:business_id`
 
@@ -416,7 +537,7 @@ picture: file                      // Required - Image file (uploaded as form da
 
 ---
 
-### 9. Cancel Subscription
+### 11. Cancel Subscription
 
 **Endpoint:** `POST /business/petpro/cancel/:business_id`
 
@@ -451,7 +572,7 @@ picture: file                      // Required - Image file (uploaded as form da
 
 ---
 
-### 10. Upgrade Subscription
+### 12. Upgrade Subscription
 
 **Endpoint:** `POST /business/petpro/upgrade/:business_id`
 
@@ -509,7 +630,7 @@ picture: file                      // Required - Image file (uploaded as form da
 
 ---
 
-### 11. Expire Subscriptions (Manual)
+### 13. Expire Subscriptions (Manual)
 
 **Endpoint:** `POST /business/petpro/expire-subscriptions`
 

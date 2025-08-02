@@ -14,6 +14,8 @@ const {
   cancelSubscription,
   upgradeSubscription,
   expireSubscriptions,
+  getBusinessesByLocation,
+  getBusinessesForMap,
 } = require("../controller/business");
 
 // Existing routes
@@ -23,6 +25,10 @@ router.post("/latlng", uploadLatlng);
 router.get("/", getBusiness);
 router.get("/user/:user_id", getBusinessByUserId);
 router.post("/updateBusiness", updateBusiness);
+
+// Location-based routes for map functionality
+router.get("/nearby", getBusinessesByLocation);
+router.get("/map", getBusinessesForMap);
 
 // PetPro Subscription routes
 router.post("/petpro/activate", activatePetProSubscription);

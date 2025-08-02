@@ -49,10 +49,27 @@ const businessSchema = new Schema(
       default: "N/A",
     },
     latitude: {
-      type: String,
+      type: Number,
+      min: -90,
+      max: 90,
+      default: null,
     },
     longitude: {
-      type: String,
+      type: Number,
+      min: -180,
+      max: 180,
+      default: null,
+    },
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        default: "Point",
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        default: [0, 0],
+      },
     },
     operation_timing: {},
     tax_identification_number: {
@@ -161,4 +178,8 @@ const businessSchema = new Schema(
     timestamps: true,
   }
 );
+
+// Create geospatial index for location-based queries
+businessSchema.index({ location: "2dsphere" });
+
 module.exports = mongoose.model("business", businessSchema);

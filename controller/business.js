@@ -23,8 +23,9 @@ const businessRegister = async (req, res) => {
       operation_timings,
       tax,
       addition,
+      latitude,
+      longitude,
     } = req.body;
-    console.log(req.body);
 
     // Basic required field validation
     if (!id) {
@@ -76,6 +77,37 @@ const businessRegister = async (req, res) => {
       });
     }
 
+    // Validate coordinates if provided
+    let validatedLatitude = null;
+    let validatedLongitude = null;
+    let geoLocation = null;
+
+    if (latitude !== undefined && longitude !== undefined) {
+      const lat = parseFloat(latitude);
+      const lon = parseFloat(longitude);
+
+      if (isNaN(lat) || lat < -90 || lat > 90) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid latitude. Must be between -90 and 90",
+        });
+      }
+
+      if (isNaN(lon) || lon < -180 || lon > 180) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid longitude. Must be between -180 and 180",
+        });
+      }
+
+      validatedLatitude = lat;
+      validatedLongitude = lon;
+      geoLocation = {
+        type: "Point",
+        coordinates: [lon, lat], // GeoJSON format: [longitude, latitude]
+      };
+    }
+
     const data = await Business.create({
       id: id,
       company_name: name,
@@ -89,6 +121,9 @@ const businessRegister = async (req, res) => {
       physical_address: address,
       operation_timing: operation_timings,
       tax_identification_number: tax,
+      latitude: validatedLatitude,
+      longitude: validatedLongitude,
+      location: geoLocation,
     });
 
     await User.findByIdAndUpdate(
@@ -218,6 +253,10 @@ const uploadLatlng = async (req, res) => {
         $set: {
           latitude: lat,
           longitude: lon,
+          location: {
+            type: "Point",
+            coordinates: [lon, lat], // GeoJSON format: [longitude, latitude]
+          },
         },
       },
       { new: true }
@@ -295,6 +334,8 @@ const updateBusiness = async (req, res) => {
       operation_timings,
       tax,
       addition,
+      latitude,
+      longitude,
     } = req.body;
     console.log(req.body);
 
@@ -315,23 +356,51 @@ const updateBusiness = async (req, res) => {
       });
     }
 
+    // Prepare update data
+    const updateData = {
+      company_name: name,
+      company_type: type,
+      company_description: description,
+      branches: branch,
+      phone: phone,
+      email: email,
+      website: website,
+      additional: addition,
+      physical_address: address,
+      operation_timing: operation_timings,
+      tax_identification_number: tax,
+    };
+
+    // Validate and add coordinates if provided
+    if (latitude !== undefined && longitude !== undefined) {
+      const lat = parseFloat(latitude);
+      const lon = parseFloat(longitude);
+
+      if (isNaN(lat) || lat < -90 || lat > 90) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid latitude. Must be between -90 and 90",
+        });
+      }
+
+      if (isNaN(lon) || lon < -180 || lon > 180) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid longitude. Must be between -180 and 180",
+        });
+      }
+
+      updateData.latitude = lat;
+      updateData.longitude = lon;
+      updateData.location = {
+        type: "Point",
+        coordinates: [lon, lat], // GeoJSON format: [longitude, latitude]
+      };
+    }
+
     const data = await Business.findByIdAndUpdate(
       { _id: id },
-      {
-        $set: {
-          company_name: name,
-          company_type: type,
-          company_description: description,
-          branches: branch,
-          phone: phone,
-          email: email,
-          website: website,
-          additional: addition,
-          physical_address: address,
-          operation_timing: operation_timings,
-          tax_identification_number: tax,
-        },
-      },
+      { $set: updateData },
       { new: true }
     );
     res.status(200).json({
@@ -869,6 +938,104 @@ const expireSubscriptions = async (req, res) => {
   }
 };
 
+// Get businesses by location radius for map display
+const getBusinessesByLocation = async (req, res) => {
+  try {
+    const { latitude, longitude, radius = 10 } = req.query; // radius in kilometers, default 10km
+
+    // Validate required parameters
+    if (!latitude || !longitude) {
+      return res.status(400).json({
+        success: false,
+        message: "Latitude and longitude are required",
+      });
+    }
+
+    // Validate coordinate ranges
+    const lat = parseFloat(latitude);
+    const lon = parseFloat(longitude);
+    const radiusKm = parseFloat(radius);
+
+    if (isNaN(lat) || lat < -90 || lat > 90) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid latitude. Must be between -90 and 90",
+      });
+    }
+
+    if (isNaN(lon) || lon < -180 || lon > 180) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid longitude. Must be between -180 and 180",
+      });
+    }
+
+    if (isNaN(radiusKm) || radiusKm <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid radius. Must be a positive number",
+      });
+    }
+
+    // Find businesses within the specified radius using GeoJSON
+    const businesses = await Business.find({
+      location: {
+        $near: {
+          $geometry: {
+            type: "Point",
+            coordinates: [lon, lat], // GeoJSON format: [longitude, latitude]
+          },
+          $maxDistance: radiusKm * 1000, // Convert km to meters
+        },
+      },
+      is_blocked: false, // Only show non-blocked businesses
+    }).populate("id", "username email phone");
+
+    res.status(200).json({
+      success: true,
+      message: `Found ${businesses.length} businesses within ${radiusKm}km`,
+      data: businesses,
+      center: { latitude: lat, longitude: lon },
+      radius: radiusKm,
+    });
+  } catch (error) {
+    console.error("Get businesses by location error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching businesses by location",
+      error: error.message,
+    });
+  }
+};
+
+// Get all businesses with valid coordinates for map display
+const getBusinessesForMap = async (req, res) => {
+  try {
+    const businesses = await Business.find({
+      latitude: { $ne: null },
+      longitude: { $ne: null },
+      is_blocked: false, // Only show non-blocked businesses
+    })
+      .select(
+        "company_name company_type physical_address latitude longitude location company_logo phone email website"
+      )
+      .populate("id", "username email phone");
+
+    res.status(200).json({
+      success: true,
+      message: `Found ${businesses.length} businesses with location data`,
+      data: businesses,
+    });
+  } catch (error) {
+    console.error("Get businesses for map error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching businesses for map",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   businessRegister,
   uploadBusinessImage,
@@ -883,4 +1050,6 @@ module.exports = {
   upgradeSubscription,
   expireSubscriptions,
   expireSubscriptionsHelper,
+  getBusinessesByLocation,
+  getBusinessesForMap,
 };
