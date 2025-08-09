@@ -1,5 +1,6 @@
 const Pet = require("../model/pet");
 const Lost = require("../model/lost");
+const QRCode = require("../model/qrcode");
 const cloudinary = require("cloudinary").v2;
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_APP_NAME,
@@ -41,10 +42,18 @@ const get_pet_id = async (req, res) => {
       });
     }
 
+    const petQr = await QRCode.findOne({ petId: petId });
+
+    // Convert Mongoose document to a plain JavaScript object
+    const petData = data.toObject();
+
+    // Add QR code data to the response
+    petData.qrCode = petQr ? petQr.toObject() : null;
+
     res.json({
       success: true,
       message: "Información de la mascota obtenida correctamente",
-      pet: data,
+      pet: petData,
     });
   } catch (error) {
     console.error(error.message);
