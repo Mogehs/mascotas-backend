@@ -11,14 +11,25 @@ cloudinary.config({
 const get_pet = async (req, res) => {
   try {
     const { user } = req.body;
-    let data = await Pet.find({ user: user }).populate(
+    let pets = await Pet.find({ user: user }).populate(
       "user",
       "firstname lastname phone address"
     );
+
+    // Convert pets to plain objects and add QR code data
+    const petsWithQrData = await Promise.all(
+      pets.map(async (pet) => {
+        const petObj = pet.toObject();
+        const qrCode = await QRCode.findOne({ petId: pet._id });
+        petObj.qrCode = qrCode ? qrCode.toObject() : null;
+        return petObj;
+      })
+    );
+
     res.json({
       success: true,
       message: "Información de la mascota obtenida correctamente",
-      pets_list: data,
+      pets_list: petsWithQrData,
     });
   } catch (error) {
     console.log(error.message);
