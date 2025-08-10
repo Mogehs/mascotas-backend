@@ -283,6 +283,29 @@ const getBusiness = async (req, res) => {
   }
 };
 
+const getBusinessById = async (req, res) => {
+  try {
+    const { business_id } = req.params;
+
+    const business = await Business.findById(business_id);
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message: "Business not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Business details retrieved successfully",
+      data: business,
+    });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 const getBusinessByUserId = async (req, res) => {
   try {
     const { user_id } = req.params;
@@ -1052,4 +1075,5 @@ module.exports = {
   expireSubscriptionsHelper,
   getBusinessesByLocation,
   getBusinessesForMap,
+  getBusinessById,
 };
