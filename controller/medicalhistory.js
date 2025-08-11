@@ -38,13 +38,11 @@ const petvaccine = async (req, res) => {
         pet: id,
         user: user,
       });
-      res
-        .status(200)
-        .json({
-          success: true,
-          message: "Vacuna añadida con éxito",
-          id: data._id,
-        });
+      res.status(200).json({
+        success: true,
+        message: "Vacuna añadida con éxito",
+        id: data._id,
+      });
     }
   } catch (error) {
     console.log(error.message);
@@ -77,13 +75,11 @@ const updatevaccine = async (req, res) => {
         { new: true }
       );
 
-      res
-        .status(200)
-        .json({
-          success: true,
-          message: "Los datos de la vacuna han sido editados",
-          id: data._id,
-        });
+      res.status(200).json({
+        success: true,
+        message: "Los datos de la vacuna han sido editados",
+        id: data._id,
+      });
     }
   } catch (error) {
     console.log(error.message);
@@ -143,13 +139,11 @@ const petdeworming = async (req, res) => {
         pet: id,
         user: user,
       });
-      res
-        .status(200)
-        .json({
-          success: true,
-          message: "Desparasitación añadida con éxito",
-          id: data._id,
-        });
+      res.status(200).json({
+        success: true,
+        message: "Desparasitación añadida con éxito",
+        id: data._id,
+      });
     }
   } catch (error) {
     console.log(error.message);
@@ -183,13 +177,11 @@ const updatedeworming = async (req, res) => {
         },
         { new: true }
       );
-      res
-        .status(200)
-        .json({
-          success: true,
-          message: "Desparasitación añadida con éxito",
-          pet_details: data,
-        });
+      res.status(200).json({
+        success: true,
+        message: "Desparasitación añadida con éxito",
+        pet_details: data,
+      });
     }
   } catch (error) {
     console.log(error.message);
@@ -224,13 +216,11 @@ const petdisease = async (req, res) => {
       pet: id,
       user: user,
     });
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: "Enfermedad agregada exitosamente",
-        id: data._id,
-      });
+    res.status(200).json({
+      success: true,
+      message: "Enfermedad agregada exitosamente",
+      id: data._id,
+    });
   } catch (error) {
     console.log(error.message);
     return res.status(500).json({ success: false, message: error.message });
@@ -269,13 +259,11 @@ const updatedisease = async (req, res) => {
         },
         { new: true }
       );
-      res
-        .status(200)
-        .json({
-          success: true,
-          message: "Enfermedad agregada exitosamente",
-          pet_details: data,
-        });
+      res.status(200).json({
+        success: true,
+        message: "Enfermedad agregada exitosamente",
+        pet_details: data,
+      });
     }
   } catch (error) {
     console.log(error.message);
@@ -296,13 +284,11 @@ const petsurgery = async (req, res) => {
       pet: id,
       user: user,
     });
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: "Información de cirugía agregada exitosamente.",
-        id: data._id,
-      });
+    res.status(200).json({
+      success: true,
+      message: "Información de cirugía agregada exitosamente.",
+      id: data._id,
+    });
   } catch (error) {
     console.log(error.message);
     return res.status(500).json({ success: false, message: error.message });
@@ -328,13 +314,11 @@ const updatesurgery = async (req, res) => {
         },
         { new: true }
       );
-      res
-        .status(200)
-        .json({
-          success: true,
-          message: "Información de cirugía agregada exitosamente.",
-          pet_details: data,
-        });
+      res.status(200).json({
+        success: true,
+        message: "Información de cirugía agregada exitosamente.",
+        pet_details: data,
+      });
     }
   } catch (error) {
     console.log(error.message);
@@ -353,13 +337,11 @@ const petmedicalcheckup = async (req, res) => {
       pet: id,
       user: user,
     });
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: "Información de chequeo médico regular guardada exitosamente",
-        id: data._id,
-      });
+    res.status(200).json({
+      success: true,
+      message: "Información de chequeo médico regular guardada exitosamente",
+      id: data._id,
+    });
   } catch (error) {
     console.log(error.message);
     return res.status(500).json({ success: false, message: error.message });
@@ -405,13 +387,11 @@ const petallergy = async (req, res) => {
       pet: id,
       user: user,
     });
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: "Información sobre alergias guardada correctamente",
-        id: data._id,
-      });
+    res.status(200).json({
+      success: true,
+      message: "Información sobre alergias guardada correctamente",
+      id: data._id,
+    });
   } catch (error) {
     console.log(error.message);
     return res.status(500).json({ success: false, message: error.message });
@@ -434,13 +414,11 @@ const updateallergy = async (req, res) => {
         },
         { new: true }
       );
-      res
-        .status(200)
-        .json({
-          success: true,
-          message: "Información sobre alergias guardada correctamente",
-          pet_details: data,
-        });
+      res.status(200).json({
+        success: true,
+        message: "Información sobre alergias guardada correctamente",
+        pet_details: data,
+      });
     }
   } catch (error) {
     console.log(error.message);
@@ -471,13 +449,11 @@ const petdose = async (req, res) => {
       pet: id,
       user: user,
     });
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: "La información de la dosis se guardó correctamente",
-        id: data._id,
-      });
+    res.status(200).json({
+      success: true,
+      message: "La información de la dosis se guardó correctamente",
+      id: data._id,
+    });
   } catch (error) {
     console.log(error.message);
     return res.status(500).json({ success: false, message: error.message });
@@ -513,13 +489,11 @@ const updatedose = async (req, res) => {
         },
         { new: true }
       );
-      res
-        .status(200)
-        .json({
-          success: true,
-          message: "La información de la dosis se guardó correctamente",
-          pet_details: data,
-        });
+      res.status(200).json({
+        success: true,
+        message: "La información de la dosis se guardó correctamente",
+        pet_details: data,
+      });
     }
   } catch (error) {
     console.log(error.message);
@@ -538,13 +512,11 @@ const petdiet = async (req, res) => {
       pet: id,
       user: user,
     });
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: "La información de la dieta se guardó correctamente.",
-        id: data._id,
-      });
+    res.status(200).json({
+      success: true,
+      message: "La información de la dieta se guardó correctamente.",
+      id: data._id,
+    });
   } catch (error) {
     console.log(error.message);
     return res.status(500).json({ success: false, message: error.message });
@@ -568,13 +540,11 @@ const updatediet = async (req, res) => {
         },
         { new: true }
       );
-      res
-        .status(200)
-        .json({
-          success: true,
-          message: "La información de la dieta se guardó correctamente.",
-          pet_details: data,
-        });
+      res.status(200).json({
+        success: true,
+        message: "La información de la dieta se guardó correctamente.",
+        pet_details: data,
+      });
     }
   } catch (error) {
     console.log(error.message);
@@ -622,13 +592,11 @@ const petactivity = async (req, res) => {
         pet: id,
         user: user,
       });
-      res
-        .status(200)
-        .json({
-          success: true,
-          message: "Información de actividades y ocio guardada correctamente",
-          id: data._id,
-        });
+      res.status(200).json({
+        success: true,
+        message: "Información de actividades y ocio guardada correctamente",
+        id: data._id,
+      });
     }
   } catch (error) {
     console.log(error.message);
@@ -668,13 +636,11 @@ const updateactivity = async (req, res) => {
         },
         { new: true }
       );
-      res
-        .status(200)
-        .json({
-          success: true,
-          message: "Información de actividades y ocio guardada correctamente",
-          pet_details: data,
-        });
+      res.status(200).json({
+        success: true,
+        message: "Información de actividades y ocio guardada correctamente",
+        pet_details: data,
+      });
     }
   } catch (error) {
     console.log(error.message);
@@ -705,14 +671,12 @@ const pethair = async (req, res) => {
         pet: id,
         user: user,
       });
-      res
-        .status(200)
-        .json({
-          success: true,
-          message:
-            "La información del pelo de la mascota se guardó correctamente",
-          id: data._id,
-        });
+      res.status(200).json({
+        success: true,
+        message:
+          "La información del pelo de la mascota se guardó correctamente",
+        id: data._id,
+      });
     }
   } catch (error) {
     console.log(error.message);
@@ -736,14 +700,12 @@ const updatehair = async (req, res) => {
         },
         { new: true }
       );
-      res
-        .status(200)
-        .json({
-          success: true,
-          message:
-            "La información del pelo de la mascota se guardó correctamente",
-          pet_details: data,
-        });
+      res.status(200).json({
+        success: true,
+        message:
+          "La información del pelo de la mascota se guardó correctamente",
+        pet_details: data,
+      });
     }
   } catch (error) {
     console.log(error.message);
@@ -767,13 +729,11 @@ const petEmergency = async (req, res) => {
         },
         { new: true }
       );
-      res
-        .status(200)
-        .json({
-          success: true,
-          message: "Contacto de emergencia guardado exitosamente",
-          pet_details: data,
-        });
+      res.status(200).json({
+        success: true,
+        message: "Contacto de emergencia guardado exitosamente",
+        pet_details: data,
+      });
     }
   } catch (error) {
     console.log(error.message);
@@ -842,14 +802,12 @@ const registration = async (req, res) => {
         personal_image: result.secure_url,
         pet: id,
       });
-      res
-        .status(200)
-        .json({
-          success: true,
-          message:
-            "Información de Registro personal y ocio guardada correctamente",
-          id: data._id,
-        });
+      res.status(200).json({
+        success: true,
+        message:
+          "Información de Registro personal y ocio guardada correctamente",
+        id: data._id,
+      });
     }
   } catch (error) {
     console.log(error.message);
@@ -878,14 +836,12 @@ const updateRegistration = async (req, res) => {
         },
         { new: true }
       );
-      res
-        .status(200)
-        .json({
-          success: true,
-          message:
-            "La información del pelo de la mascota se guardó correctamente",
-          pet_details: data,
-        });
+      res.status(200).json({
+        success: true,
+        message:
+          "La información del pelo de la mascota se guardó correctamente",
+        pet_details: data,
+      });
     }
   } catch (error) {
     console.log(error.message);

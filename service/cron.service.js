@@ -173,12 +173,7 @@ const startCronJob = () => {
 
         const notificationPromises = data.map(async (medical) => {
           // Skip records without reminder date or device token
-          if (
-            !medical.next_check_up_reminder ||
-            medical.next_check_up_reminder === "N/A" ||
-            !medical.user?.device_token ||
-            medical.user.device_token === ""
-          ) {
+          if (true) {
             console.log(
               `Skipping reminder for pet ${medical.pet.pet_name}: no valid reminder date or device token.`
             );
