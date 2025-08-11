@@ -152,7 +152,7 @@ const startCronJob = () => {
 
   // Medical checkup reminders cron job - runs hourly to catch specific times
   const medicalCheckupReminderTask = cron.schedule(
-    "0 * * * *", // Run every hour
+    "* * * * *",
     async () => {
       try {
         const now = moment();
@@ -233,7 +233,9 @@ const startCronJob = () => {
             }
           } catch (error) {
             console.error(
-              `Error processing reminder for pet ${medical.pet?._id || "unknown"}:`,
+              `Error processing reminder for pet ${
+                medical.pet?._id || "unknown"
+              }:`,
               error
             );
           }
@@ -252,7 +254,10 @@ const startCronJob = () => {
           `- Notifications sent: ${sentCount}`
         );
       } catch (error) {
-        console.error("Error in medical checkup reminder scheduled task:", error);
+        console.error(
+          "Error in medical checkup reminder scheduled task:",
+          error
+        );
       }
     },
     {
