@@ -134,9 +134,10 @@ const medicalSchema = new Schema(
       default: "N/A",
     },
     next_check_up_reminder: {
-      type: String,
-      default: "N/A",
+      type: Date,
+      default: null, // null means "no reminder set"
     },
+
     check_up_price: {
       type: String,
       default: "N/A",

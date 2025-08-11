@@ -152,15 +152,12 @@ const startCronJob = () => {
 
   // Medical checkup reminders cron job - runs hourly to catch specific times
   const medicalCheckupReminderTask = cron.schedule(
-    "* * * * *", // Run every hour
+    "* * * * *",
     async () => {
       try {
-        const now = moment();
-        const currentDate = now.format("YYYY-MM-DD");
-        const currentHour = now.format("HH");
-
+        const nowUTC = moment.utc(); // Always work in UTC
         console.log(
-          `Running medical checkup reminder check at ${now.format(
+          `Running reminder check at UTC: ${nowUTC.format(
             "YYYY-MM-DD HH:mm:ss"
           )}`
         );
@@ -172,129 +169,66 @@ const startCronJob = () => {
           .populate("pet", "pet_name");
 
         const notificationPromises = data.map(async (medical) => {
-          console.log(
-            "................ Next Checkup Reminder:",
-            medical.next_check_up_reminder
-          );
-          console.log(
-            "................ Device token:",
-            medical.user.device_token
-          );
-
-          // Skip records without reminder date or device token
-          if (
-            !medical.next_check_up_reminder ||
-            medical.next_check_up_reminder === "N/A" ||
-            !medical.user.device_token ||
-            medical.user.device_token === ""
-          ) {
-            console.log(
-              `Skipping reminder for pet ${medical.pet.pet_name}: no valid reminder date or device token.`
-            );
+          if (!medical.next_check_up_reminder || !medical.user?.device_token) {
             return null;
           }
-          console.log(
-            `Processing reminder for pet ${medical.pet.pet_name}: ${medical.next_check_up_reminder}`
-          );
 
-          try {
-            // Parse the reminder datetime (could be just date or date with time)
-            let reminderMoment;
+          let reminderMoment;
 
-            // Try different date formats
-            if (medical.next_check_up_reminder.includes(":")) {
-              // Format with time (YYYY-MM-DD HH:mm)
-              reminderMoment = moment(medical.next_check_up_reminder, [
-                "YYYY-MM-DD HH:mm",
-                "DD-MM-YYYY HH:mm",
-                "MM/DD/YYYY HH:mm",
-                "YYYY/MM/DD HH:mm",
-              ]);
-            } else {
-              // Format without time (YYYY-MM-DD)
-              reminderMoment = moment(medical.next_check_up_reminder, [
+          if (!isNaN(Number(medical.next_check_up_reminder))) {
+            // If it's a timestamp (milliseconds)
+            reminderMoment = moment.utc(Number(medical.next_check_up_reminder));
+          } else if (medical.next_check_up_reminder.includes(":")) {
+            // Date with time string
+            reminderMoment = moment.utc(medical.next_check_up_reminder, [
+              "YYYY-MM-DD HH:mm",
+              "DD-MM-YYYY HH:mm",
+              "MM/DD/YYYY HH:mm",
+              "YYYY/MM/DD HH:mm",
+            ]);
+          } else {
+            // Date without time
+            reminderMoment = moment
+              .utc(medical.next_check_up_reminder, [
                 "YYYY-MM-DD",
                 "DD-MM-YYYY",
                 "MM/DD/YYYY",
                 "YYYY/MM/DD",
-              ]);
+              ])
+              .hour(9)
+              .minute(0)
+              .second(0);
+          }
 
-              // Default to 9 AM for date-only reminders
-              reminderMoment.hour(9).minute(0).second(0);
-            }
-
-            console.log(
-              `Reminder set for pet ${
-                medical.pet.pet_name
-              }: ${reminderMoment.format("YYYY-MM-DD HH:mm")}`
-            );
-
-            console.log(
-              `Checking if it's time to send reminder for pet ${reminderMoment.format(
-                "YYYY-MM-DD"
-              )}...${reminderMoment.format("HH")}`
-            );
-
-            console.log(
-              `Checking if it's time to send reminder for pet ${currentDate}...${currentHour}`
-            );
-            // Check if this is the right time to send the reminder
-            if (
-              reminderMoment.isValid() &&
-              reminderMoment.format("YYYY-MM-DD") === currentDate &&
-              reminderMoment.format("HH") === currentHour &&
-              reminderMoment.format("mm") === now.format("mm")
-            ) {
-              console.log(
-                `Sending medical checkup reminder to: ${medical.user.device_token} for pet: ${medical.pet.pet_name}`
+          if (
+            reminderMoment.isValid() &&
+            reminderMoment.format("YYYY-MM-DD HH:mm") ===
+              nowUTC.format("YYYY-MM-DD HH:mm")
+          ) {
+            return sendMedicalReminder(
+              medical.user.device_token,
+              medical.pet.pet_name,
+              "chequeo médico",
+              reminderMoment.format("YYYY-MM-DD HH:mm")
+            ).catch((error) => {
+              console.error(
+                `Failed to send reminder for ${medical.pet.pet_name}:`,
+                error
               );
-
-              return sendMedicalReminder(
-                medical.user.device_token,
-                medical.pet.pet_name,
-                "chequeo médico",
-                medical.next_check_up_reminder
-              ).catch((error) => {
-                console.error(
-                  `Failed to send medical checkup reminder for ${medical.pet.pet_name}:`,
-                  error
-                );
-                return null;
-              });
-            }
-          } catch (error) {
-            console.error(
-              `Error processing reminder for pet ${
-                medical.pet?._id || "unknown"
-              }:`,
-              error
-            );
+              return null;
+            });
           }
 
           return null;
         });
 
-        const results = await Promise.all(
-          notificationPromises.filter((p) => p !== null)
-        );
-        const sentCount = results.filter((r) => r !== null).length;
-
-        console.log(
-          "Medical checkup reminder task completed at:",
-          new Date().toISOString(),
-          `- Notifications sent: ${sentCount}`
-        );
+        const results = await Promise.all(notificationPromises.filter(Boolean));
+        console.log(`Reminders sent: ${results.filter(Boolean).length}`);
       } catch (error) {
-        console.error(
-          "Error in medical checkup reminder scheduled task:",
-          error
-        );
+        console.error("Error in reminder task:", error);
       }
     },
-    {
-      scheduled: true,
-      timezone: "Europe/Madrid",
-    }
+    { scheduled: true, timezone: "UTC" }
   );
 
   // Subscription expiration cron job - runs daily at 12:01 AM
