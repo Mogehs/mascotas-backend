@@ -152,7 +152,7 @@ const startCronJob = () => {
 
   // Medical checkup reminders cron job - runs hourly to catch specific times
   const medicalCheckupReminderTask = cron.schedule(
-    "* * * * *",
+    "* * * * *", // Run every hour
     async () => {
       try {
         const now = moment();
@@ -179,8 +179,14 @@ const startCronJob = () => {
             !medical.user?.device_token ||
             medical.user.device_token === ""
           ) {
+            console.log(
+              `Skipping reminder for pet ${medical.pet.pet_name}: no valid reminder date or device token.`
+            );
             return null;
           }
+          console.log(
+            `Processing reminder for pet ${medical.pet.pet_name}: ${medical.next_check_up_reminder}`
+          );
 
           try {
             // Parse the reminder datetime (could be just date or date with time)
@@ -208,11 +214,27 @@ const startCronJob = () => {
               reminderMoment.hour(9).minute(0).second(0);
             }
 
+            console.log(
+              `Reminder set for pet ${
+                medical.pet.pet_name
+              }: ${reminderMoment.format("YYYY-MM-DD HH:mm")}`
+            );
+
+            console.log(
+              `Checking if it's time to send reminder for pet ${reminderMoment.format(
+                "YYYY-MM-DD"
+              )}...${reminderMoment.format("HH")}`
+            );
+
+            console.log(
+              `Checking if it's time to send reminder for pet ${currentDate}...${currentHour}`
+            );
             // Check if this is the right time to send the reminder
             if (
               reminderMoment.isValid() &&
               reminderMoment.format("YYYY-MM-DD") === currentDate &&
-              reminderMoment.format("HH") === currentHour
+              reminderMoment.format("HH") === currentHour &&
+              reminderMoment.format("mm") === now.format("mm")
             ) {
               console.log(
                 `Sending medical checkup reminder to: ${medical.user.device_token} for pet: ${medical.pet.pet_name}`
