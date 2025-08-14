@@ -7,7 +7,7 @@ const cors = require("cors");
 // Import configurations and services
 const configureServer = require("./config/server");
 const initializeSocket = require("./config/socket");
-const { startCronJob } = require("./service/cron.service");
+const cronService = require("./service/cron.service");
 
 // Initialize Express app and HTTP server
 const app = express();
@@ -54,11 +54,12 @@ app.get(
 // Initialize Socket.IO
 const io = initializeSocket(server);
 
-// Start cron job for notifications
-startCronJob();
+// Start Medical Checkup Cron Service
+cronService.start();
 
 // Start server
 server.listen(process.env.PORT, () => {
   console.log("Server is running on port:", process.env.PORT);
+  console.log("Medical Checkup Cron Service initialized");
   connectToMongo();
 });

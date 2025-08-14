@@ -1,4 +1,5 @@
 const Lost = require("../model/lost");
+const User = require("../model/user"); // Add User model import
 const cloudinary = require("cloudinary").v2;
 const {
   sendLostPetAlert,
@@ -50,20 +51,16 @@ const lostPet = async (req, res) => {
       longitude: longitude,
     });
 
-    const users = await Lost.find().populate(
-      "user",
-      "device_token firstname lastname phone"
-    );
+    // Get ALL users in the system (except the one reporting the lost pet)
+    const allUsers = await User.find({
+      _id: { $ne: req.body.user }, // Exclude the user reporting the lost pet
+      device_token: { $exists: true, $ne: null, $ne: "" }, // Only users with device tokens
+    });
 
-    const petsToNotify = users.filter(
-      (pet) =>
-        pet.user &&
-        pet.user._id.toString() !== req.body.user.toString() &&
-        pet.user.device_token
-    );
+    console.log(`Sending lost pet alert to ${allUsers.length} users`);
 
-    const notificationPromises = users.map(async (pet) => {
-      if (pet.user?.device_token) {
+    const notificationPromises = allUsers.map(async (user) => {
+      if (user.device_token) {
         const petData = {
           name,
           contact,
@@ -73,10 +70,11 @@ const lostPet = async (req, res) => {
           date,
           details,
         };
-        return sendLostPetAlert(pet.user.device_token, petData);
+        return sendLostPetAlert(user.device_token, petData);
       }
       return null;
     });
+
     await Promise.all(notificationPromises.filter((p) => p !== null));
 
     res.json({

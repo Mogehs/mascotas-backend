@@ -1,4 +1,5 @@
 const Medical = require("../model/medicalhistory");
+const cronService = require("../service/cron.service");
 const cloudinary = require("cloudinary").v2;
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_APP_NAME,
@@ -38,6 +39,16 @@ const petvaccine = async (req, res) => {
         pet: id,
         user: user,
       });
+
+      // Schedule reminder if vaccine_reminder date is provided
+      if (vaccine_reminder && vaccine_reminder !== "N/A") {
+        cronService.scheduleSpecificReminder(
+          data._id,
+          'pet_vaccine_reminder_date',
+          vaccine_reminder
+        );
+      }
+
       res.status(200).json({
         success: true,
         message: "Vacuna añadida con éxito",
