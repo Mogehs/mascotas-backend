@@ -233,6 +233,21 @@ const medicalSchema = new Schema(
       type: String,
       default: "N/A",
     },
+    // Support for multiple allergy reminder times per day
+    allergy_reminder_times: [
+      {
+        date: {
+          type: String,
+          required: true,
+        },
+        times: [
+          {
+            type: String,
+            required: true,
+          },
+        ],
+      },
+    ],
     drug_name: {
       type: String,
       default: "N/A",
@@ -296,6 +311,25 @@ const medicalSchema = new Schema(
       type: String,
       default: "N/A",
     },
+    diet_reminder_date: {
+      type: String,
+      default: "N/A",
+    },
+    // Support for multiple diet reminder times per day
+    diet_reminder_times: [
+      {
+        date: {
+          type: String,
+          required: true,
+        },
+        times: [
+          {
+            type: String,
+            required: true,
+          },
+        ],
+      },
+    ],
     activity_type: {
       type: String,
       default: "N/A",
@@ -335,6 +369,25 @@ const medicalSchema = new Schema(
       type: String,
       default: "N/A",
     },
+    activity_reminder_date: {
+      type: String,
+      default: "N/A",
+    },
+    // Support for multiple activity reminder times per day
+    activity_reminder_times: [
+      {
+        date: {
+          type: String,
+          required: true,
+        },
+        times: [
+          {
+            type: String,
+            required: true,
+          },
+        ],
+      },
+    ],
     hair_service: {
       type: String,
       default: "N/A",
@@ -354,6 +407,25 @@ const medicalSchema = new Schema(
       type: String,
       default: "N/A",
     },
+    hair_reminder_date: {
+      type: String,
+      default: "N/A",
+    },
+    // Support for multiple hair service reminder times per day
+    hair_reminder_times: [
+      {
+        date: {
+          type: String,
+          required: true,
+        },
+        times: [
+          {
+            type: String,
+            required: true,
+          },
+        ],
+      },
+    ],
     emergency_veterinarian_name: {
       type: String,
       default: "N/A",
@@ -401,6 +473,25 @@ const medicalSchema = new Schema(
       type: String,
       default: "N/A",
     },
+    personal_reminder_date: {
+      type: String,
+      default: "N/A",
+    },
+    // Support for multiple personal activity reminder times per day
+    personal_reminder_times: [
+      {
+        date: {
+          type: String,
+          required: true,
+        },
+        times: [
+          {
+            type: String,
+            required: true,
+          },
+        ],
+      },
+    ],
   },
   {
     timestamps: true,

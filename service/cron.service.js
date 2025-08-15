@@ -106,7 +106,7 @@ class CronService {
     try {
       console.log(`Checking medical reminders (${checkType})...`);
 
-      const now = moment();
+      const now = moment.utc();
       const reminderTypes = [
         "pet_vaccine_reminder_date",
         "pet_deworming_reminder_date",
@@ -114,6 +114,11 @@ class CronService {
         "post_operation_reminder",
         "next_check_up_reminder",
         "dose_reminder",
+        "allergy_reminder_date",
+        "diet_reminder_date",
+        "activity_reminder_date",
+        "hair_reminder_date",
+        "personal_reminder_date",
       ];
 
       // Process traditional single reminders
@@ -129,6 +134,11 @@ class CronService {
         "post_operation_reminder_times",
         "next_check_up_reminder_times",
         "dose_reminder_times",
+        "allergy_reminder_times",
+        "diet_reminder_times",
+        "activity_reminder_times",
+        "hair_reminder_times",
+        "personal_reminder_times",
       ];
 
       for (const reminderType of multiTimeReminderTypes) {
@@ -150,7 +160,7 @@ class CronService {
 
       const medicalRecords = await MedicalHistory.find(query)
         .populate("user", "firstname lastname device_token")
-        .populate("pet", "petname");
+        .populate("pet", "pet_name");
 
       console.log(
         `Found ${medicalRecords.length} records for ${reminderField}`
@@ -178,7 +188,7 @@ class CronService {
 
       const medicalRecords = await MedicalHistory.find(query)
         .populate("user", "firstname lastname device_token")
-        .populate("pet", "petname");
+        .populate("pet", "pet_name");
 
       console.log(
         `Found ${medicalRecords.length} records for multi-time ${reminderField}`
@@ -238,7 +248,7 @@ class CronService {
         return;
       }
 
-      if (!record.pet || !record.pet.petname) {
+      if (!record.pet || !record.pet.pet_name) {
         console.log(`No pet data for record ${record._id}`);
         return;
       }
@@ -277,7 +287,7 @@ class CronService {
         return;
       }
 
-      if (!record.pet || !record.pet.petname) {
+      if (!record.pet || !record.pet.pet_name) {
         console.log(`No pet data for record ${record._id}`);
         return;
       }
@@ -329,7 +339,13 @@ class CronService {
 
   // Parse reminder date from various formats
   parseReminderDate(dateStr) {
-    // Try different date formats
+    // First try parsing as ISO string (from frontend) and ensure it's treated as UTC
+    const isoDate = moment.utc(dateStr);
+    if (isoDate.isValid()) {
+      return isoDate;
+    }
+
+    // Try different date formats as fallback
     const formats = [
       "YYYY-MM-DD HH:mm",
       "YYYY-MM-DD",
@@ -342,16 +358,10 @@ class CronService {
     ];
 
     for (const format of formats) {
-      const parsed = moment(dateStr, format, true);
+      const parsed = moment.utc(dateStr, format, true);
       if (parsed.isValid()) {
         return parsed;
       }
-    }
-
-    // Try parsing as ISO string or timestamp
-    const isoDate = moment(dateStr);
-    if (isoDate.isValid()) {
-      return isoDate;
     }
 
     return null;
@@ -376,21 +386,59 @@ class CronService {
   // Send reminder notification
   async sendReminderNotification(record, reminderField, reminderDate) {
     try {
+      // Validate required data
+      if (!record.user || !record.user.device_token) {
+        console.error(`No device token for user in record ${record._id}`);
+        return;
+      }
+
+      if (!record.pet || !record.pet.pet_name) {
+        console.error(`No pet data for record ${record._id}`);
+        return;
+      }
+
       const reminderTypeMap = {
         pet_vaccine_reminder_date: "vacuna",
         pet_deworming_reminder_date: "desparasitación",
         pet_treatment_remider_date: "tratamiento",
         post_operation_reminder: "cuidado post-operación",
         next_check_up_reminder: "revisión médica",
+        dose_reminder: "medicación",
+        allergy_reminder_date: "control de alergia",
+        diet_reminder_date: "control de dieta",
+        activity_reminder_date: "actividad física",
+        hair_reminder_date: "cuidado del pelo",
+        personal_reminder_date: "actividad personal",
+        // Multi-time reminders
+        pet_vaccine_reminder_times: "vacuna",
+        pet_deworming_reminder_times: "desparasitación",
+        pet_treatment_reminder_times: "tratamiento",
+        post_operation_reminder_times: "cuidado post-operación",
+        next_check_up_reminder_times: "revisión médica",
+        dose_reminder_times: "medicación",
+        allergy_reminder_times: "control de alergia",
+        diet_reminder_times: "control de dieta",
+        activity_reminder_times: "actividad física",
+        hair_reminder_times: "cuidado del pelo",
+        personal_reminder_times: "actividad personal",
       };
 
       const reminderType =
         reminderTypeMap[reminderField] || "recordatorio médico";
       const formattedDate = reminderDate.format("DD/MM/YYYY HH:mm");
 
+      console.log(`Attempting to send notification:`, {
+        deviceToken: record.user.device_token ? "Present" : "Missing",
+        petName: record.pet.pet_name,
+        reminderType,
+        formattedDate,
+        petId: record.pet._id,
+        recordId: record._id,
+      });
+
       await sendMedicalReminder(
         record.user.device_token,
-        record.pet.petname,
+        record.pet.pet_name,
         reminderType,
         formattedDate,
         record.pet._id,
@@ -398,7 +446,7 @@ class CronService {
       );
 
       console.log(
-        `Medical reminder sent successfully for ${record.pet.petname} - ${reminderType}`
+        `Medical reminder sent successfully for ${record.pet.pet_name} - ${reminderType}`
       );
 
       // Mark reminder as sent (optional - you can add a field to track this)
@@ -420,6 +468,11 @@ class CronService {
       post_operation_reminder: "seguimiento post-operatorio",
       next_check_up_reminder: "chequeo médico",
       dose_reminder: "medicación",
+      allergy_reminder_date: "control de alergia",
+      diet_reminder_date: "control de dieta",
+      activity_reminder_date: "actividad física",
+      hair_reminder_date: "cuidado del pelo",
+      personal_reminder_date: "actividad personal",
       // Multi-time reminders
       pet_vaccine_reminder_times: "vacunación",
       pet_deworming_reminder_times: "desparasitación",
@@ -427,6 +480,11 @@ class CronService {
       post_operation_reminder_times: "seguimiento post-operatorio",
       next_check_up_reminder_times: "chequeo médico",
       dose_reminder_times: "medicación",
+      allergy_reminder_times: "control de alergia",
+      diet_reminder_times: "control de dieta",
+      activity_reminder_times: "actividad física",
+      hair_reminder_times: "cuidado del pelo",
+      personal_reminder_times: "actividad personal",
     };
 
     return typeMap[reminderField] || "recordatorio médico";
@@ -446,6 +504,11 @@ class CronService {
         "post_operation_reminder",
         "next_check_up_reminder",
         "dose_reminder",
+        "allergy_reminder_date",
+        "diet_reminder_date",
+        "activity_reminder_date",
+        "hair_reminder_date",
+        "personal_reminder_date",
       ];
 
       const multiTimeReminderFields = [
@@ -455,6 +518,11 @@ class CronService {
         "post_operation_reminder_times",
         "next_check_up_reminder_times",
         "dose_reminder_times",
+        "allergy_reminder_times",
+        "diet_reminder_times",
+        "activity_reminder_times",
+        "hair_reminder_times",
+        "personal_reminder_times",
       ];
 
       let totalCleaned = 0;
@@ -517,13 +585,12 @@ class CronService {
   // Schedule a specific reminder (for immediate scheduling when creating a medical record)
   scheduleSpecificReminder(medicalRecordId, reminderField, reminderDateTime) {
     try {
-      // Handle multi-time reminders differently
-      if (reminderField.endsWith("_times")) {
-        // This is handled in the controller via scheduleMultipleReminders
-        return true;
-      }
+      console.log(
+        `Attempting to schedule reminder for record ${medicalRecordId}, field ${reminderField}, datetime: ${reminderDateTime}`
+      );
 
-      const reminderDate = moment(reminderDateTime);
+      // Parse the reminder date using ISO string or other formats
+      const reminderDate = moment.utc(reminderDateTime);
 
       if (!reminderDate.isValid()) {
         console.error("Invalid reminder date:", reminderDateTime);
@@ -531,15 +598,21 @@ class CronService {
       }
 
       // If the reminder is in the past, don't schedule it
-      if (reminderDate.isBefore(moment())) {
-        console.log("Reminder date is in the past, skipping scheduling");
+      if (reminderDate.isBefore(moment.utc())) {
+        console.log(
+          `Reminder date is in the past (${reminderDate.format()}), skipping scheduling`
+        );
         return false;
       }
 
       const cronExpression = this.generateCronExpression(reminderDate);
       const jobName = `reminder_${medicalRecordId}_${reminderField}_${reminderDate.format(
-        "YYYY-MM-DD-HH-mm"
-      )}`;
+        "YYYY-MM-DD-HH-mm-ss"
+      )}_${Date.now()}`;
+
+      console.log(
+        `Generated cron expression: ${cronExpression} for job: ${jobName}`
+      );
 
       // Remove existing job if it exists
       if (this.scheduledJobs.has(jobName)) {
@@ -551,19 +624,20 @@ class CronService {
       const job = cron.schedule(
         cronExpression,
         async () => {
+          console.log(`Executing scheduled reminder: ${jobName}`);
           await this.sendSpecificReminder(medicalRecordId, reminderField);
           // Remove the job after execution
           this.scheduledJobs.delete(jobName);
         },
         {
           scheduled: true,
-          timezone: "America/Mexico_City",
+          timezone: "UTC", // Use UTC timezone for consistent handling
         }
       );
 
       this.scheduledJobs.set(jobName, job);
       console.log(
-        `Scheduled specific reminder for ${jobName} at ${reminderDate.format()}`
+        `Successfully scheduled specific reminder for ${jobName} at ${reminderDate.format()}`
       );
 
       return true;
@@ -575,10 +649,12 @@ class CronService {
 
   // Generate cron expression from moment date
   generateCronExpression(momentDate) {
-    const minute = momentDate.minute();
-    const hour = momentDate.hour();
-    const day = momentDate.date();
-    const month = momentDate.month() + 1; // moment months are 0-based
+    // Convert to UTC for consistent scheduling
+    const utcDate = momentDate.utc();
+    const minute = utcDate.minute();
+    const hour = utcDate.hour();
+    const day = utcDate.date();
+    const month = utcDate.month() + 1; // moment months are 0-based
 
     return `${minute} ${hour} ${day} ${month} *`;
   }
@@ -588,23 +664,37 @@ class CronService {
     try {
       const record = await MedicalHistory.findById(medicalRecordId)
         .populate("user", "firstname lastname device_token")
-        .populate("pet", "petname");
+        .populate("pet", "pet_name");
 
       if (!record) {
         console.log(`Medical record ${medicalRecordId} not found`);
         return;
       }
 
-      const reminderDateStr = record[reminderField];
-      const reminderDate = this.parseReminderDate(reminderDateStr);
+      // For multiple reminder fields, we need to find the current time
+      // since the reminder was triggered by a specific cron job
+      let reminderDate;
 
-      if (reminderDate && reminderDate.isValid()) {
-        await this.sendReminderNotification(
-          record,
-          reminderField,
-          reminderDate
+      if (reminderField.endsWith("_times")) {
+        // For multiple reminders, use current time as the reminder was just triggered
+        reminderDate = moment.utc();
+        console.log(
+          `Using current time for multiple reminder: ${reminderDate.format()}`
         );
+      } else {
+        // For single reminders, get the date from the field
+        const reminderDateStr = record[reminderField];
+        reminderDate = this.parseReminderDate(reminderDateStr);
+
+        if (!reminderDate || !reminderDate.isValid()) {
+          console.log(
+            `Invalid reminder date for field ${reminderField}: ${reminderDateStr}`
+          );
+          return;
+        }
       }
+
+      await this.sendReminderNotification(record, reminderField, reminderDate);
     } catch (error) {
       console.error(
         `Error sending specific reminder for ${medicalRecordId}:`,

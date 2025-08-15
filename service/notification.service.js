@@ -183,8 +183,30 @@ const sendMedicalReminder = async (
     notificationType = NOTIFICATION_TYPES.TREATMENT_REMINDER;
   } else if (reminderType.toLowerCase().includes("operación")) {
     notificationType = NOTIFICATION_TYPES.POST_OPERATION_REMINDER;
-  } else if (reminderType.toLowerCase().includes("revisión")) {
+  } else if (
+    reminderType.toLowerCase().includes("revisión") ||
+    reminderType.toLowerCase().includes("chequeo")
+  ) {
     notificationType = NOTIFICATION_TYPES.CHECKUP_REMINDER;
+  } else if (
+    reminderType.toLowerCase().includes("medicación") ||
+    reminderType.toLowerCase().includes("dosis")
+  ) {
+    notificationType = NOTIFICATION_TYPES.MEDICAL_REMINDER;
+  } else if (reminderType.toLowerCase().includes("alergia")) {
+    notificationType = NOTIFICATION_TYPES.MEDICAL_REMINDER;
+  } else if (reminderType.toLowerCase().includes("dieta")) {
+    notificationType = NOTIFICATION_TYPES.MEDICAL_REMINDER;
+  } else if (
+    reminderType.toLowerCase().includes("actividad") ||
+    reminderType.toLowerCase().includes("ejercicio")
+  ) {
+    notificationType = NOTIFICATION_TYPES.MEDICAL_REMINDER;
+  } else if (
+    reminderType.toLowerCase().includes("pelo") ||
+    reminderType.toLowerCase().includes("grooming")
+  ) {
+    notificationType = NOTIFICATION_TYPES.MEDICAL_REMINDER;
   }
 
   const additionalData = {
