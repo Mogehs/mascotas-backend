@@ -4,6 +4,7 @@ const cloudinary = require("cloudinary").v2;
 const {
   sendLostPetAlert,
   sendGeneralNotification,
+  NOTIFICATION_TYPES,
 } = require("../service/notification.service");
 
 cloudinary.config({
@@ -70,7 +71,7 @@ const lostPet = async (req, res) => {
           date,
           details,
         };
-        return sendLostPetAlert(user.device_token, petData);
+        return sendLostPetAlert(user.device_token, petData, data._id);
       }
       return null;
     });

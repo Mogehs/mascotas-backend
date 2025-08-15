@@ -58,14 +58,7 @@ const businessRegister = async (req, res) => {
       });
     }
 
-    // Check if user has an active subscription
-    if (!userExists.business_subscription) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "Active subscription required to create a business. Please subscribe first.",
-      });
-    }
+
 
     // Check if user already has a business registered
     const existingBusiness = await Business.findOne({ id: id });

@@ -1,6 +1,11 @@
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const Business = require("../model/business");
 const User = require("../model/user");
+const {
+  sendPaymentNotification,
+  sendBusinessNotification,
+  NOTIFICATION_TYPES,
+} = require("../service/notification.service");
 
 /**
  * Create payment intent for PetPro premium subscription only
@@ -151,9 +156,9 @@ const confirmPayment = async (req, res) => {
 
     // Find business by business_id or user_id
     if (business_id) {
-      business = await Business.findById(business_id);
+      business = await Business.findById(business_id).populate("id", "device_token firstname lastname");
     } else if (user_id) {
-      business = await Business.findOne({ id: user_id });
+      business = await Business.findOne({ id: user_id }).populate("id", "device_token firstname lastname");
     } else {
       return res.status(400).json({
         success: false,
@@ -232,6 +237,45 @@ const confirmPayment = async (req, res) => {
       { new: true }
     );
 
+    // Send payment success notification
+    if (business.id && business.id.device_token) {
+      try {
+        await sendPaymentNotification(
+          business.id.device_token,
+          "¡Pago exitoso!",
+          `Tu suscripción Premium de PetPro ha sido activada. Válida hasta ${endDate.toLocaleDateString('es-ES')}.`,
+          NOTIFICATION_TYPES.PAYMENT_SUCCESS,
+          {
+            amount: paymentIntent.amount / 100,
+            transaction_id: payment_intent_id,
+            subscription_type: "premium",
+            business_name: business.company_name,
+            start_date: currentDate.toISOString(),
+            end_date: endDate.toISOString(),
+            features_unlocked: premiumFeatures
+          }
+        );
+
+        // Also send business notification about subscription activation
+        await sendBusinessNotification(
+          business.id.device_token,
+          "Suscripción Premium Activada",
+          "¡Felicidades! Tu negocio ahora tiene acceso completo a todas las funciones Premium de PetPro.",
+          NOTIFICATION_TYPES.BUSINESS_APPROVED,
+          {
+            business_id: business._id,
+            subscription_type: "premium",
+            features: premiumFeatures
+          }
+        );
+
+        console.log(`Payment success notification sent to business: ${business.company_name}`);
+      } catch (notificationError) {
+        console.error("Error sending payment notification:", notificationError);
+        // Don't fail the payment confirmation because of notification error
+      }
+    }
+
     res.status(200).json({
       success: true,
       message:
@@ -246,6 +290,35 @@ const confirmPayment = async (req, res) => {
     });
   } catch (error) {
     console.error("Confirm payment error:", error);
+
+    // Try to send payment failure notification if we have user info
+    if (business_id || user_id) {
+      try {
+        let user;
+        if (business_id) {
+          const business = await Business.findById(business_id).populate("id", "device_token");
+          user = business?.id;
+        } else {
+          user = await User.findById(user_id, "device_token");
+        }
+
+        if (user && user.device_token) {
+          await sendPaymentNotification(
+            user.device_token,
+            "Error en el pago",
+            "Hubo un problema al procesar tu pago. Por favor, intenta nuevamente.",
+            NOTIFICATION_TYPES.PAYMENT_FAILED,
+            {
+              error_message: error.message,
+              payment_intent_id: payment_intent_id
+            }
+          );
+        }
+      } catch (notificationError) {
+        console.error("Error sending payment failure notification:", notificationError);
+      }
+    }
+
     res.status(500).json({
       success: false,
       message: "Error confirming payment",

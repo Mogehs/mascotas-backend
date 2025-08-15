@@ -3,7 +3,10 @@ const Business = require("../model/business");
 const Order = require("../model/order");
 const QRCode = require("../model/qrcode");
 const Pet = require("../model/pet");
-const { sendGeneralNotification } = require("../service/notification.service");
+const {
+  sendGeneralNotification,
+  NOTIFICATION_TYPES,
+} = require("../service/notification.service");
 
 // Get all users with detailed analytics
 const getAllUsers = async (req, res) => {
@@ -221,6 +224,13 @@ const sendPushNotificationToUsers = async (req, res) => {
       });
     }
 
+    // Validate notification type or use default admin notification
+    const validNotificationType = Object.values(NOTIFICATION_TYPES).includes(
+      notificationType
+    )
+      ? notificationType
+      : NOTIFICATION_TYPES.ADMIN_NOTIFICATION;
+
     // Send notifications to all users
     for (const user of targetUsers) {
       try {
@@ -228,8 +238,13 @@ const sendPushNotificationToUsers = async (req, res) => {
           user.device_token,
           title,
           message,
-          notificationType || "admin_notification",
-          extraData || {}
+          validNotificationType,
+          {
+            ...extraData,
+            admin_broadcast: true,
+            target_audience: "all_users",
+            sent_by: "super_admin",
+          }
         );
         sentCount++;
         results.push({
@@ -259,6 +274,7 @@ const sendPushNotificationToUsers = async (req, res) => {
         totalTargeted: targetUsers.length,
         sentCount,
         failedCount,
+        notificationType: validNotificationType,
         results: results,
       },
     });

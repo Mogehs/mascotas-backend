@@ -118,7 +118,7 @@ class CronService {
     try {
       // Build query to find reminders that need to be sent
       const query = {};
-      query[reminderField] = { $exists: true, $ne: null, $ne: "N/A", $ne: "" };
+      query[reminderField] = { $exists: true, $ne: "N/A",  };
 
       const medicalRecords = await MedicalHistory.find(query)
         .populate('user', 'firstname lastname device_token')
@@ -226,25 +226,36 @@ class CronService {
   // Send reminder notification
   async sendReminderNotification(record, reminderField, reminderDate) {
     try {
-      const petName = record.pet.petname;
-      const userName = `${record.user.firstname} ${record.user.lastname}`;
-      const deviceToken = record.user.device_token;
+      const reminderTypeMap = {
+        'pet_vaccine_reminder_date': 'vacuna',
+        'pet_deworming_reminder_date': 'desparasitación',
+        'pet_treatment_remider_date': 'tratamiento',
+        'post_operation_reminder': 'cuidado post-operación',
+        'next_check_up_reminder': 'revisión médica'
+      };
 
-      // Get human-readable reminder type
-      const reminderType = this.getReminderTypeText(reminderField);
-
-      // Format the reminder date
+      const reminderType = reminderTypeMap[reminderField] || 'recordatorio médico';
       const formattedDate = reminderDate.format('DD/MM/YYYY HH:mm');
 
-      console.log(`Sending ${reminderType} reminder for ${petName} to ${userName}`);
+      await sendMedicalReminder(
+        record.user.device_token,
+        record.pet.petname,
+        reminderType,
+        formattedDate,
+        record.pet._id,
+        record._id
+      );
 
-      // Send the notification
-      await sendMedicalReminder(deviceToken, petName, reminderType, formattedDate);
+      console.log(`Medical reminder sent successfully for ${record.pet.petname} - ${reminderType}`);
 
-      console.log(`Successfully sent ${reminderType} reminder for ${petName}`);
+      // Mark reminder as sent (optional - you can add a field to track this)
+      // await MedicalHistory.findByIdAndUpdate(record._id, {
+      //   [`${reminderField}_sent`]: true,
+      //   [`${reminderField}_sent_at`]: new Date()
+      // });
 
     } catch (error) {
-      console.error('Error sending reminder notification:', error);
+      console.error(`Failed to send reminder for record ${record._id}:`, error);
     }
   }
 
@@ -280,7 +291,7 @@ class CronService {
 
       for (const field of reminderFields) {
         const query = {};
-        query[field] = { $lt: cutoffDate, $ne: "N/A", $ne: null };
+        query[field] = { $lt: cutoffDate, $ne:  null };
 
         const updateQuery = {};
         updateQuery[field] = "N/A";
