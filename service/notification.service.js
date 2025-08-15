@@ -37,6 +37,11 @@ const NOTIFICATION_TYPES = {
   PAYMENT_FAILED: "payment_failed",
   SUBSCRIPTION_EXPIRED: "subscription_expired",
 
+  // Dog Match notifications
+  DOG_MATCH_NEW_USER: "dog_match_new_user",
+  DOG_MATCH_PREFERENCES_UPDATED: "dog_match_preferences_updated",
+  DOG_MATCH_FOUND: "dog_match_found",
+
   // General notifications
   GENERAL: "general",
   WELCOME: "welcome",
@@ -61,6 +66,9 @@ const NAVIGATION_ROUTES = {
   [NOTIFICATION_TYPES.PAYMENT_SUCCESS]: "/subscription",
   [NOTIFICATION_TYPES.PAYMENT_FAILED]: "/subscription",
   [NOTIFICATION_TYPES.SUBSCRIPTION_EXPIRED]: "/subscription",
+  [NOTIFICATION_TYPES.DOG_MATCH_NEW_USER]: "/dog-match",
+  [NOTIFICATION_TYPES.DOG_MATCH_PREFERENCES_UPDATED]: "/dog-match",
+  [NOTIFICATION_TYPES.DOG_MATCH_FOUND]: "/dog-match",
   [NOTIFICATION_TYPES.ADMIN_ANNOUNCEMENT]: "/home",
   [NOTIFICATION_TYPES.ADMIN_NOTIFICATION]: "/home",
   [NOTIFICATION_TYPES.SYSTEM_UPDATE]: "/home",
@@ -334,6 +342,95 @@ const sendQRCodeNotification = async (
   return sendPushNotification(deviceToken, notification, additionalData);
 };
 
+// Dog Match notification function
+const sendDogMatchNotification = async (
+  deviceToken,
+  title,
+  body,
+  dogMatchType,
+  dogMatchData = {}
+) => {
+  const notification = { title, body };
+
+  const additionalData = {
+    type: dogMatchType,
+    category: "dog_match",
+    user_name: dogMatchData.user_name,
+    user_id: dogMatchData.user_id,
+    match_preferences: dogMatchData.match_preferences,
+    dog_match_id: dogMatchData.dog_match_id,
+    ...dogMatchData,
+  };
+
+  return sendPushNotification(deviceToken, notification, additionalData);
+};
+
+// Helper function to send notifications to multiple users for dog match
+const sendDogMatchNotificationsToUsers = async (matchingUsers, newUserData, isNewUser = true) => {
+  const notifications = [];
+
+  for (const matchingUser of matchingUsers) {
+    try {
+      // Check if user has FCM token (you'll need to store this in user model)
+      if (!matchingUser.user.fcmToken) {
+        console.log(`User ${matchingUser.user._id} does not have FCM token, skipping notification`);
+        continue;
+      }
+
+      const notificationType = isNewUser
+        ? NOTIFICATION_TYPES.DOG_MATCH_NEW_USER
+        : NOTIFICATION_TYPES.DOG_MATCH_PREFERENCES_UPDATED;
+
+      const title = isNewUser
+        ? "¡Nueva coincidencia en Dog Match!"
+        : "¡Preferencias de Dog Match actualizadas!";
+
+      const body = isNewUser
+        ? `${newUserData.user.firstname} ${newUserData.user.lastname} se unió a Dog Match con preferencias similares a las tuyas.`
+        : `${newUserData.user.firstname} ${newUserData.user.lastname} actualizó sus preferencias de Dog Match y siguen coincidiendo contigo.`;
+
+      const dogMatchData = {
+        user_name: `${newUserData.user.firstname} ${newUserData.user.lastname}`,
+        user_id: newUserData.user._id,
+        dog_match_id: newUserData._id,
+        match_preferences: {
+          neutered: newUserData.neutered,
+          temperament: newUserData.temperament,
+          socialize: newUserData.socialize,
+          time: newUserData.time,
+          location: newUserData.location,
+          size: newUserData.size,
+          age: newUserData.age,
+        }
+      };
+
+      const result = await sendDogMatchNotification(
+        matchingUser.user.fcmToken,
+        title,
+        body,
+        notificationType,
+        dogMatchData
+      );
+
+      notifications.push({
+        userId: matchingUser.user._id,
+        success: true,
+        result: result
+      });
+
+    } catch (error) {
+      console.error(`Failed to send notification to user ${matchingUser.user._id}:`, error.message);
+      notifications.push({
+        userId: matchingUser.user._id,
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  return notifications;
+};
+
 module.exports = {
   sendPushNotification,
   sendMedicalReminder,
@@ -342,6 +439,8 @@ module.exports = {
   sendBusinessNotification,
   sendPaymentNotification,
   sendQRCodeNotification,
+  sendDogMatchNotification,
+  sendDogMatchNotificationsToUsers,
   NOTIFICATION_TYPES,
   NAVIGATION_ROUTES,
 };

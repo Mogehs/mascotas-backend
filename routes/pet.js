@@ -10,6 +10,11 @@ const {
   discard,
   get_pet_id,
   update_pet,
+  // New dog match APIs
+  createDogMatchPreferences,
+  getDogMatchPreferences,
+  getMatchedDogs,
+  deactivateDogMatchPreferences,
 } = require("../controller/pet");
 
 const upload = require("../config/multer");
@@ -22,5 +27,11 @@ router.post("/delete", deletePet);
 router.post("/discard", discard);
 router.post("/:id", get_pet_id);
 router.put("/:id", update_pet);
+
+// New dog match routes
+router.post("/dogmatch/preferences", createDogMatchPreferences);
+router.post("/dogmatch/preferences/get", getDogMatchPreferences);
+router.post("/dogmatch/matched-dogs", getMatchedDogs);
+router.post("/dogmatch/preferences/deactivate", deactivateDogMatchPreferences);
 
 module.exports = router;
