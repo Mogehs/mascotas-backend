@@ -113,10 +113,26 @@ class CronService {
         "pet_treatment_remider_date",
         "post_operation_reminder",
         "next_check_up_reminder",
+        "dose_reminder",
       ];
 
+      // Process traditional single reminders
       for (const reminderType of reminderTypes) {
         await this.processMedicalReminders(reminderType, now, checkType);
+      }
+
+      // Process new multi-time reminders
+      const multiTimeReminderTypes = [
+        "pet_vaccine_reminder_times",
+        "pet_deworming_reminder_times",
+        "pet_treatment_reminder_times",
+        "post_operation_reminder_times",
+        "next_check_up_reminder_times",
+        "dose_reminder_times",
+      ];
+
+      for (const reminderType of multiTimeReminderTypes) {
+        await this.processMultiTimeReminders(reminderType, now, checkType);
       }
 
       console.log(`Medical reminder check (${checkType}) completed`);
@@ -150,6 +166,34 @@ class CronService {
       }
     } catch (error) {
       console.error(`Error processing ${reminderField}:`, error);
+    }
+  }
+
+  // Process multi-time reminders
+  async processMultiTimeReminders(reminderField, currentTime, checkType) {
+    try {
+      // Build query to find reminders that need to be sent
+      const query = {};
+      query[reminderField] = { $exists: true, $ne: null, $not: { $size: 0 } };
+
+      const medicalRecords = await MedicalHistory.find(query)
+        .populate("user", "firstname lastname device_token")
+        .populate("pet", "petname");
+
+      console.log(
+        `Found ${medicalRecords.length} records for multi-time ${reminderField}`
+      );
+
+      for (const record of medicalRecords) {
+        await this.processMultiTimeIndividualReminder(
+          record,
+          reminderField,
+          currentTime,
+          checkType
+        );
+      }
+    } catch (error) {
+      console.error(`Error processing multi-time ${reminderField}:`, error);
     }
   }
 
@@ -204,6 +248,80 @@ class CronService {
     } catch (error) {
       console.error(
         `Error processing individual reminder for record ${record._id}:`,
+        error
+      );
+    }
+  }
+
+  // Process individual multi-time reminder
+  async processMultiTimeIndividualReminder(
+    record,
+    reminderField,
+    currentTime,
+    checkType
+  ) {
+    try {
+      const reminderTimes = record[reminderField];
+
+      if (
+        !reminderTimes ||
+        !Array.isArray(reminderTimes) ||
+        reminderTimes.length === 0
+      ) {
+        return;
+      }
+
+      // Validate user and pet data
+      if (!record.user || !record.user.device_token) {
+        console.log(`No device token for user in record ${record._id}`);
+        return;
+      }
+
+      if (!record.pet || !record.pet.petname) {
+        console.log(`No pet data for record ${record._id}`);
+        return;
+      }
+
+      // Process each day's reminders
+      for (const dayReminder of reminderTimes) {
+        const { date, times } = dayReminder;
+
+        if (!times || !Array.isArray(times)) {
+          continue;
+        }
+
+        // Process each time for this date
+        for (const time of times) {
+          const fullDateTime = `${date} ${time}`;
+          const reminderDate = this.parseReminderDate(fullDateTime);
+
+          if (!reminderDate || !reminderDate.isValid()) {
+            console.log(
+              `Invalid date/time format for ${reminderField}: ${fullDateTime}`
+            );
+            continue;
+          }
+
+          // Check if this specific reminder should be sent
+          const shouldSend = this.shouldSendReminder(
+            reminderDate,
+            currentTime,
+            checkType
+          );
+
+          if (shouldSend) {
+            // Send the reminder notification
+            await this.sendReminderNotification(
+              record,
+              reminderField,
+              reminderDate
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.error(
+        `Error processing multi-time individual reminder for record ${record._id}:`,
         error
       );
     }
@@ -301,6 +419,14 @@ class CronService {
       pet_treatment_remider_date: "tratamiento médico",
       post_operation_reminder: "seguimiento post-operatorio",
       next_check_up_reminder: "chequeo médico",
+      dose_reminder: "medicación",
+      // Multi-time reminders
+      pet_vaccine_reminder_times: "vacunación",
+      pet_deworming_reminder_times: "desparasitación",
+      pet_treatment_reminder_times: "tratamiento médico",
+      post_operation_reminder_times: "seguimiento post-operatorio",
+      next_check_up_reminder_times: "chequeo médico",
+      dose_reminder_times: "medicación",
     };
 
     return typeMap[reminderField] || "recordatorio médico";
@@ -319,10 +445,21 @@ class CronService {
         "pet_treatment_remider_date",
         "post_operation_reminder",
         "next_check_up_reminder",
+        "dose_reminder",
+      ];
+
+      const multiTimeReminderFields = [
+        "pet_vaccine_reminder_times",
+        "pet_deworming_reminder_times",
+        "pet_treatment_reminder_times",
+        "post_operation_reminder_times",
+        "next_check_up_reminder_times",
+        "dose_reminder_times",
       ];
 
       let totalCleaned = 0;
 
+      // Clean up traditional single reminders
       for (const field of reminderFields) {
         const query = {};
         query[field] = { $lt: cutoffDate, $ne: null };
@@ -338,6 +475,37 @@ class CronService {
         totalCleaned += result.modifiedCount;
       }
 
+      // Clean up multi-time reminders
+      for (const field of multiTimeReminderFields) {
+        // Find records with reminder times older than cutoff date
+        const records = await MedicalHistory.find({
+          [field]: { $exists: true, $ne: null, $not: { $size: 0 } },
+        });
+
+        for (const record of records) {
+          const reminderTimes = record[field];
+          if (!Array.isArray(reminderTimes)) continue;
+
+          // Filter out old reminders
+          const filteredReminders = reminderTimes.filter((reminder) => {
+            return reminder.date >= cutoffDate;
+          });
+
+          // Update the record if any reminders were removed
+          if (filteredReminders.length !== reminderTimes.length) {
+            await MedicalHistory.findByIdAndUpdate(record._id, {
+              [field]: filteredReminders,
+            });
+            const cleanedCount =
+              reminderTimes.length - filteredReminders.length;
+            console.log(
+              `Cleaned ${cleanedCount} old ${field} reminders from record ${record._id}`
+            );
+            totalCleaned += cleanedCount;
+          }
+        }
+      }
+
       console.log(
         `Cleanup completed. Total reminders cleaned: ${totalCleaned}`
       );
@@ -349,6 +517,12 @@ class CronService {
   // Schedule a specific reminder (for immediate scheduling when creating a medical record)
   scheduleSpecificReminder(medicalRecordId, reminderField, reminderDateTime) {
     try {
+      // Handle multi-time reminders differently
+      if (reminderField.endsWith("_times")) {
+        // This is handled in the controller via scheduleMultipleReminders
+        return true;
+      }
+
       const reminderDate = moment(reminderDateTime);
 
       if (!reminderDate.isValid()) {
@@ -363,7 +537,9 @@ class CronService {
       }
 
       const cronExpression = this.generateCronExpression(reminderDate);
-      const jobName = `reminder_${medicalRecordId}_${reminderField}`;
+      const jobName = `reminder_${medicalRecordId}_${reminderField}_${reminderDate.format(
+        "YYYY-MM-DD-HH-mm"
+      )}`;
 
       // Remove existing job if it exists
       if (this.scheduledJobs.has(jobName)) {

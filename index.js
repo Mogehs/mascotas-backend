@@ -34,6 +34,9 @@ app.use("/api/ai", require("./routes/ai"));
 app.use("/api/chat", require("./routes/chat"));
 app.use("/api/qrcode", require("./routes/qrcode"));
 
+// Hour-based reminders
+app.use("/api/hourly-reminders", require("./routes/hourlyreminders"));
+
 // New PetPro features
 app.use("/api/products", require("./routes/product"));
 app.use("/api/promotions", require("./routes/promotion"));

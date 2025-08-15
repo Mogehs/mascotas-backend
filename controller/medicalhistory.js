@@ -6,6 +6,35 @@ cloudinary.config({
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
+
+// Helper function to schedule multiple reminders
+const scheduleMultipleReminders = async (
+  medicalRecordId,
+  reminderFieldType,
+  reminderTimes
+) => {
+  try {
+    for (const reminderDay of reminderTimes) {
+      const { date, times } = reminderDay;
+
+      if (times && Array.isArray(times)) {
+        for (const time of times) {
+          // Combine date and time into a full datetime string
+          const fullDateTime = `${date} ${time}`;
+
+          // Schedule individual reminder
+          await cronService.scheduleSpecificReminder(
+            medicalRecordId,
+            reminderFieldType,
+            fullDateTime
+          );
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error scheduling multiple reminders:", error);
+  }
+};
 const petvaccine = async (req, res) => {
   try {
     const {
@@ -13,6 +42,7 @@ const petvaccine = async (req, res) => {
       vaccine,
       vaccine_date,
       vaccine_reminder,
+      vaccine_reminder_times, // New field for multiple reminder times
       vaccine_price,
       veterinary_managed,
       user,
@@ -29,7 +59,8 @@ const petvaccine = async (req, res) => {
       folder: "mascotas",
     });
     if (result) {
-      const data = await Medical.create({
+      // Create medical record data
+      const medicalData = {
         pet_vaccine: vaccine,
         pet_vaccine_date: vaccine_date,
         pet_vaccine_reminder_date: vaccine_reminder,
@@ -38,13 +69,31 @@ const petvaccine = async (req, res) => {
         pet_vaccine_image: result.secure_url,
         pet: id,
         user: user,
-      });
+      };
 
-      // Schedule reminder if vaccine_reminder date is provided
-      if (vaccine_reminder && vaccine_reminder !== "N/A") {
+      // Add multiple reminder times if provided
+      if (
+        vaccine_reminder_times &&
+        Array.isArray(vaccine_reminder_times) &&
+        vaccine_reminder_times.length > 0
+      ) {
+        medicalData.pet_vaccine_reminder_times = vaccine_reminder_times;
+      }
+
+      const data = await Medical.create(medicalData);
+
+      // Schedule reminders for multiple times if provided
+      if (vaccine_reminder_times && Array.isArray(vaccine_reminder_times)) {
+        await scheduleMultipleReminders(
+          data._id,
+          "pet_vaccine_reminder_times",
+          vaccine_reminder_times
+        );
+      } else if (vaccine_reminder && vaccine_reminder !== "N/A") {
+        // Fallback to single reminder
         cronService.scheduleSpecificReminder(
           data._id,
-          'pet_vaccine_reminder_date',
+          "pet_vaccine_reminder_date",
           vaccine_reminder
         );
       }
@@ -248,28 +297,56 @@ const updatedisease = async (req, res) => {
       start_date,
       end_date,
       reminder_date,
+      reminder_times, // New field for multiple reminder times
       diagnosis,
       price,
     } = req.body;
     const check = await Medical.findOne({ pet: id });
     if (check) {
+      // Create update data
+      const updateData = {
+        pet_disease_name: name,
+        pet_disease_title: title,
+        pet_disease_description: description,
+        pet_date_diagnosis: diagnosis_date,
+        pet_treatment_start_date: start_date,
+        pet_treatment_end_date: end_date,
+        pet_treatment_remider_date: reminder_date,
+        pet_veterinarian_diagnosis: diagnosis,
+        pet_treatment_price: price,
+      };
+
+      // Add multiple reminder times if provided
+      if (
+        reminder_times &&
+        Array.isArray(reminder_times) &&
+        reminder_times.length > 0
+      ) {
+        updateData.pet_treatment_reminder_times = reminder_times;
+      }
+
       const data = await Medical.findByIdAndUpdate(
         { _id: check._id },
-        {
-          $set: {
-            pet_disease_name: name,
-            pet_disease_title: title,
-            pet_disease_description: description,
-            pet_date_diagnosis: diagnosis_date,
-            pet_treatment_start_date: start_date,
-            pet_treatment_end_date: end_date,
-            pet_treatment_remider_date: reminder_date,
-            pet_veterinarian_diagnosis: diagnosis,
-            pet_treatment_price: price,
-          },
-        },
+        { $set: updateData },
         { new: true }
       );
+
+      // Schedule reminders for multiple times if provided
+      if (reminder_times && Array.isArray(reminder_times)) {
+        await scheduleMultipleReminders(
+          check._id,
+          "pet_treatment_reminder_times",
+          reminder_times
+        );
+      } else if (reminder_date && reminder_date !== "N/A") {
+        // Fallback to single reminder
+        cronService.scheduleSpecificReminder(
+          check._id,
+          "pet_treatment_remider_date",
+          reminder_date
+        );
+      }
+
       res.status(200).json({
         success: true,
         message: "Enfermedad agregada exitosamente",
@@ -338,8 +415,19 @@ const updatesurgery = async (req, res) => {
 };
 const petmedicalcheckup = async (req, res) => {
   try {
-    const { id, date, results, name, reminder_date, price, user } = req.body;
-    const data = await Medical.create({
+    const {
+      id,
+      date,
+      results,
+      name,
+      reminder_date,
+      reminder_times, // New field for multiple reminder times
+      price,
+      user,
+    } = req.body;
+
+    // Create medical record data
+    const medicalData = {
       medical_check_up_date: date,
       check_results: results,
       veterinarian: name,
@@ -347,7 +435,35 @@ const petmedicalcheckup = async (req, res) => {
       check_up_price: price,
       pet: id,
       user: user,
-    });
+    };
+
+    // Add multiple reminder times if provided
+    if (
+      reminder_times &&
+      Array.isArray(reminder_times) &&
+      reminder_times.length > 0
+    ) {
+      medicalData.next_check_up_reminder_times = reminder_times;
+    }
+
+    const data = await Medical.create(medicalData);
+
+    // Schedule reminders for multiple times if provided
+    if (reminder_times && Array.isArray(reminder_times)) {
+      await scheduleMultipleReminders(
+        data._id,
+        "next_check_up_reminder_times",
+        reminder_times
+      );
+    } else if (reminder_date && reminder_date !== "N/A") {
+      // Fallback to single reminder
+      cronService.scheduleSpecificReminder(
+        data._id,
+        "next_check_up_reminder",
+        reminder_date
+      );
+    }
+
     res.status(200).json({
       success: true,
       message: "Información de chequeo médico regular guardada exitosamente",
@@ -360,22 +476,57 @@ const petmedicalcheckup = async (req, res) => {
 };
 const updatemedicalcheckup = async (req, res) => {
   try {
-    const { id, date, results, name, reminder_date, price } = req.body;
+    const {
+      id,
+      date,
+      results,
+      name,
+      reminder_date,
+      reminder_times, // New field for multiple reminder times
+      price,
+    } = req.body;
     const check = await Medical.findOne({ pet: id });
     if (check) {
+      // Create update data
+      const updateData = {
+        medical_check_up_date: date,
+        check_results: results,
+        veterinarian: name,
+        next_check_up_reminder: reminder_date,
+        check_up_price: price,
+      };
+
+      // Add multiple reminder times if provided
+      if (
+        reminder_times &&
+        Array.isArray(reminder_times) &&
+        reminder_times.length > 0
+      ) {
+        updateData.next_check_up_reminder_times = reminder_times;
+      }
+
       const data = await Medical.findByIdAndUpdate(
         { _id: check._id },
-        {
-          $set: {
-            medical_check_up_date: date,
-            check_results: results,
-            veterinarian: name,
-            next_check_up_reminder: reminder_date,
-            check_up_price: price,
-          },
-        },
+        { $set: updateData },
         { new: true }
       );
+
+      // Schedule reminders for multiple times if provided
+      if (reminder_times && Array.isArray(reminder_times)) {
+        await scheduleMultipleReminders(
+          check._id,
+          "next_check_up_reminder_times",
+          reminder_times
+        );
+      } else if (reminder_date && reminder_date !== "N/A") {
+        // Fallback to single reminder
+        cronService.scheduleSpecificReminder(
+          check._id,
+          "next_check_up_reminder",
+          reminder_date
+        );
+      }
+
       res.json({
         success: true,
         message: "Información de chequeo médico regular guardada exitosamente",
@@ -444,12 +595,15 @@ const petdose = async (req, res) => {
       dose,
       frequency,
       reminder_date,
+      reminder_times, // New field for multiple reminder times
       start_date,
       end_date,
       price,
       user,
     } = req.body;
-    const data = await Medical.create({
+
+    // Create medical record data
+    const medicalData = {
       drug_name: name,
       dosage: dose,
       frequency: frequency,
@@ -459,7 +613,35 @@ const petdose = async (req, res) => {
       dose_price: price,
       pet: id,
       user: user,
-    });
+    };
+
+    // Add multiple reminder times if provided
+    if (
+      reminder_times &&
+      Array.isArray(reminder_times) &&
+      reminder_times.length > 0
+    ) {
+      medicalData.dose_reminder_times = reminder_times;
+    }
+
+    const data = await Medical.create(medicalData);
+
+    // Schedule reminders for multiple times if provided
+    if (reminder_times && Array.isArray(reminder_times)) {
+      await scheduleMultipleReminders(
+        data._id,
+        "dose_reminder_times",
+        reminder_times
+      );
+    } else if (reminder_date && reminder_date !== "N/A") {
+      // Fallback to single reminder
+      cronService.scheduleSpecificReminder(
+        data._id,
+        "dose_reminder",
+        reminder_date
+      );
+    }
+
     res.status(200).json({
       success: true,
       message: "La información de la dosis se guardó correctamente",
@@ -479,27 +661,55 @@ const updatedose = async (req, res) => {
       dose,
       frequency,
       reminder_date,
+      reminder_times, // New field for multiple reminder times
       start_date,
       end_date,
       price,
     } = req.body;
     const check = await Medical.findOne({ pet: id });
     if (check) {
+      // Create update data
+      const updateData = {
+        drug_name: name,
+        dosage: dose,
+        frequency: frequency,
+        dose_start_date: start_date,
+        dose_end_date: end_date,
+        dose_reminder: reminder_date,
+        dose_price: price,
+      };
+
+      // Add multiple reminder times if provided
+      if (
+        reminder_times &&
+        Array.isArray(reminder_times) &&
+        reminder_times.length > 0
+      ) {
+        updateData.dose_reminder_times = reminder_times;
+      }
+
       const data = await Medical.findByIdAndUpdate(
         { _id: check._id },
-        {
-          $set: {
-            drug_name: name,
-            dosage: dose,
-            frequency: frequency,
-            dose_start_date: start_date,
-            dose_end_date: end_date,
-            dose_reminder: reminder_date,
-            dose_price: price,
-          },
-        },
+        { $set: updateData },
         { new: true }
       );
+
+      // Schedule reminders for multiple times if provided
+      if (reminder_times && Array.isArray(reminder_times)) {
+        await scheduleMultipleReminders(
+          check._id,
+          "dose_reminder_times",
+          reminder_times
+        );
+      } else if (reminder_date && reminder_date !== "N/A") {
+        // Fallback to single reminder
+        cronService.scheduleSpecificReminder(
+          check._id,
+          "dose_reminder",
+          reminder_date
+        );
+      }
+
       res.status(200).json({
         success: true,
         message: "La información de la dosis se guardó correctamente",

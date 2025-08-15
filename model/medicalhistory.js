@@ -27,6 +27,21 @@ const medicalSchema = new Schema(
       type: String,
       default: "N/A",
     },
+    // Support for multiple vaccine reminder times per day
+    pet_vaccine_reminder_times: [
+      {
+        date: {
+          type: String,
+          required: true,
+        },
+        times: [
+          {
+            type: String,
+            required: true,
+          },
+        ],
+      },
+    ],
     pet_vaccine_price: {
       type: String,
       default: "N/A",
@@ -50,6 +65,21 @@ const medicalSchema = new Schema(
       type: String,
       default: "N/A",
     },
+    // Support for multiple deworming reminder times per day
+    pet_deworming_reminder_times: [
+      {
+        date: {
+          type: String,
+          required: true,
+        },
+        times: [
+          {
+            type: String,
+            required: true,
+          },
+        ],
+      },
+    ],
     used_product_in_deworming: {
       type: String,
       default: "N/A",
@@ -89,6 +119,21 @@ const medicalSchema = new Schema(
       type: String,
       default: "N/A",
     },
+    // Support for multiple reminder times per day
+    pet_treatment_reminder_times: [
+      {
+        date: {
+          type: String,
+          required: true,
+        },
+        times: [
+          {
+            type: String,
+            required: true,
+          },
+        ],
+      },
+    ],
     pet_veterinarian_diagnosis: {
       type: String,
       default: "N/A",
@@ -117,6 +162,21 @@ const medicalSchema = new Schema(
       type: String,
       default: "N/A",
     },
+    // Support for multiple post-operation reminder times per day
+    post_operation_reminder_times: [
+      {
+        date: {
+          type: String,
+          required: true,
+        },
+        times: [
+          {
+            type: String,
+            required: true,
+          },
+        ],
+      },
+    ],
     surgery_price: {
       type: String,
       default: "N/A",
@@ -137,6 +197,21 @@ const medicalSchema = new Schema(
       type: String,
       default: null,
     },
+    // Support for multiple check-up reminder times per day
+    next_check_up_reminder_times: [
+      {
+        date: {
+          type: String,
+          required: true,
+        },
+        times: [
+          {
+            type: String,
+            required: true,
+          },
+        ],
+      },
+    ],
 
     check_up_price: {
       type: String,
@@ -182,6 +257,21 @@ const medicalSchema = new Schema(
       type: String,
       default: "N/A",
     },
+    // Support for multiple dose reminder times per day
+    dose_reminder_times: [
+      {
+        date: {
+          type: String,
+          required: true,
+        },
+        times: [
+          {
+            type: String,
+            required: true,
+          },
+        ],
+      },
+    ],
     dose_price: {
       type: String,
       default: "N/A",
