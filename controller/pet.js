@@ -425,9 +425,11 @@ const createDogMatchPreferences = async (req, res) => {
     }
 
     // Find other users with matching preferences (for notifications)
-    const matchingUsers = findMatchingUsersForNotification(preferencesData);
+    const matchingUsers = await findMatchingUsersForNotification(
+      preferencesData
+    );
 
-    console.log(matchingUsers);
+    console.log("...................", matchingUsers);
     const shouldSendNotifications = isNewPreferences || isPreferencesChanged;
 
     // Send notifications if needed
@@ -541,7 +543,7 @@ const findMatchingUsersForNotification = async (newUserPreferences) => {
       age: newUserPreferences.age,
       time: { $in: newUserPreferences.time },
       location: newUserPreferences.location,
-    });
+    }).populate("user", "device_token");
 
     return matchingUsers;
   } catch (error) {

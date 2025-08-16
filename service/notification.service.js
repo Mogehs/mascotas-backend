@@ -119,6 +119,18 @@ const sendPushNotification = async (
     const notificationType = additionalData.type || NOTIFICATION_TYPES.GENERAL;
     const navigationRoute = NAVIGATION_ROUTES[notificationType] || "/home";
 
+    // Convert all data values to strings (FCM requirement)
+    const serializedData = {};
+    Object.keys(additionalData).forEach((key) => {
+      if (additionalData[key] !== null && additionalData[key] !== undefined) {
+        if (typeof additionalData[key] === "object") {
+          serializedData[key] = JSON.stringify(additionalData[key]);
+        } else {
+          serializedData[key] = String(additionalData[key]);
+        }
+      }
+    });
+
     const message = {
       token: deviceToken,
       notification: {
@@ -130,7 +142,7 @@ const sendPushNotification = async (
         navigation_route: navigationRoute,
         click_action: navigationRoute,
         timestamp: new Date().toISOString(),
-        ...additionalData,
+        ...serializedData,
       },
     };
 
@@ -366,14 +378,20 @@ const sendDogMatchNotification = async (
 };
 
 // Helper function to send notifications to multiple users for dog match
-const sendDogMatchNotificationsToUsers = async (matchingUsers, newUserData, isNewUser = true) => {
+const sendDogMatchNotificationsToUsers = async (
+  matchingUsers,
+  newUserData,
+  isNewUser = true
+) => {
   const notifications = [];
 
   for (const matchingUser of matchingUsers) {
     try {
       // Check if user has FCM token (you'll need to store this in user model)
-      if (!matchingUser.user.fcmToken) {
-        console.log(`User ${matchingUser.user._id} does not have FCM token, skipping notification`);
+      if (!matchingUser.user.device_token) {
+        console.log(
+          `User ${matchingUser.user._id} does not have FCM token, skipping notification`
+        );
         continue;
       }
 
@@ -391,21 +409,23 @@ const sendDogMatchNotificationsToUsers = async (matchingUsers, newUserData, isNe
 
       const dogMatchData = {
         user_name: `${newUserData.user.firstname} ${newUserData.user.lastname}`,
-        user_id: newUserData.user._id,
-        dog_match_id: newUserData._id,
-        match_preferences: {
-          neutered: newUserData.neutered,
-          temperament: newUserData.temperament,
-          socialize: newUserData.socialize,
-          time: newUserData.time,
-          location: newUserData.location,
-          size: newUserData.size,
-          age: newUserData.age,
-        }
+        user_id: String(newUserData.user._id),
+        dog_match_id: String(newUserData._id),
+        neutered: newUserData.neutered,
+        temperament: Array.isArray(newUserData.temperament)
+          ? newUserData.temperament.join(", ")
+          : newUserData.temperament,
+        socialize: newUserData.socialize,
+        time: Array.isArray(newUserData.time)
+          ? newUserData.time.join(", ")
+          : newUserData.time,
+        location: newUserData.location,
+        size: newUserData.size,
+        age: newUserData.age,
       };
 
       const result = await sendDogMatchNotification(
-        matchingUser.user.fcmToken,
+        matchingUser.user.device_token,
         title,
         body,
         notificationType,
@@ -415,15 +435,17 @@ const sendDogMatchNotificationsToUsers = async (matchingUsers, newUserData, isNe
       notifications.push({
         userId: matchingUser.user._id,
         success: true,
-        result: result
+        result: result,
       });
-
     } catch (error) {
-      console.error(`Failed to send notification to user ${matchingUser.user._id}:`, error.message);
+      console.error(
+        `Failed to send notification to user ${matchingUser.user._id}:`,
+        error.message
+      );
       notifications.push({
         userId: matchingUser.user._id,
         success: false,
-        error: error.message
+        error: error.message,
       });
     }
   }
