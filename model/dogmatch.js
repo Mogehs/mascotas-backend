@@ -8,6 +8,11 @@ const dogMatchSchema = new Schema(
       ref: "user",
       required: true,
     },
+    pet: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "petprofiles",
+      required: true,
+    },
     neutered: {
       type: String,
       required: true,

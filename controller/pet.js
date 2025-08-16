@@ -353,6 +353,7 @@ const createDogMatchPreferences = async (req, res) => {
   try {
     const {
       user,
+      pet,
       neutered,
       temperament,
       socialize,
@@ -400,12 +401,15 @@ const createDogMatchPreferences = async (req, res) => {
           isActive: true,
         },
         { new: true }
-      ).populate("user", "firstname lastname phone address");
+      )
+        .populate("user", "firstname lastname phone address")
+        .populate("pet", "pet_name pet_gender pet_color pet_image pet_race");
     } else {
       // Create new preferences
       isNewPreferences = true;
       const newPreferences = await DogMatch.create({
         user,
+        pet,
         neutered,
         temperament,
         socialize,
@@ -415,21 +419,18 @@ const createDogMatchPreferences = async (req, res) => {
         age,
       });
 
-      preferencesData = await DogMatch.findById(newPreferences._id).populate(
-        "user",
-        "firstname lastname phone address"
-      );
+      preferencesData = await DogMatch.findById(newPreferences._id)
+        .populate("user", "firstname lastname phone address")
+        .populate("pet", "pet_name pet_gender pet_color pet_image pet_race");
     }
 
     // Find other users with matching preferences (for notifications)
-    // This will happen for both new preferences AND updated preferences
     const matchingUsers = findMatchingUsersForNotification(preferencesData);
 
     console.log(matchingUsers);
-    // Determine if notifications should be sent
     const shouldSendNotifications = isNewPreferences || isPreferencesChanged;
 
-    // Send notifications to matching users
+    // Send notifications if needed
     let notificationResults = [];
     if (shouldSendNotifications && matchingUsers.length > 0) {
       try {
@@ -461,7 +462,7 @@ const createDogMatchPreferences = async (req, res) => {
         ? "new_preferences"
         : "updated_preferences",
       notificationsSent: notificationResults.length,
-      notificationResults: notificationResults,
+      notificationResults,
     });
   } catch (error) {
     console.log(error.message);
@@ -477,7 +478,9 @@ const getDogMatchPreferences = async (req, res) => {
     const preferences = await DogMatch.findOne({
       user,
       isActive: true,
-    }).populate("user", "firstname lastname phone address");
+    })
+      .populate("user", "firstname lastname phone address")
+      .populate("pet", "pet_name pet_gender pet_color pet_image pet_race");
 
     if (!preferences) {
       return res.status(404).json({
@@ -499,30 +502,25 @@ const getDogMatchPreferences = async (req, res) => {
 };
 
 // New API: Get matched dogs based on user's preferences
-const getAllDogsWithPreferences = async (req, res) => {
+const getAllDogMatches = async (req, res) => {
   try {
-    const { user } = req.body;
+    // Get all saved preferences (for all users)
+    const allPreferences = await DogMatch.find()
+      .populate("user", "firstname lastname phone address")
+      .populate("pet", "pet_name pet_gender pet_color pet_image pet_race");
 
-    // Get user's preferences
-    const userPreferences = await DogMatch.findOne({ user, isActive: true });
-
-    if (!userPreferences) {
+    if (!allPreferences || allPreferences.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "No tienes preferencias de dog match configuradas",
+        message: "No hay preferencias de dog match guardadas",
       });
     }
 
-    const allPets = await Pet.find({
-      user: { $ne: user },
-    }).populate("user", "firstname lastname phone address");
-
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      message: "Se obtuvieron todas las mascotas junto con tus preferencias",
-      preferences: userPreferences,
-      allPets,
-      count: allPets.length,
+      message: "Se obtuvieron todas las preferencias de dog match",
+      preferences: allPreferences,
+      count: allPreferences.length,
     });
   } catch (error) {
     console.error(error.message);
@@ -533,9 +531,8 @@ const getAllDogsWithPreferences = async (req, res) => {
 // Helper function to find users who should be notified when new dog match preferences are created
 const findMatchingUsersForNotification = async (newUserPreferences) => {
   try {
-    // Find users whose preferences match the new user's preferences
     const matchingUsers = await DogMatch.find({
-      user: { $ne: newUserPreferences.user }, // Exclude the user who just created preferences
+      user: { $ne: newUserPreferences.user }, // Exclude self
       isActive: true,
       neutered: newUserPreferences.neutered,
       temperament: { $in: newUserPreferences.temperament },
@@ -544,7 +541,7 @@ const findMatchingUsersForNotification = async (newUserPreferences) => {
       age: newUserPreferences.age,
       time: { $in: newUserPreferences.time },
       location: newUserPreferences.location,
-    }).populate("user", "firstname lastname phone address email");
+    });
 
     return matchingUsers;
   } catch (error) {
@@ -597,6 +594,6 @@ module.exports = {
   // New dog match APIs
   createDogMatchPreferences,
   getDogMatchPreferences,
-  getAllDogsWithPreferences,
+  getAllDogMatches,
   deactivateDogMatchPreferences,
 };
