@@ -2,7 +2,9 @@ const Pet = require("../model/pet");
 const Lost = require("../model/lost");
 const QRCode = require("../model/qrcode");
 const DogMatch = require("../model/dogmatch");
-const { sendDogMatchNotificationsToUsers } = require("../service/notification.service");
+const {
+  sendDogMatchNotificationsToUsers,
+} = require("../service/notification.service");
 const cloudinary = require("cloudinary").v2;
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_APP_NAME,
@@ -349,7 +351,16 @@ const deletePet = async (req, res) => {
 // New API: Create or update dog match preferences
 const createDogMatchPreferences = async (req, res) => {
   try {
-    const { user, neutered, temperament, socialize, time, location, size, age } = req.body;
+    const {
+      user,
+      neutered,
+      temperament,
+      socialize,
+      time,
+      location,
+      size,
+      age,
+    } = req.body;
 
     // Check if user already has preferences
     const existingPreferences = await DogMatch.findOne({ user });
@@ -362,9 +373,11 @@ const createDogMatchPreferences = async (req, res) => {
       // Check if preferences have actually changed
       const hasChanged =
         existingPreferences.neutered !== neutered ||
-        JSON.stringify(existingPreferences.temperament.sort()) !== JSON.stringify(temperament.sort()) ||
+        JSON.stringify(existingPreferences.temperament.sort()) !==
+          JSON.stringify(temperament.sort()) ||
         existingPreferences.socialize !== socialize ||
-        JSON.stringify(existingPreferences.time.sort()) !== JSON.stringify(time.sort()) ||
+        JSON.stringify(existingPreferences.time.sort()) !==
+          JSON.stringify(time.sort()) ||
         existingPreferences.location !== location ||
         existingPreferences.size !== size ||
         existingPreferences.age !== age;
@@ -384,7 +397,7 @@ const createDogMatchPreferences = async (req, res) => {
           location,
           size,
           age,
-          isActive: true
+          isActive: true,
         },
         { new: true }
       ).populate("user", "firstname lastname phone address");
@@ -402,24 +415,17 @@ const createDogMatchPreferences = async (req, res) => {
         age,
       });
 
-      preferencesData = await DogMatch.findById(newPreferences._id)
-        .populate("user", "firstname lastname phone address");
+      preferencesData = await DogMatch.findById(newPreferences._id).populate(
+        "user",
+        "firstname lastname phone address"
+      );
     }
 
     // Find other users with matching preferences (for notifications)
     // This will happen for both new preferences AND updated preferences
-    const matchingUsers = await DogMatch.find({
-      user: { $ne: user }, // Exclude the current user
-      isActive: true,
-      neutered: neutered,
-      temperament: { $in: temperament },
-      socialize: socialize,
-      size: size,
-      age: age,
-      time: { $in: time },
-      location: location,
-    }).populate("user", "firstname lastname phone address email");
+    const matchingUsers = findMatchingUsersForNotification(preferencesData);
 
+    console.log(matchingUsers);
     // Determine if notifications should be sent
     const shouldSendNotifications = isNewPreferences || isPreferencesChanged;
 
@@ -432,10 +438,14 @@ const createDogMatchPreferences = async (req, res) => {
           preferencesData,
           isNewPreferences
         );
-        console.log(`Sent ${notificationResults.length} notifications for dog match preferences`);
+        console.log(
+          `Sent ${notificationResults.length} notifications for dog match preferences`
+        );
       } catch (notificationError) {
-        console.error("Error sending dog match notifications:", notificationError.message);
-        // Don't fail the API call if notifications fail
+        console.error(
+          "Error sending dog match notifications:",
+          notificationError.message
+        );
       }
     }
 
@@ -447,7 +457,9 @@ const createDogMatchPreferences = async (req, res) => {
       data: preferencesData,
       matchingUsers: matchingUsers.length,
       shouldSendNotifications,
-      notificationType: isNewPreferences ? "new_preferences" : "updated_preferences",
+      notificationType: isNewPreferences
+        ? "new_preferences"
+        : "updated_preferences",
       notificationsSent: notificationResults.length,
       notificationResults: notificationResults,
     });
@@ -462,13 +474,16 @@ const getDogMatchPreferences = async (req, res) => {
   try {
     const { user } = req.body;
 
-    const preferences = await DogMatch.findOne({ user, isActive: true })
-      .populate("user", "firstname lastname phone address");
+    const preferences = await DogMatch.findOne({
+      user,
+      isActive: true,
+    }).populate("user", "firstname lastname phone address");
 
     if (!preferences) {
       return res.status(404).json({
         success: false,
-        message: "No se encontraron preferencias de dog match para este usuario",
+        message:
+          "No se encontraron preferencias de dog match para este usuario",
       });
     }
 
@@ -484,7 +499,7 @@ const getDogMatchPreferences = async (req, res) => {
 };
 
 // New API: Get matched dogs based on user's preferences
-const getMatchedDogs = async (req, res) => {
+const getAllDogsWithPreferences = async (req, res) => {
   try {
     const { user } = req.body;
 
@@ -498,28 +513,19 @@ const getMatchedDogs = async (req, res) => {
       });
     }
 
-    // Find pets that match the user's preferences
-    const matchedPets = await Pet.find({
-      user: { $ne: user }, // Exclude user's own pets
-      isNeutered: userPreferences.neutered,
-      temperament: { $in: userPreferences.temperament },
-      pet_socialize: userPreferences.socialize,
-      pet_size: userPreferences.size,
-      preferred_age: userPreferences.age,
-      preferred_time: { $in: userPreferences.time },
-      preferred_location: userPreferences.location,
+    const allPets = await Pet.find({
+      user: { $ne: user },
     }).populate("user", "firstname lastname phone address");
 
     res.status(200).json({
       success: true,
-      message: matchedPets.length > 0
-        ? "Se encontraron mascotas que coinciden con tus preferencias"
-        : "No se encontraron mascotas que coincidan con tus preferencias",
-      matchedPets,
-      count: matchedPets.length,
+      message: "Se obtuvieron todas las mascotas junto con tus preferencias",
+      preferences: userPreferences,
+      allPets,
+      count: allPets.length,
     });
   } catch (error) {
-    console.log(error.message);
+    console.error(error.message);
     return res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -542,7 +548,10 @@ const findMatchingUsersForNotification = async (newUserPreferences) => {
 
     return matchingUsers;
   } catch (error) {
-    console.log("Error finding matching users for notification:", error.message);
+    console.log(
+      "Error finding matching users for notification:",
+      error.message
+    );
     return [];
   }
 };
@@ -561,7 +570,8 @@ const deactivateDogMatchPreferences = async (req, res) => {
     if (!preferences) {
       return res.status(404).json({
         success: false,
-        message: "No se encontraron preferencias de dog match para este usuario",
+        message:
+          "No se encontraron preferencias de dog match para este usuario",
       });
     }
 
@@ -587,6 +597,6 @@ module.exports = {
   // New dog match APIs
   createDogMatchPreferences,
   getDogMatchPreferences,
-  getMatchedDogs,
+  getAllDogsWithPreferences,
   deactivateDogMatchPreferences,
 };

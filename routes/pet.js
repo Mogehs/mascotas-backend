@@ -13,7 +13,7 @@ const {
   // New dog match APIs
   createDogMatchPreferences,
   getDogMatchPreferences,
-  getMatchedDogs,
+  getAllDogsWithPreferences,
   deactivateDogMatchPreferences,
 } = require("../controller/pet");
 
@@ -31,7 +31,7 @@ router.put("/:id", update_pet);
 // New dog match routes
 router.post("/dogmatch/preferences", createDogMatchPreferences);
 router.post("/dogmatch/preferences/get", getDogMatchPreferences);
-router.post("/dogmatch/matched-dogs", getMatchedDogs);
+router.post("/dogmatch/matched-dogs", getAllDogsWithPreferences);
 router.post("/dogmatch/preferences/deactivate", deactivateDogMatchPreferences);
 
 module.exports = router;
