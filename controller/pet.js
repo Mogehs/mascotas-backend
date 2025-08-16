@@ -534,7 +534,7 @@ const getAllDogMatches = async (req, res) => {
 const findMatchingUsersForNotification = async (newUserPreferences) => {
   try {
     const matchingUsers = await DogMatch.find({
-      user: { $ne: newUserPreferences.user }, // Exclude self
+      user: { $ne: newUserPreferences.user },
       isActive: true,
       neutered: newUserPreferences.neutered,
       temperament: { $in: newUserPreferences.temperament },
