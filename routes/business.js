@@ -24,13 +24,15 @@ router.post("/register", businessRegister);
 router.post("/image", uploadBusinessImage);
 router.post("/latlng", uploadLatlng);
 router.get("/", getBusiness);
+
+// Location-based routes for map functionality (must come before parameterized routes)
+router.get("/map-business/nearby", getBusinessesByLocation);
+router.get("/map-business/map", getBusinessesForMap);
+
+// Parameterized routes (must come after specific routes)
 router.get("/:business_id", getBusinessById);
 router.get("/user/:user_id", getBusinessByUserId);
 router.post("/updateBusiness", updateBusiness);
-
-// Location-based routes for map functionality
-router.get("/nearby", getBusinessesByLocation);
-router.get("/map", getBusinessesForMap);
 
 // PetPro Subscription routes
 router.post("/petpro/activate", activatePetProSubscription);
