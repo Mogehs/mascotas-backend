@@ -49,10 +49,6 @@ app.use("/api/superadmin", require("./routes/superadmin"));
 // Legacy routess (keeping for backward compatibility)
 app.post("/api", require("./controller/ai").getVeterinaryAdvice);
 app.post("/trainer", require("./controller/ai").getTrainingAdvice);
-app.get(
-  "/chatHistory/:senderId/:receiverId",
-  require("./controller/chat").getChatHistory
-);
 
 // Initialize Socket.IO
 const io = initializeSocket(server);

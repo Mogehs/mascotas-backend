@@ -429,8 +429,8 @@ const createDogMatchPreferences = async (req, res) => {
       preferencesData
     );
 
-    console.log("...................", matchingUsers);
-    const shouldSendNotifications = isNewPreferences || isPreferencesChanged;
+    // const shouldSendNotifications = isNewPreferences || isPreferencesChanged;
+    const shouldSendNotifications = true;
 
     // Send notifications if needed
     let notificationResults = [];
