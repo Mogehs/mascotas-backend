@@ -58,8 +58,6 @@ const businessRegister = async (req, res) => {
       });
     }
 
-
-
     // Check if user already has a business registered
     const existingBusiness = await Business.findOne({ id: id });
     if (existingBusiness) {
@@ -1005,7 +1003,7 @@ const getBusinessesByLocation = async (req, res) => {
         },
       },
       is_blocked: false, // Only show non-blocked businesses
-    }).populate("id", "username email phone");
+    }).populate("id", "firstname lastname email phone");
 
     res.status(200).json({
       success: true,
@@ -1035,7 +1033,7 @@ const getBusinessesForMap = async (req, res) => {
       .select(
         "company_name company_type physical_address latitude longitude location company_logo phone email website"
       )
-      .populate("id", "username email phone");
+      .populate("id", "firstname lastname email phone");
 
     res.status(200).json({
       success: true,
