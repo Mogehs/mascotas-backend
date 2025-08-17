@@ -4,12 +4,6 @@ const router = express.Router();
 
 router.get("/chatHistory/:senderId/:receiverId", chatController.getChatHistory);
 
-// New route to create or get chat
-router.get("/chat/:senderId/:receiverId", chatController.createOrGetChat);
-
-// Route to send a message
-router.post("/send", chatController.sendMessage);
-
 // Route to get all chats for a user
 router.get("/user/:userId/chats", chatController.getAllUserChats);
 

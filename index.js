@@ -6,7 +6,7 @@ const cors = require("cors");
 
 // Import configurations and services
 const configureServer = require("./config/server");
-const initializeSocket = require("./config/socket");
+const { initializeSocket } = require("./config/socket");
 const cronService = require("./service/cron.service");
 
 // Initialize Express app and HTTP server

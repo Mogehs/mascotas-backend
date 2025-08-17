@@ -1,4 +1,5 @@
 const Message = require("../model/message");
+const User = require("../model/user");
 
 const mongoose = require("mongoose");
 
@@ -29,74 +30,6 @@ const getChatHistory = async (req, res) => {
   } catch (error) {
     console.error("Error fetching chat history:", error);
     res.status(500).json({ error: "Failed to fetch messages" });
-  }
-};
-
-
-// Create or get chat between sender and receiver
-const createOrGetChat = async (req, res) => {
-  const { senderId, receiverId } = req.params;
-
-  try {
-    // Check if chat exists between these users
-    const existingMessages = await Message.find({
-      $or: [
-        { senderId, receiverId },
-        { senderId: receiverId, receiverId: senderId },
-      ],
-    }).sort({ timestamp: 1 });
-
-    // If no messages exist, create an initial chat entry or return empty array
-    if (existingMessages.length === 0) {
-      return res.json({
-        success: true,
-        chatExists: false,
-        messages: [],
-        participants: { senderId, receiverId },
-        message: "New chat created",
-      });
-    }
-
-    // Return existing chat with messages
-    res.json({
-      success: true,
-      chatExists: true,
-      messages: existingMessages,
-      participants: { senderId, receiverId },
-      message: "Chat retrieved successfully",
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: "Failed to create or retrieve chat",
-    });
-  }
-};
-
-// Send a new message and create chat if needed
-const sendMessage = async (req, res) => {
-  const { senderId, receiverId, message } = req.body;
-
-  try {
-    const newMessage = new Message({
-      senderId,
-      receiverId,
-      message,
-      timestamp: new Date(),
-    });
-
-    await newMessage.save();
-
-    res.json({
-      success: true,
-      message: "Message sent successfully",
-      data: newMessage,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: "Failed to send message",
-    });
   }
 };
 
@@ -165,10 +98,7 @@ const getAllUserChats = async (req, res) => {
   }
 };
 
-
 module.exports = {
   getChatHistory,
-  createOrGetChat,
-  sendMessage,
   getAllUserChats,
 };
