@@ -1,22 +1,37 @@
 const Message = require("../model/message");
 
+const mongoose = require("mongoose");
+
 const getChatHistory = async (req, res) => {
   const { senderId, receiverId } = req.params;
+
   try {
+    // ✅ Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(senderId) || !mongoose.Types.ObjectId.isValid(receiverId)) {
+      return res.status(400).json({ error: "Invalid sender or receiver ID" });
+    }
+
+    const senderObjectId = new mongoose.Types.ObjectId(senderId);
+    const receiverObjectId = new mongoose.Types.ObjectId(receiverId);
+
+    // ✅ Fetch messages between both users
     const messages = await Message.find({
       $or: [
-        {
-          senderId,
-          receiverId,
-        },
-        { senderId: receiverId, receiverId: senderId },
-      ],
-    }).sort({ timestamp: -1 }); // Fixed: changed timeStamp to timestamp
+        { senderId: senderObjectId, receiverId: receiverObjectId },
+        { senderId: receiverObjectId, receiverId: senderObjectId }
+      ]
+    })
+        .sort({ timestamp: -1 })
+        .populate("senderId") // populate sender
+        .populate("receiverId"); // populate receiver
+
     res.json(messages);
   } catch (error) {
+    console.error("Error fetching chat history:", error);
     res.status(500).json({ error: "Failed to fetch messages" });
   }
 };
+
 
 // Create or get chat between sender and receiver
 const createOrGetChat = async (req, res) => {
@@ -85,36 +100,49 @@ const sendMessage = async (req, res) => {
   }
 };
 
-// Get all chats for a specific user
+
 const getAllUserChats = async (req, res) => {
   const { userId } = req.params;
 
   try {
-    // Get all messages where user is either sender or receiver
+    // ✅ Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ success: false, error: "Invalid user ID" });
+    }
+
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
+    // ✅ Get all messages where user is sender or receiver
     const allMessages = await Message.find({
       $or: [
-        { senderId: userId },
-        { receiverId: userId },
+        { senderId: userObjectId },
+        { receiverId: userObjectId }
       ],
-    }).sort({ timestamp: -1 });
+    })
+        .sort({ timestamp: -1 })
+        .populate("senderId", "")
+        .populate("receiverId", "");
 
-    // Group messages by chat partner
+    // ✅ Group messages by chat partner
     const chatsMap = new Map();
 
     allMessages.forEach((message) => {
-      // Determine the other person in the chat
-      const otherPersonId =
-        message.senderId === userId ? message.receiverId : message.senderId;
+      const senderStr = message.senderId._id.toString();
+      const receiverStr = message.receiverId._id.toString();
+      const userStr = userObjectId.toString();
 
-      // If this chat partner hasn't been added yet, add them with this message as the latest
+      // Find the other participant
+      const otherPersonId = senderStr === userStr ? receiverStr : senderStr;
+
       if (!chatsMap.has(otherPersonId)) {
         chatsMap.set(otherPersonId, {
           chatPartnerId: otherPersonId,
+          chatPartner:
+              senderStr === userStr ? message.receiverId : message.senderId, // full user info
           latestMessage: message,
           messageCount: 1,
         });
       } else {
-        // Increment message count for existing chat
         chatsMap.get(otherPersonId).messageCount++;
       }
     });
@@ -124,17 +152,19 @@ const getAllUserChats = async (req, res) => {
 
     res.json({
       success: true,
-      userId: userId,
+      userId,
       totalChats: chats.length,
-      chats: chats,
+      chats,
     });
   } catch (error) {
+    console.error("Error in getAllUserChats:", error);
     res.status(500).json({
       success: false,
       error: "Failed to fetch user chats",
     });
   }
 };
+
 
 module.exports = {
   getChatHistory,
