@@ -1,4 +1,5 @@
 const Pet = require("../model/pet");
+const fs = require("fs");
 const Lost = require("../model/lost");
 const QRCode = require("../model/qrcode");
 const DogMatch = require("../model/dogmatch");
@@ -197,40 +198,61 @@ const pet_register = async (req, res) => {
       color,
       pet,
     } = req.body;
-    if (!req?.files?.picture)
+
+    // ✅ Validate required fields
+    if (!user || !name || !gender || !dob || !pet) {
       return res
         .status(400)
-        .json({ success: false, message: "Please upload the ad image image." });
-    const file = req.files.picture;
-    const result = await cloudinary.uploader.upload(file.tempFilePath, {
-      public_id: file.name,
-      resource_type: "image",
-      folder: "mascotas",
-    });
-    if (result) {
-      const data = await Pet.create({
-        user: user,
-        pet_name: name,
-        pet_gender: gender,
-        pet_dob: dob,
-        pet: pet,
-        pet_race: race,
-        pet_height: height,
-        pet_weight: weight,
-        pet_microchip_number: microchip_number,
-        pet_description: description,
-        pet_color: color,
-        pet_image: result.secure_url,
-      });
-      res.json({
-        success: true,
-        message: "La información de la mascota se guardó correctamente",
-        data,
+        .json({ success: false, message: "Missing required fields." });
+    }
+
+    if (!req?.files?.picture) {
+      return res.status(400).json({
+        success: false,
+        message: "Please upload a pet image.",
       });
     }
+
+    // ✅ Upload image to Cloudinary
+    const file = req.files.picture;
+    let result;
+    try {
+      result = await cloudinary.uploader.upload(file.tempFilePath, {
+        public_id: `${Date.now()}_${file.name}`,
+        resource_type: "image",
+        folder: "mascotas",
+      });
+    } finally {
+      // ✅ Always cleanup temp file
+      fs.unlinkSync(file.tempFilePath);
+    }
+
+    // ✅ Create pet in DB
+    const data = await Pet.create({
+      user,
+      pet_name: name,
+      pet_gender: gender,
+      pet_dob: dob,
+      pet,
+      pet_race: race,
+      pet_height: height,
+      pet_weight: weight,
+      pet_microchip_number: microchip_number,
+      pet_description: description,
+      pet_color: color,
+      pet_image: result.secure_url,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "La información de la mascota se guardó correctamente",
+      data,
+    });
   } catch (error) {
-    console.log(error.message);
-    return res.json({ success: false, message: error.message });
+    console.error(error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Error en el servidor." });
   }
 };
 
@@ -250,58 +272,77 @@ const update_pet = async (req, res) => {
       pet,
     } = req.body;
 
-    // Check if pet exists
+    // ✅ Check if pet exists
     const existingPet = await Pet.findById(id);
     if (!existingPet) {
-      return res.status(404).json({
-        success: false,
-        message: "Mascota no encontrada",
-      });
+      return res
+        .status(404)
+        .json({ success: false, message: "Mascota no encontrada" });
     }
 
-    // Prepare update data
+    // ✅ Prepare update data (using undefined check, not falsy check)
     const updateData = {
-      pet_name: name || existingPet.pet_name,
-      pet_gender: gender || existingPet.pet_gender,
-      pet_dob: dob || existingPet.pet_dob,
-      pet: pet || existingPet.pet,
-      pet_race: race || existingPet.pet_race,
-      pet_height: height || existingPet.pet_height,
-      pet_weight: weight || existingPet.pet_weight,
+      pet_name: name !== undefined ? name : existingPet.pet_name,
+      pet_gender: gender !== undefined ? gender : existingPet.pet_gender,
+      pet_dob: dob !== undefined ? dob : existingPet.pet_dob,
+      pet: pet !== undefined ? pet : existingPet.pet,
+      pet_race: race !== undefined ? race : existingPet.pet_race,
+      pet_height: height !== undefined ? height : existingPet.pet_height,
+      pet_weight: weight !== undefined ? weight : existingPet.pet_weight,
       pet_microchip_number:
-        microchip_number || existingPet.pet_microchip_number,
-      pet_description: description || existingPet.pet_description,
-      pet_color: color || existingPet.pet_color,
+        microchip_number !== undefined
+          ? microchip_number
+          : existingPet.pet_microchip_number,
+      pet_description:
+        description !== undefined ? description : existingPet.pet_description,
+      pet_color: color !== undefined ? color : existingPet.pet_color,
+
+      // ✅ keep user reference
+      user: existingPet.user,
     };
 
-    // Handle image upload if provided
+    // ✅ Handle new image if provided
     if (req?.files?.picture) {
       const file = req.files.picture;
-      const result = await cloudinary.uploader.upload(file.tempFilePath, {
-        public_id: file.name,
-        resource_type: "image",
-        folder: "mascotas",
-      });
+      let result;
+      try {
+        result = await cloudinary.uploader.upload(file.tempFilePath, {
+          public_id: `${Date.now()}_${file.name}`,
+          resource_type: "image",
+          folder: "mascotas",
+        });
+      } finally {
+        fs.unlinkSync(file.tempFilePath);
+      }
+
       if (result) {
         updateData.pet_image = result.secure_url;
+
+        // ✅ (Optional) Delete old image from Cloudinary
+        // if (existingPet.pet_image) {
+        //   const publicId = existingPet.pet_image.split("/").pop().split(".")[0];
+        //   await cloudinary.uploader.destroy(`mascotas/${publicId}`);
+        // }
       }
     }
 
-    // Update the pet
+    // ✅ Update pet
     const updatedPet = await Pet.findByIdAndUpdate(
       id,
       { $set: updateData },
       { new: true }
     ).populate("user", "firstname lastname phone address");
 
-    res.json({
+    return res.json({
       success: true,
       message: "La información de la mascota se actualizó correctamente",
       data: updatedPet,
     });
   } catch (error) {
-    console.log(error.message);
-    return res.json({ success: false, message: error.message });
+    console.error(error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Error en el servidor." });
   }
 };
 

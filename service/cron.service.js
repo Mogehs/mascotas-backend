@@ -427,15 +427,6 @@ class CronService {
         reminderTypeMap[reminderField] || "recordatorio médico";
       const formattedDate = reminderDate.format("DD/MM/YYYY HH:mm");
 
-      console.log(`Attempting to send notification:`, {
-        deviceToken: record.user.device_token ? "Present" : "Missing",
-        petName: record.pet.pet_name,
-        reminderType,
-        formattedDate,
-        petId: record.pet._id,
-        recordId: record._id,
-      });
-
       await sendMedicalReminder(
         record.user.device_token,
         record.pet.pet_name,
