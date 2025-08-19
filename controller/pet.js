@@ -544,26 +544,99 @@ const getDogMatchPreferences = async (req, res) => {
   }
 };
 
+function calculateMatchPercentage(userPref, otherPref) {
+  let total = 0;
+  let matched = 0;
+
+  // Compare neutered
+  total++;
+  if (userPref.neutered === otherPref.neutered) matched++;
+
+  // Compare temperament (arrays - count overlap)
+  total++;
+  const temperamentOverlap = userPref.temperament.filter((val) =>
+    otherPref.temperament.includes(val)
+  ).length;
+  if (temperamentOverlap > 0) matched++;
+
+  // Compare socialize
+  total++;
+  if (userPref.socialize === otherPref.socialize) matched++;
+
+  // Compare time (arrays)
+  total++;
+  const timeOverlap = userPref.time.filter((val) =>
+    otherPref.time.includes(val)
+  ).length;
+  if (timeOverlap > 0) matched++;
+
+  // Compare location
+  total++;
+  if (userPref.location === otherPref.location) matched++;
+
+  // Compare size
+  total++;
+  if (userPref.size === otherPref.size) matched++;
+
+  // Compare age
+  total++;
+  if (userPref.age === otherPref.age) matched++;
+
+  return Math.round((matched / total) * 100);
+}
+
 // New API: Get matched dogs based on user's preferences
 const getAllDogMatches = async (req, res) => {
   try {
-    // Get all saved preferences (for all users)
-    const allPreferences = await DogMatch.find()
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "userId is required" });
+    }
+
+    // Get this user's preferences
+    const userPreference = await DogMatch.findOne({ user: userId })
+      .populate("user", "firstname lastname phone address")
+      .populate("pet", "pet_name pet_gender pet_color pet_image pet_race");
+
+    if (!userPreference) {
+      return res.status(404).json({
+        success: false,
+        message: "No preferences found for this user",
+      });
+    }
+
+    // Get all other users' preferences
+    const allPreferences = await DogMatch.find({ user: { $ne: userId } })
       .populate("user", "firstname lastname phone address")
       .populate("pet", "pet_name pet_gender pet_color pet_image pet_race");
 
     if (!allPreferences || allPreferences.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "No hay preferencias de dog match guardadas",
+        message: "No other dog matches found",
       });
     }
 
+    // Calculate match percentages for ALL preferences (including 0%)
+    const matches = allPreferences.map((pref) => {
+      const matchPercentage = calculateMatchPercentage(userPreference, pref);
+      return {
+        ...pref.toObject(),
+        matchPercentage,
+      };
+    });
+
+    // Sort: highest match first, lowest last
+    matches.sort((a, b) => b.matchPercentage - a.matchPercentage);
+
     return res.status(200).json({
       success: true,
-      message: "Se obtuvieron todas las preferencias de dog match",
-      preferences: allPreferences,
-      count: allPreferences.length,
+      message: "Dog matches sorted by similarity",
+      userPreference,
+      matches,
     });
   } catch (error) {
     console.error(error.message);
@@ -571,7 +644,6 @@ const getAllDogMatches = async (req, res) => {
   }
 };
 
-// Helper function to find users who should be notified when new dog match preferences are created
 const findMatchingUsersForNotification = async (newUserPreferences) => {
   try {
     const matchingUsers = await DogMatch.find({
