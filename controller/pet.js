@@ -591,15 +591,14 @@ const getAllDogMatches = async (req, res) => {
     const { userId } = req.body;
 
     if (!userId) {
-      return res
-        .status(400)
-        .json({ success: false, message: "userId is required" });
+      return res.status(400).json({
+        success: false,
+        message: "userId is required in request body",
+      });
     }
 
-    // Get this user's preferences
-    const userPreference = await DogMatch.findOne({ user: userId })
-      .populate("user", "firstname lastname phone address")
-      .populate("pet", "pet_name pet_gender pet_color pet_image pet_race");
+    // Get this user's preference
+    const userPreference = await DogMatch.findOne({ user: userId });
 
     if (!userPreference) {
       return res.status(404).json({
@@ -608,7 +607,7 @@ const getAllDogMatches = async (req, res) => {
       });
     }
 
-    // Get all other users' preferences
+    // Get all preferences (including others)
     const allPreferences = await DogMatch.find({ user: { $ne: userId } })
       .populate("user", "firstname lastname phone address")
       .populate("pet", "pet_name pet_gender pet_color pet_image pet_race");
@@ -616,12 +615,12 @@ const getAllDogMatches = async (req, res) => {
     if (!allPreferences || allPreferences.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "No other dog matches found",
+        message: "No hay preferencias de dog match guardadas",
       });
     }
 
-    // Calculate match percentages for ALL preferences (including 0%)
-    const matches = allPreferences.map((pref) => {
+    // Attach match percentage
+    const preferencesWithMatch = allPreferences.map((pref) => {
       const matchPercentage = calculateMatchPercentage(userPreference, pref);
       return {
         ...pref.toObject(),
@@ -629,14 +628,15 @@ const getAllDogMatches = async (req, res) => {
       };
     });
 
-    // Sort: highest match first, lowest last
-    matches.sort((a, b) => b.matchPercentage - a.matchPercentage);
+    // Sort by match percentage (highest first)
+    preferencesWithMatch.sort((a, b) => b.matchPercentage - a.matchPercentage);
 
     return res.status(200).json({
       success: true,
-      message: "Dog matches sorted by similarity",
-      userPreference,
-      matches,
+      message:
+        "Se obtuvieron todas las preferencias de dog match (ordenadas por similitud)",
+      preferences: preferencesWithMatch,
+      count: preferencesWithMatch.length,
     });
   } catch (error) {
     console.error(error.message);
