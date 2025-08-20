@@ -297,12 +297,8 @@ const confirmPayment = async (req, res) => {
 
       // Update user subscription status
       await User.findByIdAndUpdate(
-        { _id: business.id },
-        {
-          $set: {
-            business_subscription: true,
-          },
-        },
+        business.id._id || business.id, // make sure it's just the ObjectId
+        { $set: { business_subscription: true } },
         { new: true }
       );
     } catch (updateError) {
