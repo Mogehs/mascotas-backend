@@ -1157,8 +1157,7 @@ const petactivity = async (req, res) => {
       location,
       difficult,
       fun,
-      reminder_date,
-      reminder_times, // New field for multiple reminder times
+
       user,
     } = req.body;
 
@@ -1523,18 +1522,8 @@ const deleteMedical = async (req, res) => {
 
 const registration = async (req, res) => {
   try {
-    const {
-      id,
-      type,
-      description,
-      date,
-      duration,
-      travelled,
-      location,
-      fun,
-      reminder_date,
-      reminder_times, // New field for multiple reminder times
-    } = req.body;
+    const { id, type, description, date, duration, travelled, location, fun } =
+      req.body;
 
     if (!req?.files?.picture)
       return res
