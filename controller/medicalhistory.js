@@ -7,6 +7,36 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// Helper function to parse reminder times from string (for multipart form data)
+const parseReminderTimes = (reminderTimesString) => {
+  try {
+    if (!reminderTimesString) return null;
+
+    // If it's already an array, return as is
+    if (Array.isArray(reminderTimesString)) {
+      return reminderTimesString;
+    }
+
+    // If it's a string, try to parse it
+    if (typeof reminderTimesString === "string") {
+      const parsed = JSON.parse(reminderTimesString);
+
+      // Validate the structure
+      if (Array.isArray(parsed)) {
+        return parsed.map((item) => ({
+          date: item.date,
+          times: Array.isArray(item.times) ? item.times : [],
+        }));
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error parsing reminder times:", error);
+    return null;
+  }
+};
+
 // Helper function to schedule multiple reminders
 const scheduleMultipleReminders = async (
   medicalRecordId,
@@ -66,7 +96,7 @@ const petvaccine = async (req, res) => {
       vaccine,
       vaccine_date,
       vaccine_reminder,
-      vaccine_reminder_times, // New field for multiple reminder times
+      vaccine_reminder_times,
       vaccine_price,
       veterinary_managed,
       user,
@@ -96,22 +126,19 @@ const petvaccine = async (req, res) => {
       };
 
       // Add multiple reminder times if provided
-      if (
-        vaccine_reminder_times &&
-        Array.isArray(vaccine_reminder_times) &&
-        vaccine_reminder_times.length > 0
-      ) {
-        medicalData.pet_vaccine_reminder_times = vaccine_reminder_times;
+      const parsedReminderTimes = parseReminderTimes(vaccine_reminder_times);
+      if (parsedReminderTimes && parsedReminderTimes.length > 0) {
+        medicalData.pet_vaccine_reminder_times = parsedReminderTimes;
       }
 
       const data = await Medical.create(medicalData);
 
       // Schedule reminders for multiple times if provided
-      if (vaccine_reminder_times && Array.isArray(vaccine_reminder_times)) {
+      if (parsedReminderTimes && Array.isArray(parsedReminderTimes)) {
         await scheduleMultipleReminders(
           data._id,
           "pet_vaccine_reminder_times",
-          vaccine_reminder_times
+          parsedReminderTimes
         );
       } else if (vaccine_reminder && vaccine_reminder !== "N/A") {
         // Fallback to single reminder
@@ -156,12 +183,9 @@ const updatevaccine = async (req, res) => {
       };
 
       // Add multiple reminder times if provided
-      if (
-        vaccine_reminder_times &&
-        Array.isArray(vaccine_reminder_times) &&
-        vaccine_reminder_times.length > 0
-      ) {
-        updateData.pet_vaccine_reminder_times = vaccine_reminder_times;
+      const parsedReminderTimes = parseReminderTimes(vaccine_reminder_times);
+      if (parsedReminderTimes && parsedReminderTimes.length > 0) {
+        updateData.pet_vaccine_reminder_times = parsedReminderTimes;
       }
 
       const data = await Medical.findByIdAndUpdate(
@@ -171,11 +195,11 @@ const updatevaccine = async (req, res) => {
       );
 
       // Schedule reminders for multiple times if provided
-      if (vaccine_reminder_times && Array.isArray(vaccine_reminder_times)) {
+      if (parsedReminderTimes && Array.isArray(parsedReminderTimes)) {
         await scheduleMultipleReminders(
           check._id,
           "pet_vaccine_reminder_times",
-          vaccine_reminder_times
+          parsedReminderTimes
         );
       } else if (vaccine_reminder && vaccine_reminder !== "N/A") {
         // Fallback to single reminder
@@ -254,22 +278,19 @@ const petdeworming = async (req, res) => {
       };
 
       // Add multiple reminder times if provided
-      if (
-        deworming_reminder_times &&
-        Array.isArray(deworming_reminder_times) &&
-        deworming_reminder_times.length > 0
-      ) {
-        medicalData.pet_deworming_reminder_times = deworming_reminder_times;
+      const parsedReminderTimes = parseReminderTimes(deworming_reminder_times);
+      if (parsedReminderTimes && parsedReminderTimes.length > 0) {
+        medicalData.pet_deworming_reminder_times = parsedReminderTimes;
       }
 
       const data = await Medical.create(medicalData);
 
       // Schedule reminders for multiple times if provided
-      if (deworming_reminder_times && Array.isArray(deworming_reminder_times)) {
+      if (parsedReminderTimes && Array.isArray(parsedReminderTimes)) {
         await scheduleMultipleReminders(
           data._id,
           "pet_deworming_reminder_times",
-          deworming_reminder_times
+          parsedReminderTimes
         );
       } else if (deworming_reminder && deworming_reminder !== "N/A") {
         // Fallback to single reminder
@@ -316,12 +337,9 @@ const updatedeworming = async (req, res) => {
       };
 
       // Add multiple reminder times if provided
-      if (
-        deworming_reminder_times &&
-        Array.isArray(deworming_reminder_times) &&
-        deworming_reminder_times.length > 0
-      ) {
-        updateData.pet_deworming_reminder_times = deworming_reminder_times;
+      const parsedReminderTimes = parseReminderTimes(deworming_reminder_times);
+      if (parsedReminderTimes && parsedReminderTimes.length > 0) {
+        updateData.pet_deworming_reminder_times = parsedReminderTimes;
       }
 
       const data = await Medical.findByIdAndUpdate(
@@ -331,11 +349,11 @@ const updatedeworming = async (req, res) => {
       );
 
       // Schedule reminders for multiple times if provided
-      if (deworming_reminder_times && Array.isArray(deworming_reminder_times)) {
+      if (parsedReminderTimes && Array.isArray(parsedReminderTimes)) {
         await scheduleMultipleReminders(
           check._id,
           "pet_deworming_reminder_times",
-          deworming_reminder_times
+          parsedReminderTimes
         );
       } else if (deworming_reminder && deworming_reminder !== "N/A") {
         // Fallback to single reminder
@@ -390,22 +408,19 @@ const petdisease = async (req, res) => {
     };
 
     // Add multiple reminder times if provided
-    if (
-      reminder_times &&
-      Array.isArray(reminder_times) &&
-      reminder_times.length > 0
-    ) {
-      medicalData.pet_treatment_reminder_times = reminder_times;
+    const parsedReminderTimes = parseReminderTimes(reminder_times);
+    if (parsedReminderTimes && parsedReminderTimes.length > 0) {
+      medicalData.pet_treatment_reminder_times = parsedReminderTimes;
     }
 
     const data = await Medical.create(medicalData);
 
     // Schedule reminders for multiple times if provided
-    if (reminder_times && Array.isArray(reminder_times)) {
+    if (parsedReminderTimes && Array.isArray(parsedReminderTimes)) {
       await scheduleMultipleReminders(
         data._id,
         "pet_treatment_reminder_times",
-        reminder_times
+        parsedReminderTimes
       );
     } else if (reminder_date && reminder_date !== "N/A") {
       // Fallback to single reminder
@@ -457,12 +472,9 @@ const updatedisease = async (req, res) => {
       };
 
       // Add multiple reminder times if provided
-      if (
-        reminder_times &&
-        Array.isArray(reminder_times) &&
-        reminder_times.length > 0
-      ) {
-        updateData.pet_treatment_reminder_times = reminder_times;
+      const parsedReminderTimes = parseReminderTimes(reminder_times);
+      if (parsedReminderTimes && parsedReminderTimes.length > 0) {
+        updateData.pet_treatment_reminder_times = parsedReminderTimes;
       }
 
       const data = await Medical.findByIdAndUpdate(
@@ -472,11 +484,11 @@ const updatedisease = async (req, res) => {
       );
 
       // Schedule reminders for multiple times if provided
-      if (reminder_times && Array.isArray(reminder_times)) {
+      if (parsedReminderTimes && Array.isArray(parsedReminderTimes)) {
         await scheduleMultipleReminders(
           check._id,
           "pet_treatment_reminder_times",
-          reminder_times
+          parsedReminderTimes
         );
       } else if (reminder_date && reminder_date !== "N/A") {
         // Fallback to single reminder
@@ -525,22 +537,19 @@ const petsurgery = async (req, res) => {
     };
 
     // Add multiple reminder times if provided
-    if (
-      reminder_times &&
-      Array.isArray(reminder_times) &&
-      reminder_times.length > 0
-    ) {
-      medicalData.post_operation_reminder_times = reminder_times;
+    const parsedReminderTimes = parseReminderTimes(reminder_times);
+    if (parsedReminderTimes && parsedReminderTimes.length > 0) {
+      medicalData.post_operation_reminder_times = parsedReminderTimes;
     }
 
     const data = await Medical.create(medicalData);
 
     // Schedule reminders for multiple times if provided
-    if (reminder_times && Array.isArray(reminder_times)) {
+    if (parsedReminderTimes && Array.isArray(parsedReminderTimes)) {
       await scheduleMultipleReminders(
         data._id,
         "post_operation_reminder_times",
-        reminder_times
+        parsedReminderTimes
       );
     } else if (reminder_date && reminder_date !== "N/A") {
       // Fallback to single reminder
@@ -586,12 +595,9 @@ const updatesurgery = async (req, res) => {
       };
 
       // Add multiple reminder times if provided
-      if (
-        reminder_times &&
-        Array.isArray(reminder_times) &&
-        reminder_times.length > 0
-      ) {
-        updateData.post_operation_reminder_times = reminder_times;
+      const parsedReminderTimes = parseReminderTimes(reminder_times);
+      if (parsedReminderTimes && parsedReminderTimes.length > 0) {
+        updateData.post_operation_reminder_times = parsedReminderTimes;
       }
 
       const data = await Medical.findByIdAndUpdate(
@@ -601,11 +607,11 @@ const updatesurgery = async (req, res) => {
       );
 
       // Schedule reminders for multiple times if provided
-      if (reminder_times && Array.isArray(reminder_times)) {
+      if (parsedReminderTimes && Array.isArray(parsedReminderTimes)) {
         await scheduleMultipleReminders(
           check._id,
           "post_operation_reminder_times",
-          reminder_times
+          parsedReminderTimes
         );
       } else if (reminder_date && reminder_date !== "N/A") {
         // Fallback to single reminder
@@ -652,22 +658,19 @@ const petmedicalcheckup = async (req, res) => {
     };
 
     // Add multiple reminder times if provided
-    if (
-      reminder_times &&
-      Array.isArray(reminder_times) &&
-      reminder_times.length > 0
-    ) {
-      medicalData.next_check_up_reminder_times = reminder_times;
+    const parsedReminderTimes = parseReminderTimes(reminder_times);
+    if (parsedReminderTimes && parsedReminderTimes.length > 0) {
+      medicalData.next_check_up_reminder_times = parsedReminderTimes;
     }
 
     const data = await Medical.create(medicalData);
 
     // Schedule reminders for multiple times if provided
-    if (reminder_times && Array.isArray(reminder_times)) {
+    if (parsedReminderTimes && Array.isArray(parsedReminderTimes)) {
       await scheduleMultipleReminders(
         data._id,
         "next_check_up_reminder_times",
-        reminder_times
+        parsedReminderTimes
       );
     } else if (reminder_date && reminder_date !== "N/A") {
       // Fallback to single reminder
@@ -711,12 +714,9 @@ const updatemedicalcheckup = async (req, res) => {
       };
 
       // Add multiple reminder times if provided
-      if (
-        reminder_times &&
-        Array.isArray(reminder_times) &&
-        reminder_times.length > 0
-      ) {
-        updateData.next_check_up_reminder_times = reminder_times;
+      const parsedReminderTimes = parseReminderTimes(reminder_times);
+      if (parsedReminderTimes && parsedReminderTimes.length > 0) {
+        updateData.next_check_up_reminder_times = parsedReminderTimes;
       }
 
       const data = await Medical.findByIdAndUpdate(
@@ -726,11 +726,11 @@ const updatemedicalcheckup = async (req, res) => {
       );
 
       // Schedule reminders for multiple times if provided
-      if (reminder_times && Array.isArray(reminder_times)) {
+      if (parsedReminderTimes && Array.isArray(parsedReminderTimes)) {
         await scheduleMultipleReminders(
           check._id,
           "next_check_up_reminder_times",
-          reminder_times
+          parsedReminderTimes
         );
       } else if (reminder_date && reminder_date !== "N/A") {
         // Fallback to single reminder
@@ -775,22 +775,19 @@ const petallergy = async (req, res) => {
     };
 
     // Add multiple reminder times if provided
-    if (
-      reminder_times &&
-      Array.isArray(reminder_times) &&
-      reminder_times.length > 0
-    ) {
-      medicalData.allergy_reminder_times = reminder_times;
+    const parsedReminderTimes = parseReminderTimes(reminder_times);
+    if (parsedReminderTimes && parsedReminderTimes.length > 0) {
+      medicalData.allergy_reminder_times = parsedReminderTimes;
     }
 
     const data = await Medical.create(medicalData);
 
     // Schedule reminders for multiple times if provided
-    if (reminder_times && Array.isArray(reminder_times)) {
+    if (parsedReminderTimes && Array.isArray(parsedReminderTimes)) {
       await scheduleMultipleReminders(
         data._id,
         "allergy_reminder_times",
-        reminder_times
+        parsedReminderTimes
       );
     } else if (reminder_date && reminder_date !== "N/A") {
       // Fallback to single reminder
@@ -832,12 +829,9 @@ const updateallergy = async (req, res) => {
       };
 
       // Add multiple reminder times if provided
-      if (
-        reminder_times &&
-        Array.isArray(reminder_times) &&
-        reminder_times.length > 0
-      ) {
-        updateData.allergy_reminder_times = reminder_times;
+      const parsedReminderTimes = parseReminderTimes(reminder_times);
+      if (parsedReminderTimes && parsedReminderTimes.length > 0) {
+        updateData.allergy_reminder_times = parsedReminderTimes;
       }
 
       const data = await Medical.findByIdAndUpdate(
@@ -847,11 +841,11 @@ const updateallergy = async (req, res) => {
       );
 
       // Schedule reminders for multiple times if provided
-      if (reminder_times && Array.isArray(reminder_times)) {
+      if (parsedReminderTimes && Array.isArray(parsedReminderTimes)) {
         await scheduleMultipleReminders(
           check._id,
           "allergy_reminder_times",
-          reminder_times
+          parsedReminderTimes
         );
       } else if (reminder_date && reminder_date !== "N/A") {
         // Fallback to single reminder
@@ -902,22 +896,19 @@ const petdose = async (req, res) => {
     };
 
     // Add multiple reminder times if provided
-    if (
-      reminder_times &&
-      Array.isArray(reminder_times) &&
-      reminder_times.length > 0
-    ) {
-      medicalData.dose_reminder_times = reminder_times;
+    const parsedReminderTimes = parseReminderTimes(reminder_times);
+    if (parsedReminderTimes && parsedReminderTimes.length > 0) {
+      medicalData.dose_reminder_times = parsedReminderTimes;
     }
 
     const data = await Medical.create(medicalData);
 
     // Schedule reminders for multiple times if provided
-    if (reminder_times && Array.isArray(reminder_times)) {
+    if (parsedReminderTimes && Array.isArray(parsedReminderTimes)) {
       await scheduleMultipleReminders(
         data._id,
         "dose_reminder_times",
-        reminder_times
+        parsedReminderTimes
       );
     } else if (reminder_date && reminder_date !== "N/A") {
       // Fallback to single reminder
@@ -966,12 +957,9 @@ const updatedose = async (req, res) => {
       };
 
       // Add multiple reminder times if provided
-      if (
-        reminder_times &&
-        Array.isArray(reminder_times) &&
-        reminder_times.length > 0
-      ) {
-        updateData.dose_reminder_times = reminder_times;
+      const parsedReminderTimes = parseReminderTimes(reminder_times);
+      if (parsedReminderTimes && parsedReminderTimes.length > 0) {
+        updateData.dose_reminder_times = parsedReminderTimes;
       }
 
       const data = await Medical.findByIdAndUpdate(
@@ -981,11 +969,11 @@ const updatedose = async (req, res) => {
       );
 
       // Schedule reminders for multiple times if provided
-      if (reminder_times && Array.isArray(reminder_times)) {
+      if (parsedReminderTimes && Array.isArray(parsedReminderTimes)) {
         await scheduleMultipleReminders(
           check._id,
           "dose_reminder_times",
-          reminder_times
+          parsedReminderTimes
         );
       } else if (reminder_date && reminder_date !== "N/A") {
         // Fallback to single reminder
@@ -1038,22 +1026,19 @@ const petdiet = async (req, res) => {
     }
 
     // Add multiple reminder times if provided
-    if (
-      reminder_times &&
-      Array.isArray(reminder_times) &&
-      reminder_times.length > 0
-    ) {
-      medicalData.diet_reminder_times = reminder_times;
+    const parsedReminderTimes = parseReminderTimes(reminder_times);
+    if (parsedReminderTimes && parsedReminderTimes.length > 0) {
+      medicalData.diet_reminder_times = parsedReminderTimes;
     }
 
     const data = await Medical.create(medicalData);
 
     // Schedule reminders for multiple times if provided
-    if (reminder_times && Array.isArray(reminder_times)) {
+    if (parsedReminderTimes && Array.isArray(parsedReminderTimes)) {
       await scheduleMultipleReminders(
         data._id,
         "diet_reminder_times",
-        reminder_times
+        parsedReminderTimes
       );
     } else if (reminder_date && reminder_date !== "N/A") {
       // Fallback to single reminder
@@ -1188,37 +1173,7 @@ const petactivity = async (req, res) => {
         user: user,
       };
 
-      // Add single reminder date if provided
-      if (reminder_date && reminder_date !== "N/A") {
-        medicalData.activity_reminder_date = reminder_date;
-      }
-
-      // Add multiple reminder times if provided
-      if (
-        reminder_times &&
-        Array.isArray(reminder_times) &&
-        reminder_times.length > 0
-      ) {
-        medicalData.activity_reminder_times = reminder_times;
-      }
-
       const data = await Medical.create(medicalData);
-
-      // Schedule reminders for multiple times if provided
-      if (reminder_times && Array.isArray(reminder_times)) {
-        await scheduleMultipleReminders(
-          data._id,
-          "activity_reminder_times",
-          reminder_times
-        );
-      } else if (reminder_date && reminder_date !== "N/A") {
-        // Fallback to single reminder
-        cronService.scheduleSpecificReminder(
-          data._id,
-          "activity_reminder_date",
-          reminder_date
-        );
-      }
 
       res.status(200).json({
         success: true,
@@ -1244,8 +1199,6 @@ const updateactivity = async (req, res) => {
       location,
       difficult,
       fun,
-      reminder_date,
-      reminder_times, // New field for multiple reminder times
     } = req.body;
     const check = await Medical.findOne({ pet: id });
     if (check) {
@@ -1262,41 +1215,11 @@ const updateactivity = async (req, res) => {
         fun_level: fun,
       };
 
-      // Add single reminder date if provided
-      if (reminder_date && reminder_date !== "N/A") {
-        updateData.activity_reminder_date = reminder_date;
-      }
-
-      // Add multiple reminder times if provided
-      if (
-        reminder_times &&
-        Array.isArray(reminder_times) &&
-        reminder_times.length > 0
-      ) {
-        updateData.activity_reminder_times = reminder_times;
-      }
-
       const data = await Medical.findByIdAndUpdate(
         { _id: check._id },
         { $set: updateData },
         { new: true }
       );
-
-      // Schedule reminders for multiple times if provided
-      if (reminder_times && Array.isArray(reminder_times)) {
-        await scheduleMultipleReminders(
-          check._id,
-          "activity_reminder_times",
-          reminder_times
-        );
-      } else if (reminder_date && reminder_date !== "N/A") {
-        // Fallback to single reminder
-        cronService.scheduleSpecificReminder(
-          check._id,
-          "activity_reminder_date",
-          reminder_date
-        );
-      }
 
       res.status(200).json({
         success: true,
@@ -1349,23 +1272,20 @@ const pethair = async (req, res) => {
         medicalData.hair_reminder_date = reminder_date;
       }
 
-      // Add multiple reminder times if provided
-      if (
-        reminder_times &&
-        Array.isArray(reminder_times) &&
-        reminder_times.length > 0
-      ) {
-        medicalData.hair_reminder_times = reminder_times;
+      // Parse and add multiple reminder times if provided
+      const parsedReminderTimes = parseReminderTimes(reminder_times);
+      if (parsedReminderTimes && parsedReminderTimes.length > 0) {
+        medicalData.hair_reminder_times = parsedReminderTimes;
       }
 
       const data = await Medical.create(medicalData);
 
       // Schedule reminders for multiple times if provided
-      if (reminder_times && Array.isArray(reminder_times)) {
+      if (parsedReminderTimes && Array.isArray(parsedReminderTimes)) {
         await scheduleMultipleReminders(
           data._id,
           "hair_reminder_times",
-          reminder_times
+          parsedReminderTimes
         );
       } else if (reminder_date && reminder_date !== "N/A") {
         // Fallback to single reminder
@@ -1414,13 +1334,10 @@ const updatehair = async (req, res) => {
         updateData.hair_reminder_date = reminder_date;
       }
 
-      // Add multiple reminder times if provided
-      if (
-        reminder_times &&
-        Array.isArray(reminder_times) &&
-        reminder_times.length > 0
-      ) {
-        updateData.hair_reminder_times = reminder_times;
+      // Parse and add multiple reminder times if provided
+      const parsedReminderTimes = parseReminderTimes(reminder_times);
+      if (parsedReminderTimes && parsedReminderTimes.length > 0) {
+        updateData.hair_reminder_times = parsedReminderTimes;
       }
 
       const data = await Medical.findByIdAndUpdate(
@@ -1430,11 +1347,11 @@ const updatehair = async (req, res) => {
       );
 
       // Schedule reminders for multiple times if provided
-      if (reminder_times && Array.isArray(reminder_times)) {
+      if (parsedReminderTimes && Array.isArray(parsedReminderTimes)) {
         await scheduleMultipleReminders(
           check._id,
           "hair_reminder_times",
-          reminder_times
+          parsedReminderTimes
         );
       } else if (reminder_date && reminder_date !== "N/A") {
         // Fallback to single reminder
@@ -1549,37 +1466,7 @@ const registration = async (req, res) => {
         pet: id,
       };
 
-      // Add single reminder date if provided
-      if (reminder_date && reminder_date !== "N/A") {
-        medicalData.personal_reminder_date = reminder_date;
-      }
-
-      // Add multiple reminder times if provided
-      if (
-        reminder_times &&
-        Array.isArray(reminder_times) &&
-        reminder_times.length > 0
-      ) {
-        medicalData.personal_reminder_times = reminder_times;
-      }
-
       const data = await Medical.create(medicalData);
-
-      // Schedule reminders for multiple times if provided
-      if (reminder_times && Array.isArray(reminder_times)) {
-        await scheduleMultipleReminders(
-          data._id,
-          "personal_reminder_times",
-          reminder_times
-        );
-      } else if (reminder_date && reminder_date !== "N/A") {
-        // Fallback to single reminder
-        cronService.scheduleSpecificReminder(
-          data._id,
-          "personal_reminder_date",
-          reminder_date
-        );
-      }
 
       res.status(200).json({
         success: true,
@@ -1596,18 +1483,8 @@ const registration = async (req, res) => {
 
 const updateRegistration = async (req, res) => {
   try {
-    const {
-      id,
-      type,
-      description,
-      date,
-      duration,
-      travelled,
-      location,
-      fun,
-      reminder_date,
-      reminder_times, // New field for multiple reminder times
-    } = req.body;
+    const { id, type, description, date, duration, travelled, location, fun } =
+      req.body;
     const check = await Medical.findOne({ pet: id });
     if (check) {
       // Create update data
@@ -1621,41 +1498,11 @@ const updateRegistration = async (req, res) => {
         personal_fun: fun,
       };
 
-      // Add single reminder date if provided
-      if (reminder_date && reminder_date !== "N/A") {
-        updateData.personal_reminder_date = reminder_date;
-      }
-
-      // Add multiple reminder times if provided
-      if (
-        reminder_times &&
-        Array.isArray(reminder_times) &&
-        reminder_times.length > 0
-      ) {
-        updateData.personal_reminder_times = reminder_times;
-      }
-
       const data = await Medical.findByIdAndUpdate(
         { _id: check._id },
         { $set: updateData },
         { new: true }
       );
-
-      // Schedule reminders for multiple times if provided
-      if (reminder_times && Array.isArray(reminder_times)) {
-        await scheduleMultipleReminders(
-          check._id,
-          "personal_reminder_times",
-          reminder_times
-        );
-      } else if (reminder_date && reminder_date !== "N/A") {
-        // Fallback to single reminder
-        cronService.scheduleSpecificReminder(
-          check._id,
-          "personal_reminder_date",
-          reminder_date
-        );
-      }
 
       res.status(200).json({
         success: true,
