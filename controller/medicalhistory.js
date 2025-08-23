@@ -104,7 +104,7 @@ const petvaccine = async (req, res) => {
       vaccine,
       vaccine_date,
       vaccine_reminder,
-      vaccine_reminder_times,
+      reminder_times,
       vaccine_price,
       veterinary_managed,
       user,
@@ -134,7 +134,7 @@ const petvaccine = async (req, res) => {
       };
 
       // Add multiple reminder times if provided
-      const parsedReminderTimes = parseReminderTimes(vaccine_reminder_times);
+      const parsedReminderTimes = parseReminderTimes(reminder_times);
       if (parsedReminderTimes && parsedReminderTimes.length > 0) {
         medicalData.pet_vaccine_reminder_times = parsedReminderTimes;
       }
@@ -175,7 +175,7 @@ const updatevaccine = async (req, res) => {
       vaccine,
       vaccine_date,
       vaccine_reminder,
-      vaccine_reminder_times, // New field for multiple reminder times
+      reminder_times, // New field for multiple reminder times
       vaccine_price,
       veterinary_managed,
     } = req.body;
@@ -191,7 +191,7 @@ const updatevaccine = async (req, res) => {
       };
 
       // Add multiple reminder times if provided
-      const parsedReminderTimes = parseReminderTimes(vaccine_reminder_times);
+      const parsedReminderTimes = parseReminderTimes(reminder_times);
       if (parsedReminderTimes && parsedReminderTimes.length > 0) {
         updateData.pet_vaccine_reminder_times = parsedReminderTimes;
       }
@@ -256,7 +256,7 @@ const petdeworming = async (req, res) => {
       method,
       deworming_date,
       deworming_reminder,
-      deworming_reminder_times, // New field for multiple reminder times
+      reminder_times, // New field for multiple reminder times
       deworming_price,
       used_product,
       user,
@@ -286,7 +286,7 @@ const petdeworming = async (req, res) => {
       };
 
       // Add multiple reminder times if provided
-      const parsedReminderTimes = parseReminderTimes(deworming_reminder_times);
+      const parsedReminderTimes = parseReminderTimes(reminder_times);
       if (parsedReminderTimes && parsedReminderTimes.length > 0) {
         medicalData.pet_deworming_reminder_times = parsedReminderTimes;
       }
@@ -328,7 +328,7 @@ const updatedeworming = async (req, res) => {
       method,
       deworming_date,
       deworming_reminder,
-      deworming_reminder_times, // New field for multiple reminder times
+      reminder_times, // New field for multiple reminder times
       deworming_price,
       used_product,
     } = req.body;
@@ -345,7 +345,7 @@ const updatedeworming = async (req, res) => {
       };
 
       // Add multiple reminder times if provided
-      const parsedReminderTimes = parseReminderTimes(deworming_reminder_times);
+      const parsedReminderTimes = parseReminderTimes(reminder_times);
       if (parsedReminderTimes && parsedReminderTimes.length > 0) {
         updateData.pet_deworming_reminder_times = parsedReminderTimes;
       }
@@ -1096,12 +1096,9 @@ const updatediet = async (req, res) => {
       }
 
       // Add multiple reminder times if provided
-      if (
-        reminder_times &&
-        Array.isArray(reminder_times) &&
-        reminder_times.length > 0
-      ) {
-        updateData.diet_reminder_times = reminder_times;
+      const parsedReminderTimes = parseReminderTimes(reminder_times);
+      if (parsedReminderTimes && parsedReminderTimes.length > 0) {
+        updateData.diet_reminder_times = parsedReminderTimes;
       }
 
       const data = await Medical.findByIdAndUpdate(
@@ -1111,11 +1108,11 @@ const updatediet = async (req, res) => {
       );
 
       // Schedule reminders for multiple times if provided
-      if (reminder_times && Array.isArray(reminder_times)) {
+      if (parsedReminderTimes && Array.isArray(parsedReminderTimes)) {
         await scheduleMultipleReminders(
           check._id,
           "diet_reminder_times",
-          reminder_times
+          parsedReminderTimes
         );
       } else if (reminder_date && reminder_date !== "N/A") {
         // Fallback to single reminder
