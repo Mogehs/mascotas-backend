@@ -621,7 +621,7 @@ function calculateMatchPercentage(userPref, otherPref) {
 // New API: Get matched dogs based on user's preferences
 const getAllDogMatches = async (req, res) => {
   try {
-    const { userId } = req.body;
+    const { userId, coordinates, radius = 10 } = req.body;
 
     if (!userId) {
       return res.status(400).json({
@@ -630,33 +630,38 @@ const getAllDogMatches = async (req, res) => {
       });
     }
 
-    // Get this user's preference
+    // Validate coordinates from request
+    if (!coordinates || !coordinates.latitude || !coordinates.longitude) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Coordinates (latitude and longitude) are required in request body",
+      });
+    }
+
+    // Get this user's preference for matching comparison
     const userPreference = await DogMatch.findOne({ user: userId });
 
     if (!userPreference) {
       return res.status(404).json({
         success: false,
-        message: "No preferences found for this user",
-      });
-    }
-
-    // Check if user has coordinates
-    if (
-      !userPreference.coordinates ||
-      !userPreference.coordinates.latitude ||
-      !userPreference.coordinates.longitude
-    ) {
-      return res.status(400).json({
-        success: false,
         message:
-          "User preferences must include coordinates. Please update your preferences with location data.",
+          "No preferences found for this user. Please create preferences first.",
       });
     }
 
-    // Get user's coordinates and search radius
-    const userLat = userPreference.coordinates.latitude;
-    const userLon = userPreference.coordinates.longitude;
-    const searchRadius = userPreference.searchRadius || 10;
+    // Get user's coordinates and search radius from request
+    const userLat = coordinates.latitude;
+    const userLon = coordinates.longitude;
+    const searchRadius = radius;
+
+    console.log(`Request body:`, JSON.stringify(req.body, null, 2));
+    console.log(
+      `Parsed coordinates - lat: ${userLat}, lon: ${userLon}, radius: ${searchRadius}km`
+    );
+    console.log(
+      `Coordinates type - lat: ${typeof userLat}, lon: ${typeof userLon}`
+    );
 
     // Get all preferences (including others)
     const allPreferences = await DogMatch.find({
@@ -665,6 +670,8 @@ const getAllDogMatches = async (req, res) => {
     })
       .populate("user", "firstname lastname phone address")
       .populate("pet", "pet_name pet_gender pet_color pet_image pet_race");
+
+    console.log(`Found ${allPreferences.length} other preferences to check`);
 
     if (!allPreferences || allPreferences.length === 0) {
       return res.status(404).json({
@@ -676,6 +683,16 @@ const getAllDogMatches = async (req, res) => {
     // Filter by distance and calculate match percentage
     const preferencesWithMatchAndDistance = allPreferences
       .map((pref) => {
+        // Check if preference has coordinates
+        if (
+          !pref.coordinates ||
+          !pref.coordinates.latitude ||
+          !pref.coordinates.longitude
+        ) {
+          console.log(`Skipping preference ${pref._id} - no coordinates`);
+          return null; // Skip preferences without coordinates
+        }
+
         // Calculate distance
         const distance = calculateDistance(
           userLat,
@@ -684,11 +701,22 @@ const getAllDogMatches = async (req, res) => {
           pref.coordinates.longitude
         );
 
+        console.log(
+          `Distance calc: User(${userLat}, ${userLon}) -> Pref(${pref.coordinates.latitude}, ${pref.coordinates.longitude}) = ${distance}km`
+        );
+        console.log(
+          `Preference ${pref._id}: distance = ${distance}km, searchRadius = ${searchRadius}km`
+        );
+
         // Only include if within search radius
         if (distance <= searchRadius) {
           const matchPercentage = calculateMatchPercentage(
             userPreference,
             pref
+          );
+
+          console.log(
+            `Preference ${pref._id}: matchPercentage = ${matchPercentage}%`
           );
 
           // Only include if match percentage is greater than 0
@@ -712,6 +740,13 @@ const getAllDogMatches = async (req, res) => {
       return a.distance - b.distance;
     });
 
+    console.log(
+      `Final filtered results: ${preferencesWithMatchAndDistance.length} matches`
+    );
+    console.log(
+      `About to return userCoordinates: lat=${userLat}, lon=${userLon}`
+    );
+
     return res.status(200).json({
       success: true,
       message:
@@ -724,6 +759,19 @@ const getAllDogMatches = async (req, res) => {
       userCoordinates: {
         latitude: userLat,
         longitude: userLon,
+      },
+      debug: {
+        totalPreferencesChecked: allPreferences.length,
+        preferencesWithCoordinates: allPreferences.filter(
+          (p) =>
+            p.coordinates && p.coordinates.latitude && p.coordinates.longitude
+        ).length,
+        preferencesWithoutCoordinates: allPreferences.filter(
+          (p) =>
+            !p.coordinates ||
+            !p.coordinates.latitude ||
+            !p.coordinates.longitude
+        ).length,
       },
     });
   } catch (error) {
