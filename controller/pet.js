@@ -655,14 +655,6 @@ const getAllDogMatches = async (req, res) => {
     const userLon = coordinates.longitude;
     const searchRadius = radius;
 
-    console.log(`Request body:`, JSON.stringify(req.body, null, 2));
-    console.log(
-      `Parsed coordinates - lat: ${userLat}, lon: ${userLon}, radius: ${searchRadius}km`
-    );
-    console.log(
-      `Coordinates type - lat: ${typeof userLat}, lon: ${typeof userLon}`
-    );
-
     // Get all preferences (including others)
     const allPreferences = await DogMatch.find({
       user: { $ne: userId },
@@ -689,7 +681,6 @@ const getAllDogMatches = async (req, res) => {
           !pref.coordinates.latitude ||
           !pref.coordinates.longitude
         ) {
-          console.log(`Skipping preference ${pref._id} - no coordinates`);
           return null; // Skip preferences without coordinates
         }
 
@@ -699,13 +690,6 @@ const getAllDogMatches = async (req, res) => {
           userLon,
           pref.coordinates.latitude,
           pref.coordinates.longitude
-        );
-
-        console.log(
-          `Distance calc: User(${userLat}, ${userLon}) -> Pref(${pref.coordinates.latitude}, ${pref.coordinates.longitude}) = ${distance}km`
-        );
-        console.log(
-          `Preference ${pref._id}: distance = ${distance}km, searchRadius = ${searchRadius}km`
         );
 
         // Only include if within search radius
