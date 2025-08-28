@@ -5,13 +5,13 @@ const fs = require("fs");
 // Create a new tag (Admin only)
 const createTag = async (req, res) => {
   try {
-    const { title, description } = req.body;
+    const { title, description, userId } = req.body;
 
     // Validate required fields
-    if (!title || !description) {
+    if (!title || !description || !userId) {
       return res.status(400).json({
         success: false,
-        message: "Title and description are required",
+        message: "Title, description, and userId are required",
       });
     }
 
@@ -59,7 +59,7 @@ const createTag = async (req, res) => {
         url: result.secure_url,
         public_id: result.public_id,
       },
-      createdBy: req.user.id,
+      createdBy: userId,
     });
 
     const savedTag = await newTag.save();
