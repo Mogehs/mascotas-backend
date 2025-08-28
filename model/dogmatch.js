@@ -45,6 +45,20 @@ const dogMatchSchema = new Schema(
       type: Boolean,
       default: true,
     },
+    coordinates: {
+      latitude: {
+        type: Number,
+        required: true,
+      },
+      longitude: {
+        type: Number,
+        required: true,
+      },
+    },
+    searchRadius: {
+      type: Number,
+      default: 10, // Default radius in kilometers
+    },
   },
   {
     timestamps: true,

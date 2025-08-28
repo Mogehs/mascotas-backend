@@ -13,6 +13,22 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// Helper function to calculate distance between two coordinates using Haversine formula
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371; // Radius of the Earth in kilometers
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) *
+      Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distance = R * c; // Distance in kilometers
+  return distance;
+};
+
 const get_pet = async (req, res) => {
   try {
     const { user } = req.body;
@@ -402,7 +418,17 @@ const createDogMatchPreferences = async (req, res) => {
       location,
       size,
       age,
+      coordinates,
+      searchRadius = 10, // Default radius in kilometers
     } = req.body;
+
+    // Validate coordinates
+    if (!coordinates || !coordinates.latitude || !coordinates.longitude) {
+      return res.status(400).json({
+        success: false,
+        message: "Coordinates (latitude and longitude) are required",
+      });
+    }
 
     // Check if user already has preferences
     const existingPreferences = await DogMatch.findOne({ user });
@@ -422,7 +448,10 @@ const createDogMatchPreferences = async (req, res) => {
           JSON.stringify(time.sort()) ||
         existingPreferences.location !== location ||
         existingPreferences.size !== size ||
-        existingPreferences.age !== age;
+        existingPreferences.age !== age ||
+        existingPreferences.coordinates.latitude !== coordinates.latitude ||
+        existingPreferences.coordinates.longitude !== coordinates.longitude ||
+        existingPreferences.searchRadius !== searchRadius;
 
       if (hasChanged) {
         isPreferencesChanged = true;
@@ -439,6 +468,8 @@ const createDogMatchPreferences = async (req, res) => {
           location,
           size,
           age,
+          coordinates,
+          searchRadius,
           isActive: true,
         },
         { new: true }
@@ -458,6 +489,8 @@ const createDogMatchPreferences = async (req, res) => {
         location,
         size,
         age,
+        coordinates,
+        searchRadius,
       });
 
       preferencesData = await DogMatch.findById(newPreferences._id)
@@ -607,8 +640,29 @@ const getAllDogMatches = async (req, res) => {
       });
     }
 
+    // Check if user has coordinates
+    if (
+      !userPreference.coordinates ||
+      !userPreference.coordinates.latitude ||
+      !userPreference.coordinates.longitude
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "User preferences must include coordinates. Please update your preferences with location data.",
+      });
+    }
+
+    // Get user's coordinates and search radius
+    const userLat = userPreference.coordinates.latitude;
+    const userLon = userPreference.coordinates.longitude;
+    const searchRadius = userPreference.searchRadius || 10;
+
     // Get all preferences (including others)
-    const allPreferences = await DogMatch.find({ user: { $ne: userId } })
+    const allPreferences = await DogMatch.find({
+      user: { $ne: userId },
+      isActive: true,
+    })
       .populate("user", "firstname lastname phone address")
       .populate("pet", "pet_name pet_gender pet_color pet_image pet_race");
 
@@ -619,24 +673,58 @@ const getAllDogMatches = async (req, res) => {
       });
     }
 
-    // Attach match percentage
-    const preferencesWithMatch = allPreferences.map((pref) => {
-      const matchPercentage = calculateMatchPercentage(userPreference, pref);
-      return {
-        ...pref.toObject(),
-        matchPercentage,
-      };
-    });
+    // Filter by distance and calculate match percentage
+    const preferencesWithMatchAndDistance = allPreferences
+      .map((pref) => {
+        // Calculate distance
+        const distance = calculateDistance(
+          userLat,
+          userLon,
+          pref.coordinates.latitude,
+          pref.coordinates.longitude
+        );
 
-    // Sort by match percentage (highest first)
-    preferencesWithMatch.sort((a, b) => b.matchPercentage - a.matchPercentage);
+        // Only include if within search radius
+        if (distance <= searchRadius) {
+          const matchPercentage = calculateMatchPercentage(
+            userPreference,
+            pref
+          );
+
+          // Only include if match percentage is greater than 0
+          if (matchPercentage > 0) {
+            return {
+              ...pref.toObject(),
+              matchPercentage,
+              distance: Math.round(distance * 100) / 100, // Round to 2 decimal places
+            };
+          }
+        }
+        return null;
+      })
+      .filter((pref) => pref !== null); // Remove null entries
+
+    // Sort by match percentage (highest first), then by distance (closest first)
+    preferencesWithMatchAndDistance.sort((a, b) => {
+      if (b.matchPercentage !== a.matchPercentage) {
+        return b.matchPercentage - a.matchPercentage;
+      }
+      return a.distance - b.distance;
+    });
 
     return res.status(200).json({
       success: true,
       message:
-        "Se obtuvieron todas las preferencias de dog match (ordenadas por similitud)",
-      preferences: preferencesWithMatch,
-      count: preferencesWithMatch.length,
+        preferencesWithMatchAndDistance.length > 0
+          ? `Se encontraron ${preferencesWithMatchAndDistance.length} preferencias de dog match dentro de ${searchRadius}km (ordenadas por similitud y distancia)`
+          : `No se encontraron preferencias de dog match compatibles dentro de ${searchRadius}km`,
+      preferences: preferencesWithMatchAndDistance,
+      count: preferencesWithMatchAndDistance.length,
+      searchRadius,
+      userCoordinates: {
+        latitude: userLat,
+        longitude: userLon,
+      },
     });
   } catch (error) {
     console.error(error.message);
@@ -646,17 +734,39 @@ const getAllDogMatches = async (req, res) => {
 
 const findMatchingUsersForNotification = async (newUserPreferences) => {
   try {
-    const matchingUsers = await DogMatch.find({
+    // Get all other active preferences
+    const allOtherPreferences = await DogMatch.find({
       user: { $ne: newUserPreferences.user },
       isActive: true,
-      neutered: newUserPreferences.neutered,
-      temperament: { $in: newUserPreferences.temperament },
-      socialize: newUserPreferences.socialize,
-      size: newUserPreferences.size,
-      age: newUserPreferences.age,
-      time: { $in: newUserPreferences.time },
-      location: newUserPreferences.location,
     }).populate("user", "device_token");
+
+    // Filter by distance and matching criteria
+    const matchingUsers = allOtherPreferences.filter((pref) => {
+      // Calculate distance between users
+      const distance = calculateDistance(
+        newUserPreferences.coordinates.latitude,
+        newUserPreferences.coordinates.longitude,
+        pref.coordinates.latitude,
+        pref.coordinates.longitude
+      );
+
+      // Check if within both users' search radius
+      const withinNewUserRadius = distance <= newUserPreferences.searchRadius;
+      const withinOtherUserRadius = distance <= pref.searchRadius;
+
+      if (!withinNewUserRadius || !withinOtherUserRadius) {
+        return false;
+      }
+
+      // Calculate match percentage
+      const matchPercentage = calculateMatchPercentage(
+        newUserPreferences,
+        pref
+      );
+
+      // Only include if match percentage is greater than 0
+      return matchPercentage > 0;
+    });
 
     return matchingUsers;
   } catch (error) {
