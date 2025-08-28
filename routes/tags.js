@@ -9,19 +9,18 @@ const {
   toggleTagStatus,
   getTagsStats,
 } = require("../controller/tags");
-const { verifyToken } = require("../middleware/jwt");
 
 // Public routes (no authentication required)
 // Users can view active tags
 router.get("/", getAllTags);
-router.get("/admin/stats", verifyToken, getTagsStats);
+router.get("/admin/stats", getTagsStats);
 router.get("/:id", getTagById);
 
 // Protected routes (authentication required)
 // Admin routes for managing tags
-router.post("/", verifyToken, createTag);
-router.put("/:id", verifyToken, updateTag);
-router.delete("/:id", verifyToken, deleteTag);
-router.patch("/:id/toggle-status", verifyToken, toggleTagStatus);
+router.post("/", createTag);
+router.put("/:id", updateTag);
+router.delete("/:id", deleteTag);
+router.patch("/:id/toggle-status", toggleTagStatus);
 
 module.exports = router;
