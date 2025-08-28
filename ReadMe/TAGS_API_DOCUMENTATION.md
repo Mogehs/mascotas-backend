@@ -14,9 +14,9 @@ The Tags API allows administrators to create, manage, and organize tags that can
 
 ## Authentication
 
-- **Public endpoints**: GET operations (view tags)
-- **Protected endpoints**: POST, PUT, DELETE, PATCH operations (admin only)
-- **Authentication method**: JWT Token in Authorization header
+- **Public endpoints**: All endpoints are publicly accessible
+- **Admin operations**: Require `userId` to be passed in request body
+- **No JWT required**: Authentication is handled via userId parameter
 
 ## File Upload
 
@@ -122,7 +122,7 @@ GET /api/tags/507f1f77bcf86cd799439011
 }
 ```
 
-### 3. Create Tag (Admin Only)
+### 3. Create Tag
 
 **POST** `/api/tags`
 
@@ -131,7 +131,6 @@ Create a new tag with an uploaded icon image.
 #### Headers
 
 ```
-Authorization: Bearer <jwt_token>
 Content-Type: multipart/form-data
 ```
 
@@ -140,6 +139,7 @@ Content-Type: multipart/form-data
 ```
 title: "Pet Training"
 description: "Professional pet training services and tips"
+userId: "507f1f77bcf86cd799439012"
 icon: [Image File] (PNG, JPG, JPEG, WEBP)
 ```
 
@@ -149,6 +149,7 @@ icon: [Image File] (PNG, JPG, JPEG, WEBP)
 | ----------- | ------ | -------- | ---------- | --------------------------------- |
 | title       | string | Yes      | 100        | Unique tag title                  |
 | description | string | Yes      | 500        | Tag description                   |
+| userId      | string | Yes      | -          | ID of the user creating the tag   |
 | icon        | file   | Yes      | -          | Icon image (PNG, JPG, JPEG, WEBP) |
 
 #### Response Example
@@ -177,7 +178,7 @@ icon: [Image File] (PNG, JPG, JPEG, WEBP)
 }
 ```
 
-### 4. Update Tag (Admin Only)
+### 4. Update Tag
 
 **PUT** `/api/tags/:id`
 
@@ -186,7 +187,6 @@ Update an existing tag. Icon image is optional for updates.
 #### Headers
 
 ```
-Authorization: Bearer <jwt_token>
 Content-Type: multipart/form-data
 ```
 
@@ -225,17 +225,11 @@ isActive: true (optional)
 }
 ```
 
-### 5. Delete Tag (Admin Only)
+### 5. Delete Tag
 
 **DELETE** `/api/tags/:id`
 
 Permanently delete a tag.
-
-#### Headers
-
-```
-Authorization: Bearer <jwt_token>
-```
 
 #### Request Example
 
@@ -252,17 +246,11 @@ DELETE /api/tags/507f1f77bcf86cd799439013
 }
 ```
 
-### 6. Toggle Tag Status (Admin Only)
+### 6. Toggle Tag Status
 
 **PATCH** `/api/tags/:id/toggle-status`
 
 Toggle the active status of a tag (activate/deactivate).
-
-#### Headers
-
-```
-Authorization: Bearer <jwt_token>
-```
 
 #### Request Example
 
@@ -293,17 +281,11 @@ PATCH /api/tags/507f1f77bcf86cd799439013/toggle-status
 }
 ```
 
-### 7. Get Tags Statistics (Admin Only)
+### 7. Get Tags Statistics
 
 **GET** `/api/tags/admin/stats`
 
 Get comprehensive statistics about tags.
-
-#### Headers
-
-```
-Authorization: Bearer <jwt_token>
-```
 
 #### Request Example
 
@@ -350,16 +332,7 @@ GET /api/tags/admin/stats
 ```json
 {
   "success": false,
-  "message": "Title, description, and icon are required"
-}
-```
-
-### 401 Unauthorized
-
-```json
-{
-  "success": false,
-  "message": "Access denied. No token provided."
+  "message": "Title, description, and userId are required"
 }
 ```
 
@@ -413,17 +386,13 @@ const fetchTags = async () => {
 };
 ```
 
-#### Create Tag (Admin)
+#### Create Tag
 
 ```javascript
-const createTag = async (formData, token) => {
+const createTag = async (formData) => {
   try {
     const response = await fetch("/api/tags", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        // Don't set Content-Type for FormData, let browser set it
-      },
       body: formData,
     });
 
@@ -440,13 +409,14 @@ const createTag = async (formData, token) => {
 };
 
 // Usage with file upload
-const createTagWithFile = (title, description, iconFile, token) => {
+const createTagWithFile = (title, description, userId, iconFile) => {
   const formData = new FormData();
   formData.append('title', title);
   formData.append('description', description);
+  formData.append('userId', userId); // User ID who is creating the tag
   formData.append('icon', iconFile); // File object from input[type="file"]
 
-  createTag(formData, token);
+  createTag(formData);
 };
 
 // HTML form example
@@ -454,6 +424,7 @@ const createTagWithFile = (title, description, iconFile, token) => {
 <form id="tagForm" enctype="multipart/form-data">
   <input type="text" name="title" placeholder="Tag Title" required />
   <textarea name="description" placeholder="Tag Description" required></textarea>
+  <input type="hidden" name="userId" value="507f1f77bcf86cd799439012" />
   <input type="file" name="icon" accept="image/*" required />
   <button type="submit">Create Tag</button>
 </form>
@@ -462,7 +433,7 @@ const createTagWithFile = (title, description, iconFile, token) => {
 document.getElementById('tagForm').onsubmit = async (e) => {
   e.preventDefault();
   const formData = new FormData(e.target);
-  await createTag(formData, userToken);
+  await createTag(formData);
 };
 </script>
 */
@@ -473,17 +444,13 @@ document.getElementById('tagForm').onsubmit = async (e) => {
 );
 ```
 
-#### Update Tag (Admin)
+#### Update Tag
 
 ```javascript
-const updateTag = async (tagId, formData, token) => {
+const updateTag = async (tagId, formData) => {
   try {
     const response = await fetch(`/api/tags/${tagId}`, {
       method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        // Don't set Content-Type for FormData, let browser set it
-      },
       body: formData,
     });
 
@@ -500,38 +467,40 @@ const updateTag = async (tagId, formData, token) => {
 };
 
 // Usage - Update with new icon
-const updateTagWithIcon = (tagId, title, description, iconFile, token) => {
+const updateTagWithIcon = (tagId, title, description, iconFile) => {
   const formData = new FormData();
   if (title) formData.append("title", title);
   if (description) formData.append("description", description);
   if (iconFile) formData.append("icon", iconFile); // Optional - only if changing icon
 
-  updateTag(tagId, formData, token);
+  updateTag(tagId, formData);
 };
 
 // Usage - Update without changing icon
-const updateTagText = (tagId, title, description, token) => {
+const updateTagText = (tagId, title, description) => {
   const formData = new FormData();
   if (title) formData.append("title", title);
   if (description) formData.append("description", description);
 
-  updateTag(tagId, formData, token);
+  updateTag(tagId, formData);
 };
 ```
 
 ## Notes
 
-1. **Authentication**: Admin operations require valid JWT token
-2. **File Upload**: Uses express-fileupload middleware for handling image uploads
-3. **Image Storage**: Icons are stored on Cloudinary with automatic optimization (100x100px)
-4. **Supported Formats**: PNG, JPG, JPEG, WEBP image files
-5. **Validation**: All text fields are trimmed and validated
-6. **Uniqueness**: Tag titles must be unique (case-insensitive)
-7. **Pagination**: Default pagination is 10 items per page
-8. **Soft Delete**: Use toggle status instead of hard delete when possible
-9. **Search**: Supports case-insensitive search in title and description
-10. **File Cleanup**: Temporary files are automatically cleaned up after upload
-11. **Image Management**: Old icons are deleted from Cloudinary when updated or tag is deleted
+1. **Authentication**: No JWT tokens required - pass userId in request body for admin operations
+2. **Public Access**: All endpoints are publicly accessible
+3. **File Upload**: Uses express-fileupload middleware for handling image uploads
+4. **Image Storage**: Icons are stored on Cloudinary with automatic optimization (100x100px)
+5. **Supported Formats**: PNG, JPG, JPEG, WEBP image files
+6. **Validation**: All text fields are trimmed and validated
+7. **User Identification**: userId must be provided in request body for create operations
+8. **Uniqueness**: Tag titles must be unique (case-insensitive)
+9. **Pagination**: Default pagination is 10 items per page
+10. **Soft Delete**: Use toggle status instead of hard delete when possible
+11. **Search**: Supports case-insensitive search in title and description
+12. **File Cleanup**: Temporary files are automatically cleaned up after upload
+13. **Image Management**: Old icons are deleted from Cloudinary when updated or tag is deleted
 
 ## Best Practices
 

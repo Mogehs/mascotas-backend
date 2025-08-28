@@ -1,4 +1,5 @@
 const Tag = require("../model/tags");
+const User = require("../model/user");
 const cloudinary = require("../config/cloudinary");
 const fs = require("fs");
 
