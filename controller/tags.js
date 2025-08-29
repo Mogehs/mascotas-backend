@@ -20,12 +20,22 @@ const createTag = async (req, res) => {
     // Parse body data in case it's stringified
     const title = parseStringifiedData(req.body.title);
     const description = parseStringifiedData(req.body.description);
+    const price = parseStringifiedData(req.body.price);
 
     // Validate required fields
-    if (!title || !description) {
+    if (!title || !description || price === undefined || price === null) {
       return res.status(400).json({
         success: false,
-        message: "Title and description are required",
+        message: "Title, description, and price are required",
+      });
+    }
+
+    // Validate price
+    const numericPrice = parseFloat(price);
+    if (isNaN(numericPrice) || numericPrice < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Price must be a valid positive number",
       });
     }
 
@@ -81,6 +91,7 @@ const createTag = async (req, res) => {
     const newTag = new Tag({
       title: title.toString().trim(),
       description: description.toString().trim(),
+      price: numericPrice,
       icons: uploadedIcons,
     });
 
@@ -193,6 +204,7 @@ const updateTag = async (req, res) => {
     // Parse body data in case it's stringified
     const title = parseStringifiedData(req.body.title);
     const description = parseStringifiedData(req.body.description);
+    const price = parseStringifiedData(req.body.price);
     const isActive = parseStringifiedData(req.body.isActive);
 
     const tag = await Tag.findById(id);
@@ -219,9 +231,21 @@ const updateTag = async (req, res) => {
       }
     }
 
+    // Validate price if provided
+    if (price !== undefined && price !== null) {
+      const numericPrice = parseFloat(price);
+      if (isNaN(numericPrice) || numericPrice < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Price must be a valid positive number",
+        });
+      }
+    }
+
     // Update fields
     if (title) tag.title = title.toString().trim();
     if (description) tag.description = description.toString().trim();
+    if (price !== undefined && price !== null) tag.price = parseFloat(price);
     if (isActive !== undefined) tag.isActive = isActive;
 
     // Handle icons update if new images are uploaded

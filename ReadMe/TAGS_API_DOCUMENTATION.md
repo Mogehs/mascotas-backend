@@ -60,6 +60,7 @@ GET /api/tags?page=1&limit=5&search=pet&isActive=true
         "_id": "507f1f77bcf86cd799439011",
         "title": "Pet Care",
         "description": "Everything related to pet care and maintenance",
+        "price": 19.99,
         "icons": [
           {
             "url": "https://res.cloudinary.com/your-cloud/image/upload/v1234567890/tags/icons/sample.jpg",
@@ -103,6 +104,7 @@ GET /api/tags/507f1f77bcf86cd799439011
     "_id": "507f1f77bcf86cd799439011",
     "title": "Pet Care",
     "description": "Everything related to pet care and maintenance",
+    "price": 19.99,
     "icons": [
       {
         "url": "https://res.cloudinary.com/your-cloud/image/upload/v1234567890/tags/icons/sample.jpg",
@@ -142,6 +144,7 @@ icons: [Multiple Image Files] (PNG, JPG, JPEG, WEBP)
 | ----------- | ------ | -------- | ---------- | ------------------------------------------- |
 | title       | string | Yes      | 100        | Unique tag title                            |
 | description | string | Yes      | 500        | Tag description                             |
+| price       | number | Yes      | -          | Tag price (must be positive number)         |
 | icons       | files  | Yes      | -          | Multiple icon images (PNG, JPG, JPEG, WEBP) |
 
 #### Response Example
@@ -154,6 +157,7 @@ icons: [Multiple Image Files] (PNG, JPG, JPEG, WEBP)
     "_id": "507f1f77bcf86cd799439013",
     "title": "Pet Training",
     "description": "Professional pet training services and tips",
+    "price": 29.99,
     "icons": [
       {
         "url": "https://res.cloudinary.com/your-cloud/image/upload/v1234567890/tags/icons/icon1.jpg",
@@ -188,6 +192,7 @@ Content-Type: multipart/form-data
 ```
 title: "Advanced Pet Training" (optional, can be stringified JSON)
 description: "Advanced professional pet training services and expert tips" (optional, can be stringified JSON)
+price: 39.99 (optional, can be stringified JSON)
 icons: [Multiple Image Files] (optional - PNG, JPG, JPEG, WEBP)
 isActive: true (optional, can be stringified JSON)
 ```
@@ -202,6 +207,7 @@ isActive: true (optional, can be stringified JSON)
     "_id": "507f1f77bcf86cd799439013",
     "title": "Advanced Pet Training",
     "description": "Advanced professional pet training services and expert tips",
+    "price": 39.99,
     "icons": [
       {
         "url": "https://res.cloudinary.com/your-cloud/image/upload/v1234567890/tags/icons/updated1.jpg",
@@ -213,11 +219,6 @@ isActive: true (optional, can be stringified JSON)
       }
     ],
     "isActive": true,
-    "createdBy": {
-      "_id": "507f1f77bcf86cd799439012",
-      "username": "admin",
-      "email": "admin@example.com"
-    },
     "createdAt": "2023-01-15T10:35:00.000Z",
     "updatedAt": "2023-01-15T10:40:00.000Z"
   }
@@ -309,7 +310,13 @@ GET /api/tags/admin/stats
         "_id": "507f1f77bcf86cd799439013",
         "title": "Pet Training",
         "description": "Professional pet training services and tips",
-        "icon": "🎾",
+        "price": 29.99,
+        "icons": [
+          {
+            "url": "https://res.cloudinary.com/your-cloud/image/upload/v1234567890/tags/icons/icon.jpg",
+            "public_id": "tags/icons/icon"
+          }
+        ],
         "isActive": true,
         "createdBy": {
           "_id": "507f1f77bcf86cd799439012",
@@ -331,7 +338,14 @@ GET /api/tags/admin/stats
 ```json
 {
   "success": false,
-  "message": "Title and description are required"
+  "message": "Title, description, and price are required"
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "Price must be a valid positive number"
 }
 ```
 
@@ -387,7 +401,7 @@ const fetchTags = async () => {
 
 #### Create Tag
 
-```javascript
+````javascript
 const createTag = async (formData) => {
   try {
     const response = await fetch("/api/tags", {
@@ -408,12 +422,13 @@ const createTag = async (formData) => {
 };
 
 // Usage with multiple files upload
-const createTagWithFiles = (title, description, iconFiles) => {
+const createTagWithFiles = (title, description, price, iconFiles) => {
   const formData = new FormData();
 
   // Handle stringified data if needed
   formData.append('title', JSON.stringify(title));
   formData.append('description', JSON.stringify(description));
+  formData.append('price', JSON.stringify(price));
 
   // Append multiple icon files
   iconFiles.forEach((file) => {
@@ -428,6 +443,7 @@ const createTagWithFiles = (title, description, iconFiles) => {
 <form id="tagForm" enctype="multipart/form-data">
   <input type="text" name="title" placeholder="Tag Title" required />
   <textarea name="description" placeholder="Tag Description" required></textarea>
+  <input type="number" name="price" placeholder="Tag Price" step="0.01" min="0" required />
   <input type="file" name="icons" accept="image/*" multiple required />
   <button type="submit">Create Tag</button>
 </form><script>
@@ -438,12 +454,6 @@ document.getElementById('tagForm').onsubmit = async (e) => {
 };
 </script>
 */
-    description: "Professional pet grooming services",
-    icon: "✂️",
-  },
-  userToken
-);
-```
 
 #### Update Tag
 
@@ -493,7 +503,7 @@ const updateTagText = (tagId, title, description) => {
 
   updateTag(tagId, formData);
 };
-```
+````
 
 ## Notes
 

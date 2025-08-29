@@ -14,6 +14,17 @@ const tagSchema = new mongoose.Schema(
       trim: true,
       maxlength: 500,
     },
+    price: {
+      type: Number,
+      required: true,
+      min: 0,
+      validate: {
+        validator: function (v) {
+          return v >= 0 && Number.isFinite(v);
+        },
+        message: "Price must be a positive number",
+      },
+    },
     icons: [
       {
         url: {
