@@ -75,8 +75,6 @@ const createTag = async (req, res) => {
           height: 300,
           crop: "fit", // Maintains aspect ratio, no cropping
           quality: "auto:good", // Better quality setting
-          format: "auto", // Optimal format selection
-          fetch_format: "auto",
           resource_type: "image",
           flags: "preserve_transparency", // Preserve PNG transparency
         });
@@ -282,8 +280,6 @@ const updateTag = async (req, res) => {
             height: 300,
             crop: "fit", // Maintains aspect ratio, no cropping
             quality: "auto:good", // Better quality setting
-            format: "auto", // Optimal format selection
-            fetch_format: "auto",
             resource_type: "image",
             flags: "preserve_transparency", // Preserve PNG transparency
           });
