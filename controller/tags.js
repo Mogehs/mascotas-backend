@@ -71,11 +71,14 @@ const createTag = async (req, res) => {
       try {
         const result = await cloudinary.uploader.upload(file.tempFilePath, {
           folder: "tags/icons",
-          width: 100,
-          height: 100,
-          crop: "fill",
-          quality: "auto",
+          width: 300,
+          height: 300,
+          crop: "fit", // Maintains aspect ratio, no cropping
+          quality: "auto:good", // Better quality setting
+          format: "auto", // Optimal format selection
+          fetch_format: "auto",
           resource_type: "image",
+          flags: "preserve_transparency", // Preserve PNG transparency
         });
 
         uploadedIcons.push({
@@ -275,11 +278,14 @@ const updateTag = async (req, res) => {
         try {
           const result = await cloudinary.uploader.upload(file.tempFilePath, {
             folder: "tags/icons",
-            width: 100,
-            height: 100,
-            crop: "fill",
-            quality: "auto",
+            width: 300,
+            height: 300,
+            crop: "fit", // Maintains aspect ratio, no cropping
+            quality: "auto:good", // Better quality setting
+            format: "auto", // Optimal format selection
+            fetch_format: "auto",
             resource_type: "image",
+            flags: "preserve_transparency", // Preserve PNG transparency
           });
 
           uploadedIcons.push({
