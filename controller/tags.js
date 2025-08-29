@@ -1,26 +1,39 @@
 const Tag = require("../model/tags");
-const User = require("../model/user");
 const cloudinary = require("../config/cloudinary");
 const fs = require("fs");
 
-// Create a new tag (Admin only)
+// Helper function to parse stringified JSON data
+const parseStringifiedData = (data) => {
+  if (typeof data === "string") {
+    try {
+      return JSON.parse(data);
+    } catch (error) {
+      return data; // Return as is if not valid JSON
+    }
+  }
+  return data;
+};
+
+// Create a new tag
 const createTag = async (req, res) => {
   try {
-    const { title, description, userId } = req.body;
+    // Parse body data in case it's stringified
+    const title = parseStringifiedData(req.body.title);
+    const description = parseStringifiedData(req.body.description);
 
     // Validate required fields
-    if (!title || !description || !userId) {
+    if (!title || !description) {
       return res.status(400).json({
         success: false,
-        message: "Title, description, and userId are required",
+        message: "Title and description are required",
       });
     }
 
-    // Check if icon image is uploaded
-    if (!req?.files?.icon) {
+    // Check if icon images are uploaded
+    if (!req?.files?.icons) {
       return res.status(400).json({
         success: false,
-        message: "Icon image is required",
+        message: "At least one icon image is required",
       });
     }
 
@@ -36,36 +49,42 @@ const createTag = async (req, res) => {
       });
     }
 
-    // Upload icon to Cloudinary
-    const file = req.files.icon;
-    let result;
-    try {
-      result = await cloudinary.uploader.upload(file.tempFilePath, {
-        folder: "tags/icons",
-        width: 100,
-        height: 100,
-        crop: "fill",
-        quality: "auto",
-        resource_type: "image",
-      });
-    } finally {
-      // Always cleanup temp file
-      fs.unlinkSync(file.tempFilePath);
+    // Handle multiple icon files
+    const iconFiles = Array.isArray(req.files.icons)
+      ? req.files.icons
+      : [req.files.icons];
+
+    const uploadedIcons = [];
+
+    // Upload all icons to Cloudinary
+    for (const file of iconFiles) {
+      try {
+        const result = await cloudinary.uploader.upload(file.tempFilePath, {
+          folder: "tags/icons",
+          width: 100,
+          height: 100,
+          crop: "fill",
+          quality: "auto",
+          resource_type: "image",
+        });
+
+        uploadedIcons.push({
+          url: result.secure_url,
+          public_id: result.public_id,
+        });
+      } finally {
+        // Always cleanup temp file
+        fs.unlinkSync(file.tempFilePath);
+      }
     }
 
     const newTag = new Tag({
-      title: title.trim(),
-      description: description.trim(),
-      icon: {
-        url: result.secure_url,
-        public_id: result.public_id,
-      },
-      createdBy: userId,
+      title: title.toString().trim(),
+      description: description.toString().trim(),
+      icons: uploadedIcons,
     });
 
     const savedTag = await newTag.save();
-
-    await savedTag.populate("createdBy", "username email");
 
     res.status(201).json({
       success: true,
@@ -108,7 +127,6 @@ const getAllTags = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const tags = await Tag.find(filter)
-      .populate("createdBy", "username email")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
@@ -143,7 +161,7 @@ const getTagById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const tag = await Tag.findById(id).populate("createdBy", "username email");
+    const tag = await Tag.findById(id);
 
     if (!tag) {
       return res.status(404).json({
@@ -167,11 +185,15 @@ const getTagById = async (req, res) => {
   }
 };
 
-// Update tag (Admin only)
+// Update tag
 const updateTag = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, isActive } = req.body;
+
+    // Parse body data in case it's stringified
+    const title = parseStringifiedData(req.body.title);
+    const description = parseStringifiedData(req.body.description);
+    const isActive = parseStringifiedData(req.body.isActive);
 
     const tag = await Tag.findById(id);
 
@@ -198,51 +220,66 @@ const updateTag = async (req, res) => {
     }
 
     // Update fields
-    if (title) tag.title = title.trim();
-    if (description) tag.description = description.trim();
+    if (title) tag.title = title.toString().trim();
+    if (description) tag.description = description.toString().trim();
     if (isActive !== undefined) tag.isActive = isActive;
 
-    // Handle icon update if new image is uploaded
-    if (req?.files?.icon) {
-      const file = req.files.icon;
-      let result;
-
-      try {
-        // Delete old icon from Cloudinary
-        if (tag.icon && tag.icon.public_id) {
-          await cloudinary.uploader.destroy(tag.icon.public_id);
+    // Handle icons update if new images are uploaded
+    if (req?.files?.icons) {
+      // Delete old icons from Cloudinary
+      if (tag.icons && tag.icons.length > 0) {
+        for (const icon of tag.icons) {
+          if (icon.public_id) {
+            try {
+              await cloudinary.uploader.destroy(icon.public_id);
+            } catch (error) {
+              console.error("Error deleting old icon:", error);
+            }
+          }
         }
-
-        // Upload new icon to Cloudinary
-        result = await cloudinary.uploader.upload(file.tempFilePath, {
-          folder: "tags/icons",
-          width: 100,
-          height: 100,
-          crop: "fill",
-          quality: "auto",
-          resource_type: "image",
-        });
-
-        // Update icon in database
-        tag.icon = {
-          url: result.secure_url,
-          public_id: result.public_id,
-        };
-      } catch (uploadError) {
-        console.error("Error uploading new icon:", uploadError);
-        return res.status(500).json({
-          success: false,
-          message: "Error uploading icon image",
-          error: uploadError.message,
-        });
-      } finally {
-        // Always cleanup temp file
-        fs.unlinkSync(file.tempFilePath);
       }
+
+      // Handle multiple new icon files
+      const iconFiles = Array.isArray(req.files.icons)
+        ? req.files.icons
+        : [req.files.icons];
+
+      const uploadedIcons = [];
+
+      // Upload all new icons to Cloudinary
+      for (const file of iconFiles) {
+        try {
+          const result = await cloudinary.uploader.upload(file.tempFilePath, {
+            folder: "tags/icons",
+            width: 100,
+            height: 100,
+            crop: "fill",
+            quality: "auto",
+            resource_type: "image",
+          });
+
+          uploadedIcons.push({
+            url: result.secure_url,
+            public_id: result.public_id,
+          });
+        } catch (uploadError) {
+          console.error("Error uploading new icon:", uploadError);
+          return res.status(500).json({
+            success: false,
+            message: "Error uploading icon image",
+            error: uploadError.message,
+          });
+        } finally {
+          // Always cleanup temp file
+          fs.unlinkSync(file.tempFilePath);
+        }
+      }
+
+      // Update icons in database
+      tag.icons = uploadedIcons;
     }
 
     const updatedTag = await tag.save();
-    await updatedTag.populate("createdBy", "username email");
 
     res.status(200).json({
       success: true,
@@ -260,7 +297,7 @@ const updateTag = async (req, res) => {
   }
 };
 
-// Delete tag (Admin only)
+// Delete tag
 const deleteTag = async (req, res) => {
   try {
     const { id } = req.params;
@@ -274,13 +311,20 @@ const deleteTag = async (req, res) => {
       });
     }
 
-    // Delete icon from Cloudinary
-    if (tag.icon && tag.icon.public_id) {
-      try {
-        await cloudinary.uploader.destroy(tag.icon.public_id);
-      } catch (cloudinaryError) {
-        console.error("Error deleting icon from Cloudinary:", cloudinaryError);
-        // Continue with tag deletion even if Cloudinary deletion fails
+    // Delete all icons from Cloudinary
+    if (tag.icons && tag.icons.length > 0) {
+      for (const icon of tag.icons) {
+        if (icon.public_id) {
+          try {
+            await cloudinary.uploader.destroy(icon.public_id);
+          } catch (cloudinaryError) {
+            console.error(
+              "Error deleting icon from Cloudinary:",
+              cloudinaryError
+            );
+            // Continue with tag deletion even if Cloudinary deletion fails
+          }
+        }
       }
     }
 
@@ -316,7 +360,6 @@ const toggleTagStatus = async (req, res) => {
 
     tag.isActive = !tag.isActive;
     const updatedTag = await tag.save();
-    await updatedTag.populate("createdBy", "username email");
 
     res.status(200).json({
       success: true,
@@ -342,10 +385,7 @@ const getTagsStats = async (req, res) => {
     const activeTags = await Tag.countDocuments({ isActive: true });
     const inactiveTags = await Tag.countDocuments({ isActive: false });
 
-    const recentTags = await Tag.find()
-      .populate("createdBy", "username email")
-      .sort({ createdAt: -1 })
-      .limit(5);
+    const recentTags = await Tag.find().sort({ createdAt: -1 }).limit(5);
 
     res.status(200).json({
       success: true,

@@ -4,7 +4,7 @@ This document provides comprehensive information about the Tags API endpoints fo
 
 ## Overview
 
-The Tags API allows administrators to create, manage, and organize tags that can be used throughout the application. Users can view active tags without authentication. Each tag includes an uploaded icon image, title, and description.
+The Tags API allows users to create, manage, and organize tags that can be used throughout the application. Each tag includes multiple uploaded icon images, title, and description. All endpoints are publicly accessible and no authentication is required.
 
 ## Base URL
 
@@ -14,16 +14,16 @@ The Tags API allows administrators to create, manage, and organize tags that can
 
 ## Authentication
 
-- **Public endpoints**: All endpoints are publicly accessible
-- **Admin operations**: Require `userId` to be passed in request body
-- **No JWT required**: Authentication is handled via userId parameter
+- **Public access**: All endpoints are publicly accessible
+- **No authentication required**: No JWT tokens or user identification needed
 
 ## File Upload
 
-- **Icon images**: Required for creating tags, optional for updates
+- **Icon images**: Multiple icons supported per tag (at least one required for creating)
 - **Supported formats**: PNG, JPG, JPEG, WEBP
 - **Storage**: Cloudinary with automatic optimization (100x100px)
-- **Form field name**: `icon`
+- **Form field name**: `icons` (supports multiple files)
+- **Data handling**: Supports stringified JSON data in multipart requests
 
 ## Endpoints
 
@@ -60,16 +60,13 @@ GET /api/tags?page=1&limit=5&search=pet&isActive=true
         "_id": "507f1f77bcf86cd799439011",
         "title": "Pet Care",
         "description": "Everything related to pet care and maintenance",
-        "icon": {
-          "url": "https://res.cloudinary.com/your-cloud/image/upload/v1234567890/tags/icons/sample.jpg",
-          "public_id": "tags/icons/sample"
-        },
+        "icons": [
+          {
+            "url": "https://res.cloudinary.com/your-cloud/image/upload/v1234567890/tags/icons/sample.jpg",
+            "public_id": "tags/icons/sample"
+          }
+        ],
         "isActive": true,
-        "createdBy": {
-          "_id": "507f1f77bcf86cd799439012",
-          "username": "admin",
-          "email": "admin@example.com"
-        },
         "createdAt": "2023-01-15T10:30:00.000Z",
         "updatedAt": "2023-01-15T10:30:00.000Z"
       }
@@ -106,16 +103,13 @@ GET /api/tags/507f1f77bcf86cd799439011
     "_id": "507f1f77bcf86cd799439011",
     "title": "Pet Care",
     "description": "Everything related to pet care and maintenance",
-    "icon": {
-      "url": "https://res.cloudinary.com/your-cloud/image/upload/v1234567890/tags/icons/sample.jpg",
-      "public_id": "tags/icons/sample"
-    },
+    "icons": [
+      {
+        "url": "https://res.cloudinary.com/your-cloud/image/upload/v1234567890/tags/icons/sample.jpg",
+        "public_id": "tags/icons/sample"
+      }
+    ],
     "isActive": true,
-    "createdBy": {
-      "_id": "507f1f77bcf86cd799439012",
-      "username": "admin",
-      "email": "admin@example.com"
-    },
     "createdAt": "2023-01-15T10:30:00.000Z",
     "updatedAt": "2023-01-15T10:30:00.000Z"
   }
@@ -126,7 +120,7 @@ GET /api/tags/507f1f77bcf86cd799439011
 
 **POST** `/api/tags`
 
-Create a new tag with an uploaded icon image.
+Create a new tag with multiple uploaded icon images.
 
 #### Headers
 
@@ -137,20 +131,18 @@ Content-Type: multipart/form-data
 #### Request Body (Form Data)
 
 ```
-title: "Pet Training"
-description: "Professional pet training services and tips"
-userId: "507f1f77bcf86cd799439012"
-icon: [Image File] (PNG, JPG, JPEG, WEBP)
+title: "Pet Training" (can be stringified JSON)
+description: "Professional pet training services and tips" (can be stringified JSON)
+icons: [Multiple Image Files] (PNG, JPG, JPEG, WEBP)
 ```
 
 #### Field Validations
 
-| Field       | Type   | Required | Max Length | Description                       |
-| ----------- | ------ | -------- | ---------- | --------------------------------- |
-| title       | string | Yes      | 100        | Unique tag title                  |
-| description | string | Yes      | 500        | Tag description                   |
-| userId      | string | Yes      | -          | ID of the user creating the tag   |
-| icon        | file   | Yes      | -          | Icon image (PNG, JPG, JPEG, WEBP) |
+| Field       | Type   | Required | Max Length | Description                                 |
+| ----------- | ------ | -------- | ---------- | ------------------------------------------- |
+| title       | string | Yes      | 100        | Unique tag title                            |
+| description | string | Yes      | 500        | Tag description                             |
+| icons       | files  | Yes      | -          | Multiple icon images (PNG, JPG, JPEG, WEBP) |
 
 #### Response Example
 
@@ -162,16 +154,17 @@ icon: [Image File] (PNG, JPG, JPEG, WEBP)
     "_id": "507f1f77bcf86cd799439013",
     "title": "Pet Training",
     "description": "Professional pet training services and tips",
-    "icon": {
-      "url": "https://res.cloudinary.com/your-cloud/image/upload/v1234567890/tags/icons/sample.jpg",
-      "public_id": "tags/icons/sample"
-    },
+    "icons": [
+      {
+        "url": "https://res.cloudinary.com/your-cloud/image/upload/v1234567890/tags/icons/icon1.jpg",
+        "public_id": "tags/icons/icon1"
+      },
+      {
+        "url": "https://res.cloudinary.com/your-cloud/image/upload/v1234567890/tags/icons/icon2.jpg",
+        "public_id": "tags/icons/icon2"
+      }
+    ],
     "isActive": true,
-    "createdBy": {
-      "_id": "507f1f77bcf86cd799439012",
-      "username": "admin",
-      "email": "admin@example.com"
-    },
     "createdAt": "2023-01-15T10:35:00.000Z",
     "updatedAt": "2023-01-15T10:35:00.000Z"
   }
@@ -182,7 +175,7 @@ icon: [Image File] (PNG, JPG, JPEG, WEBP)
 
 **PUT** `/api/tags/:id`
 
-Update an existing tag. Icon image is optional for updates.
+Update an existing tag. Icons are optional for updates - if provided, all existing icons will be replaced.
 
 #### Headers
 
@@ -193,10 +186,10 @@ Content-Type: multipart/form-data
 #### Request Body (Form Data)
 
 ```
-title: "Advanced Pet Training" (optional)
-description: "Advanced professional pet training services and expert tips" (optional)
-icon: [Image File] (optional - PNG, JPG, JPEG, WEBP)
-isActive: true (optional)
+title: "Advanced Pet Training" (optional, can be stringified JSON)
+description: "Advanced professional pet training services and expert tips" (optional, can be stringified JSON)
+icons: [Multiple Image Files] (optional - PNG, JPG, JPEG, WEBP)
+isActive: true (optional, can be stringified JSON)
 ```
 
 #### Response Example
@@ -209,10 +202,16 @@ isActive: true (optional)
     "_id": "507f1f77bcf86cd799439013",
     "title": "Advanced Pet Training",
     "description": "Advanced professional pet training services and expert tips",
-    "icon": {
-      "url": "https://res.cloudinary.com/your-cloud/image/upload/v1234567890/tags/icons/updated.jpg",
-      "public_id": "tags/icons/updated"
-    },
+    "icons": [
+      {
+        "url": "https://res.cloudinary.com/your-cloud/image/upload/v1234567890/tags/icons/updated1.jpg",
+        "public_id": "tags/icons/updated1"
+      },
+      {
+        "url": "https://res.cloudinary.com/your-cloud/image/upload/v1234567890/tags/icons/updated2.jpg",
+        "public_id": "tags/icons/updated2"
+      }
+    ],
     "isActive": true,
     "createdBy": {
       "_id": "507f1f77bcf86cd799439012",
@@ -332,7 +331,7 @@ GET /api/tags/admin/stats
 ```json
 {
   "success": false,
-  "message": "Title, description, and userId are required"
+  "message": "Title and description are required"
 }
 ```
 
@@ -408,28 +407,30 @@ const createTag = async (formData) => {
   }
 };
 
-// Usage with file upload
-const createTagWithFile = (title, description, userId, iconFile) => {
+// Usage with multiple files upload
+const createTagWithFiles = (title, description, iconFiles) => {
   const formData = new FormData();
-  formData.append('title', title);
-  formData.append('description', description);
-  formData.append('userId', userId); // User ID who is creating the tag
-  formData.append('icon', iconFile); // File object from input[type="file"]
+
+  // Handle stringified data if needed
+  formData.append('title', JSON.stringify(title));
+  formData.append('description', JSON.stringify(description));
+
+  // Append multiple icon files
+  iconFiles.forEach((file) => {
+    formData.append('icons', file); // Multiple files with same field name
+  });
 
   createTag(formData);
 };
 
-// HTML form example
+// HTML form example with multiple file selection
 /*
 <form id="tagForm" enctype="multipart/form-data">
   <input type="text" name="title" placeholder="Tag Title" required />
   <textarea name="description" placeholder="Tag Description" required></textarea>
-  <input type="hidden" name="userId" value="507f1f77bcf86cd799439012" />
-  <input type="file" name="icon" accept="image/*" required />
+  <input type="file" name="icons" accept="image/*" multiple required />
   <button type="submit">Create Tag</button>
-</form>
-
-<script>
+</form><script>
 document.getElementById('tagForm').onsubmit = async (e) => {
   e.preventDefault();
   const formData = new FormData(e.target);
@@ -466,21 +467,29 @@ const updateTag = async (tagId, formData) => {
   }
 };
 
-// Usage - Update with new icon
-const updateTagWithIcon = (tagId, title, description, iconFile) => {
+// Usage - Update with new icons (replaces all existing icons)
+const updateTagWithIcons = (tagId, title, description, iconFiles) => {
   const formData = new FormData();
-  if (title) formData.append("title", title);
-  if (description) formData.append("description", description);
-  if (iconFile) formData.append("icon", iconFile); // Optional - only if changing icon
+
+  // Handle stringified data if needed
+  if (title) formData.append("title", JSON.stringify(title));
+  if (description) formData.append("description", JSON.stringify(description));
+
+  // Append multiple icon files if provided
+  if (iconFiles && iconFiles.length > 0) {
+    iconFiles.forEach((file) => {
+      formData.append("icons", file); // Multiple files with same field name
+    });
+  }
 
   updateTag(tagId, formData);
 };
 
-// Usage - Update without changing icon
+// Usage - Update without changing icons
 const updateTagText = (tagId, title, description) => {
   const formData = new FormData();
-  if (title) formData.append("title", title);
-  if (description) formData.append("description", description);
+  if (title) formData.append("title", JSON.stringify(title));
+  if (description) formData.append("description", JSON.stringify(description));
 
   updateTag(tagId, formData);
 };

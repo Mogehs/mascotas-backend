@@ -52,13 +52,10 @@ const lostPet = async (req, res) => {
       longitude: longitude,
     });
 
-    // Get ALL users in the system (except the one reporting the lost pet)
     const allUsers = await User.find({
-      _id: { $ne: req.body.user }, // Exclude the user reporting the lost pet
-      device_token: { $exists: true, $ne: null, $ne: "" }, // Only users with device tokens
+      _id: { $ne: req.body.user },
+      device_token: { $exists: true, $ne: null, $ne: "" },
     });
-
-    console.log(`Sending lost pet alert to ${allUsers.length} users`);
 
     const notificationPromises = allUsers.map(async (user) => {
       if (user.device_token) {

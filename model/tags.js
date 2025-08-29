@@ -14,24 +14,21 @@ const tagSchema = new mongoose.Schema(
       trim: true,
       maxlength: 500,
     },
-    icon: {
-      url: {
-        type: String,
-        required: true,
+    icons: [
+      {
+        url: {
+          type: String,
+          required: true,
+        },
+        public_id: {
+          type: String,
+          required: true,
+        },
       },
-      public_id: {
-        type: String,
-        required: true,
-      },
-    },
+    ],
     isActive: {
       type: Boolean,
       default: true,
-    },
-    createdBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "user",
-      required: true,
     },
   },
   {
