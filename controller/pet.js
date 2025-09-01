@@ -37,12 +37,24 @@ const get_pet = async (req, res) => {
       "firstname lastname phone address"
     );
 
-    // Convert pets to plain objects and add QR code data
-    const petsWithQrData = await Promise.all(
+    // Convert pets to plain objects and add QR code data and dog match preferences
+    const petsWithAllData = await Promise.all(
       pets.map(async (pet) => {
         const petObj = pet.toObject();
+
+        // Get QR code data
         const qrCode = await QRCode.findOne({ petId: pet._id });
         petObj.qrCode = qrCode ? qrCode.toObject() : null;
+
+        // Get dog match preferences
+        const dogMatchPreferences = await DogMatch.findOne({
+          pet: pet._id,
+          isActive: true,
+        });
+        petObj.dogMatchPreferences = dogMatchPreferences
+          ? dogMatchPreferences.toObject()
+          : null;
+
         return petObj;
       })
     );
@@ -50,7 +62,7 @@ const get_pet = async (req, res) => {
     res.json({
       success: true,
       message: "Información de la mascota obtenida correctamente",
-      pets_list: petsWithQrData,
+      pets_list: petsWithAllData,
     });
   } catch (error) {
     console.log(error.message);
@@ -74,13 +86,23 @@ const get_pet_id = async (req, res) => {
       });
     }
 
+    // Get QR code data
     const petQr = await QRCode.findOne({ petId: petId });
+
+    // Get dog match preferences
+    const dogMatchPreferences = await DogMatch.findOne({
+      pet: petId,
+      isActive: true,
+    });
 
     // Convert Mongoose document to a plain JavaScript object
     const petData = data.toObject();
 
-    // Add QR code data to the response
+    // Add QR code data and dog match preferences to the response
     petData.qrCode = petQr ? petQr.toObject() : null;
+    petData.dogMatchPreferences = dogMatchPreferences
+      ? dogMatchPreferences.toObject()
+      : null;
 
     res.json({
       success: true,
@@ -213,6 +235,16 @@ const pet_register = async (req, res) => {
       description,
       color,
       pet,
+      // Dog match preferences (optional)
+      neutered,
+      temperament,
+      socialize,
+      time,
+      location,
+      size,
+      age,
+      coordinates,
+      searchRadius = 10,
     } = req.body;
 
     // ✅ Validate required fields
@@ -259,11 +291,98 @@ const pet_register = async (req, res) => {
       pet_image: result.secure_url,
     });
 
-    return res.status(201).json({
+    // ✅ Create dog match preferences if provided
+    let dogMatchPreferences = null;
+    let notificationResults = [];
+
+    if (
+      neutered &&
+      temperament &&
+      socialize &&
+      time &&
+      location &&
+      size &&
+      age &&
+      coordinates
+    ) {
+      try {
+        // Validate coordinates
+        if (!coordinates.latitude || !coordinates.longitude) {
+          console.warn(
+            "Invalid coordinates provided for dog match preferences"
+          );
+        } else {
+          // Create dog match preferences
+          dogMatchPreferences = await DogMatch.create({
+            user,
+            pet: data._id,
+            neutered,
+            temperament,
+            socialize,
+            time,
+            location,
+            size,
+            age,
+            coordinates,
+            searchRadius,
+            isActive: true,
+          });
+
+          // Populate the created preferences
+          dogMatchPreferences = await DogMatch.findById(dogMatchPreferences._id)
+            .populate("user", "firstname lastname phone address")
+            .populate(
+              "pet",
+              "pet_name pet_gender pet_color pet_image pet_race"
+            );
+
+          // Find matching users for notifications
+          const matchingUsers = await findMatchingUsersForNotification(
+            dogMatchPreferences
+          );
+
+          // Send notifications to matching users
+          if (matchingUsers.length > 0) {
+            try {
+              notificationResults = await sendDogMatchNotificationsToUsers(
+                matchingUsers,
+                dogMatchPreferences,
+                true // isNewPreferences
+              );
+              console.log(
+                `Sent ${notificationResults.length} notifications for new dog match preferences`
+              );
+            } catch (notificationError) {
+              console.error(
+                "Error sending dog match notifications:",
+                notificationError.message
+              );
+            }
+          }
+        }
+      } catch (dogMatchError) {
+        console.error(
+          "Error creating dog match preferences:",
+          dogMatchError.message
+        );
+        // Don't fail the pet creation if dog match fails
+      }
+    }
+
+    const responseData = {
       success: true,
       message: "La información de la mascota se guardó correctamente",
       data,
-    });
+    };
+
+    // Add dog match info to response if created
+    if (dogMatchPreferences) {
+      responseData.dogMatchPreferences = dogMatchPreferences;
+      responseData.matchingUsers = notificationResults.length;
+      responseData.notificationsSent = notificationResults.length;
+    }
+
+    return res.status(201).json(responseData);
   } catch (error) {
     console.error(error);
     return res
@@ -286,6 +405,16 @@ const update_pet = async (req, res) => {
       description,
       color,
       pet,
+      // Dog match preferences (optional)
+      neutered,
+      temperament,
+      socialize,
+      time,
+      location,
+      size,
+      age,
+      coordinates,
+      searchRadius = 10,
     } = req.body;
 
     // ✅ Check if pet exists
@@ -349,11 +478,155 @@ const update_pet = async (req, res) => {
       { new: true }
     ).populate("user", "firstname lastname phone address");
 
-    return res.json({
+    // ✅ Update dog match preferences if provided
+    let dogMatchPreferences = null;
+    let notificationResults = [];
+
+    if (
+      neutered &&
+      temperament &&
+      socialize &&
+      time &&
+      location &&
+      size &&
+      age &&
+      coordinates
+    ) {
+      try {
+        // Validate coordinates
+        if (!coordinates.latitude || !coordinates.longitude) {
+          console.warn(
+            "Invalid coordinates provided for dog match preferences"
+          );
+        } else {
+          // Check if user already has preferences for this pet
+          const existingPreferences = await DogMatch.findOne({
+            user: existingPet.user,
+            pet: id,
+          });
+
+          let isNewPreferences = false;
+          let isPreferencesChanged = false;
+
+          if (existingPreferences) {
+            // Check if preferences have actually changed
+            const hasChanged =
+              existingPreferences.neutered !== neutered ||
+              JSON.stringify(existingPreferences.temperament.sort()) !==
+                JSON.stringify(temperament.sort()) ||
+              existingPreferences.socialize !== socialize ||
+              JSON.stringify(existingPreferences.time.sort()) !==
+                JSON.stringify(time.sort()) ||
+              existingPreferences.location !== location ||
+              existingPreferences.size !== size ||
+              existingPreferences.age !== age ||
+              existingPreferences.coordinates.latitude !==
+                coordinates.latitude ||
+              existingPreferences.coordinates.longitude !==
+                coordinates.longitude ||
+              existingPreferences.searchRadius !== searchRadius;
+
+            if (hasChanged) {
+              isPreferencesChanged = true;
+            }
+
+            // Update existing preferences
+            dogMatchPreferences = await DogMatch.findByIdAndUpdate(
+              existingPreferences._id,
+              {
+                neutered,
+                temperament,
+                socialize,
+                time,
+                location,
+                size,
+                age,
+                coordinates,
+                searchRadius,
+                isActive: true,
+              },
+              { new: true }
+            )
+              .populate("user", "firstname lastname phone address")
+              .populate(
+                "pet",
+                "pet_name pet_gender pet_color pet_image pet_race"
+              );
+          } else {
+            // Create new preferences
+            isNewPreferences = true;
+            const newPreferences = await DogMatch.create({
+              user: existingPet.user,
+              pet: id,
+              neutered,
+              temperament,
+              socialize,
+              time,
+              location,
+              size,
+              age,
+              coordinates,
+              searchRadius,
+            });
+
+            dogMatchPreferences = await DogMatch.findById(newPreferences._id)
+              .populate("user", "firstname lastname phone address")
+              .populate(
+                "pet",
+                "pet_name pet_gender pet_color pet_image pet_race"
+              );
+          }
+
+          // Find matching users for notifications
+          const matchingUsers = await findMatchingUsersForNotification(
+            dogMatchPreferences
+          );
+
+          const shouldSendNotifications =
+            isNewPreferences || isPreferencesChanged;
+
+          // Send notifications if needed
+          if (shouldSendNotifications && matchingUsers.length > 0) {
+            try {
+              notificationResults = await sendDogMatchNotificationsToUsers(
+                matchingUsers,
+                dogMatchPreferences,
+                isNewPreferences
+              );
+              console.log(
+                `Sent ${notificationResults.length} notifications for updated dog match preferences`
+              );
+            } catch (notificationError) {
+              console.error(
+                "Error sending dog match notifications:",
+                notificationError.message
+              );
+            }
+          }
+        }
+      } catch (dogMatchError) {
+        console.error(
+          "Error updating dog match preferences:",
+          dogMatchError.message
+        );
+        // Don't fail the pet update if dog match fails
+      }
+    }
+
+    const responseData = {
       success: true,
       message: "La información de la mascota se actualizó correctamente",
       data: updatedPet,
-    });
+    };
+
+    // Add dog match info to response if updated
+    if (dogMatchPreferences) {
+      responseData.dogMatchPreferences = dogMatchPreferences;
+      responseData.matchingUsers = notificationResults.length;
+      responseData.notificationsSent = notificationResults.length;
+    }
+
+    return res.json(responseData);
   } catch (error) {
     console.error(error);
     return res
@@ -396,11 +669,62 @@ const dogmatch = async (req, res) => {
 
 const deletePet = async (req, res) => {
   try {
-    const pet = await Pet.findByIdAndDelete({ _id: req.body.id });
-    res
-      .status(200)
-      .json({ success: true, message: "La mascota ha sido eliminada." });
+    const petId = req.body.id;
+
+    // ✅ Delete the pet
+    const pet = await Pet.findByIdAndDelete({ _id: petId });
+
+    if (!pet) {
+      return res.status(404).json({
+        success: false,
+        message: "Mascota no encontrada.",
+      });
+    }
+
+    // ✅ Delete associated dog match preferences
+    try {
+      const deletedDogMatch = await DogMatch.findOneAndDelete({ pet: petId });
+      if (deletedDogMatch) {
+        console.log(`Deleted dog match preferences for pet ${petId}`);
+      }
+    } catch (dogMatchError) {
+      console.error(
+        "Error deleting dog match preferences:",
+        dogMatchError.message
+      );
+      // Don't fail the pet deletion if dog match deletion fails
+    }
+
+    // ✅ Delete associated QR codes
+    try {
+      const deletedQRCode = await QRCode.findOneAndDelete({ petId: petId });
+      if (deletedQRCode) {
+        console.log(`Deleted QR code for pet ${petId}`);
+      }
+    } catch (qrError) {
+      console.error("Error deleting QR code:", qrError.message);
+      // Don't fail the pet deletion if QR deletion fails
+    }
+
+    // ✅ Delete associated lost pet records
+    try {
+      const deletedLostRecords = await Lost.deleteMany({ pet: petId });
+      if (deletedLostRecords.deletedCount > 0) {
+        console.log(
+          `Deleted ${deletedLostRecords.deletedCount} lost pet records for pet ${petId}`
+        );
+      }
+    } catch (lostError) {
+      console.error("Error deleting lost pet records:", lostError.message);
+      // Don't fail the pet deletion if lost records deletion fails
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "La mascota y todos sus datos asociados han sido eliminados.",
+    });
   } catch (error) {
+    console.error("Error deleting pet:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -546,13 +870,20 @@ const createDogMatchPreferences = async (req, res) => {
   }
 };
 
-// New API: Get user's dog match preferences
+// New API: Get dog match preferences by pet ID
 const getDogMatchPreferences = async (req, res) => {
   try {
-    const { user } = req.body;
+    const { petId } = req.body;
+
+    if (!petId) {
+      return res.status(400).json({
+        success: false,
+        message: "Pet ID is required",
+      });
+    }
 
     const preferences = await DogMatch.findOne({
-      user,
+      pet: petId,
       isActive: true,
     })
       .populate("user", "firstname lastname phone address")
@@ -562,7 +893,7 @@ const getDogMatchPreferences = async (req, res) => {
       return res.status(404).json({
         success: false,
         message:
-          "No se encontraron preferencias de dog match para este usuario",
+          "No se encontraron preferencias de dog match para esta mascota",
       });
     }
 
@@ -618,15 +949,15 @@ function calculateMatchPercentage(userPref, otherPref) {
   return Math.round((matched / total) * 100);
 }
 
-// New API: Get matched dogs based on user's preferences
+// New API: Get matched dogs based on pet's preferences
 const getAllDogMatches = async (req, res) => {
   try {
-    const { userId, coordinates, radius = 10 } = req.body;
+    const { petId, coordinates, radius = 10 } = req.body;
 
-    if (!userId) {
+    if (!petId) {
       return res.status(400).json({
         success: false,
-        message: "userId is required in request body",
+        message: "petId is required in request body",
       });
     }
 
@@ -639,25 +970,28 @@ const getAllDogMatches = async (req, res) => {
       });
     }
 
-    // Get this user's preference for matching comparison
-    const userPreference = await DogMatch.findOne({ user: userId });
+    // Get this pet's preference for matching comparison
+    const petPreference = await DogMatch.findOne({
+      pet: petId,
+      isActive: true,
+    });
 
-    if (!userPreference) {
+    if (!petPreference) {
       return res.status(404).json({
         success: false,
         message:
-          "No preferences found for this user. Please create preferences first.",
+          "No preferences found for this pet. Please create preferences first.",
       });
     }
 
-    // Get user's coordinates and search radius from request
-    const userLat = coordinates.latitude;
-    const userLon = coordinates.longitude;
+    // Get pet's coordinates and search radius from request
+    const petLat = coordinates.latitude;
+    const petLon = coordinates.longitude;
     const searchRadius = radius;
 
-    // Get all preferences (including others)
+    // Get all preferences (excluding this pet's preferences)
     const allPreferences = await DogMatch.find({
-      user: { $ne: userId },
+      pet: { $ne: petId },
       isActive: true,
     })
       .populate("user", "firstname lastname phone address")
@@ -686,18 +1020,15 @@ const getAllDogMatches = async (req, res) => {
 
         // Calculate distance
         const distance = calculateDistance(
-          userLat,
-          userLon,
+          petLat,
+          petLon,
           pref.coordinates.latitude,
           pref.coordinates.longitude
         );
 
         // Only include if within search radius
         if (distance <= searchRadius) {
-          const matchPercentage = calculateMatchPercentage(
-            userPreference,
-            pref
-          );
+          const matchPercentage = calculateMatchPercentage(petPreference, pref);
 
           console.log(
             `Preference ${pref._id}: matchPercentage = ${matchPercentage}%`
@@ -727,9 +1058,7 @@ const getAllDogMatches = async (req, res) => {
     console.log(
       `Final filtered results: ${preferencesWithMatchAndDistance.length} matches`
     );
-    console.log(
-      `About to return userCoordinates: lat=${userLat}, lon=${userLon}`
-    );
+    console.log(`About to return petCoordinates: lat=${petLat}, lon=${petLon}`);
 
     return res.status(200).json({
       success: true,
@@ -740,9 +1069,9 @@ const getAllDogMatches = async (req, res) => {
       preferences: preferencesWithMatchAndDistance,
       count: preferencesWithMatchAndDistance.length,
       searchRadius,
-      userCoordinates: {
-        latitude: userLat,
-        longitude: userLon,
+      petCoordinates: {
+        latitude: petLat,
+        longitude: petLon,
       },
       debug: {
         totalPreferencesChecked: allPreferences.length,

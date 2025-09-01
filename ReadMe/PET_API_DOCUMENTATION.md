@@ -12,7 +12,7 @@
 
 **POST** `/register_pet`
 
-Register a new pet with image upload.
+Register a new pet with image upload and optional dog match preferences.
 
 #### Request Headers
 
@@ -24,18 +24,33 @@ Content-Type: multipart/form-data
 
 ```javascript
 {
+  // Required Pet Fields
   "user": "string",                    // Required - User ID (ObjectId)
   "name": "string",                    // Required - Pet name
   "gender": "string",                  // Required - Pet gender (e.g., "Male", "Female")
   "dob": "string",                     // Required - Date of birth (format: "YYYY-MM-DD")
-  "weight": "string",                  // Required - Pet weight (e.g., "5kg")
-  "height": "string",                  // Required - Pet height (e.g., "30cm")
+  "weight": "string",                  // Optional - Pet weight (e.g., "5kg")
+  "height": "string",                  // Optional - Pet height (e.g., "30cm")
   "microchip_number": "string",        // Optional - Microchip number
-  "race": "string",                    // Required - Pet race/breed
-  "description": "string",             // Required - Pet description
-  "color": "string",                   // Required - Pet color
+  "race": "string",                    // Optional - Pet race/breed
+  "description": "string",             // Optional - Pet description
+  "color": "string",                   // Optional - Pet color
   "pet": "string",                     // Required - Pet type (e.g., "Dog", "Cat")
-  "picture": "file"                    // Required - Pet image file
+  "picture": "file",                   // Required - Pet image file
+
+  // Optional Dog Match Preferences (will auto-create preferences if provided)
+  "neutered": "string",                // Optional - Neutered status ("Yes"/"No")
+  "temperament": ["string"],           // Optional - Array of temperament traits
+  "socialize": "string",               // Optional - Socialization preference ("Yes"/"No")
+  "time": ["string"],                  // Optional - Array of preferred times
+  "location": "string",                // Optional - Preferred location
+  "size": "string",                    // Optional - Preferred size
+  "age": "string",                     // Optional - Preferred age range
+  "coordinates": {                     // Optional - Location coordinates
+    "latitude": "number",
+    "longitude": "number"
+  },
+  "searchRadius": "number"             // Optional - Search radius in km (default: 10)
 }
 ```
 
@@ -61,17 +76,32 @@ Content-Type: multipart/form-data
     "pet_image": "string",             // Cloudinary URL
     "likes": [],
     "discards": [],
-    "isNeutered": "No",
-    "temperament": [],
-    "pet_socialize": "No",
-    "preferred_time": [],
-    "preferred_location": "N/A",
-    "pet_size": "Todos",
-    "preferred_age": "1-5 años",
-    "notes_other": "Prefiere perros tranquilos",
     "createdAt": "2025-01-15T00:00:00.000Z",
     "updatedAt": "2025-01-15T00:00:00.000Z"
-  }
+  },
+  // Included if dog match preferences were created
+  "dogMatchPreferences": {
+    "_id": "string",
+    "user": "string",
+    "pet": "string",
+    "neutered": "string",
+    "temperament": ["string"],
+    "socialize": "string",
+    "time": ["string"],
+    "location": "string",
+    "size": "string",
+    "age": "string",
+    "coordinates": {
+      "latitude": "number",
+      "longitude": "number"
+    },
+    "searchRadius": "number",
+    "isActive": true,
+    "createdAt": "string",
+    "updatedAt": "string"
+  },
+  "matchingUsers": "number",           // Number of users that match
+  "notificationsSent": "number"        // Number of notifications sent
 }
 ```
 
@@ -79,7 +109,7 @@ Content-Type: multipart/form-data
 
 **POST** `/pets`
 
-Get all pets belonging to a specific user.
+Get all pets belonging to a specific user with QR codes and dog match preferences.
 
 #### Request Body
 
@@ -118,17 +148,36 @@ Get all pets belonging to a specific user.
       "pet_image": "string",
       "likes": [],
       "discards": [],
-      "isNeutered": "string",
-      "temperament": ["string"],
-      "pet_socialize": "string",
-      "preferred_time": ["string"],
-      "preferred_location": "string",
-      "pet_size": "string",
-      "distance": "string",
-      "preferred_age": "string",
-      "notes_other": "string",
       "createdAt": "string",
-      "updatedAt": "string"
+      "updatedAt": "string",
+      // QR Code data (if available)
+      "qrCode": {
+        "_id": "string",
+        "petId": "string",
+        "qrCodeData": "string",
+        "createdAt": "string"
+      },
+      // Dog Match Preferences (if available)
+      "dogMatchPreferences": {
+        "_id": "string",
+        "user": "string",
+        "pet": "string",
+        "neutered": "string",
+        "temperament": ["string"],
+        "socialize": "string",
+        "time": ["string"],
+        "location": "string",
+        "size": "string",
+        "age": "string",
+        "coordinates": {
+          "latitude": "number",
+          "longitude": "number"
+        },
+        "searchRadius": "number",
+        "isActive": "boolean",
+        "createdAt": "string",
+        "updatedAt": "string"
+      }
     }
   ]
 }
@@ -138,7 +187,7 @@ Get all pets belonging to a specific user.
 
 **POST** `/:id`
 
-Get a specific pet by its ID.
+Get a specific pet by its ID with QR code and dog match preferences.
 
 #### URL Parameters
 
@@ -174,17 +223,36 @@ id: string (required) - Pet ID (ObjectId)
     "pet_image": "string",
     "likes": [],
     "discards": [],
-    "isNeutered": "string",
-    "temperament": ["string"],
-    "pet_socialize": "string",
-    "preferred_time": ["string"],
-    "preferred_location": "string",
-    "pet_size": "string",
-    "distance": "string",
-    "preferred_age": "string",
-    "notes_other": "string",
     "createdAt": "string",
-    "updatedAt": "string"
+    "updatedAt": "string",
+    // QR Code data (if available)
+    "qrCode": {
+      "_id": "string",
+      "petId": "string",
+      "qrCodeData": "string",
+      "createdAt": "string"
+    },
+    // Dog Match Preferences (if available)
+    "dogMatchPreferences": {
+      "_id": "string",
+      "user": "string",
+      "pet": "string",
+      "neutered": "string",
+      "temperament": ["string"],
+      "socialize": "string",
+      "time": ["string"],
+      "location": "string",
+      "size": "string",
+      "age": "string",
+      "coordinates": {
+        "latitude": "number",
+        "longitude": "number"
+      },
+      "searchRadius": "number",
+      "isActive": "boolean",
+      "createdAt": "string",
+      "updatedAt": "string"
+    }
   }
 }
 ```
@@ -193,7 +261,7 @@ id: string (required) - Pet ID (ObjectId)
 
 **PUT** `/:id`
 
-Update an existing pet's information.
+Update an existing pet's information and optionally update dog match preferences.
 
 #### URL Parameters
 
@@ -211,6 +279,7 @@ Content-Type: multipart/form-data
 
 ```javascript
 {
+  // Optional Pet Fields
   "name": "string",                    // Optional - Pet name
   "gender": "string",                  // Optional - Pet gender
   "dob": "string",                     // Optional - Date of birth
@@ -221,7 +290,21 @@ Content-Type: multipart/form-data
   "description": "string",             // Optional - Pet description
   "color": "string",                   // Optional - Pet color
   "pet": "string",                     // Optional - Pet type
-  "picture": "file"                    // Optional - New pet image file
+  "picture": "file",                   // Optional - New pet image file
+
+  // Optional Dog Match Preferences Update
+  "neutered": "string",                // Optional - Neutered status
+  "temperament": ["string"],           // Optional - Array of temperament traits
+  "socialize": "string",               // Optional - Socialization preference
+  "time": ["string"],                  // Optional - Array of preferred times
+  "location": "string",                // Optional - Preferred location
+  "size": "string",                    // Optional - Preferred size
+  "age": "string",                     // Optional - Preferred age range
+  "coordinates": {                     // Optional - Location coordinates
+    "latitude": "number",
+    "longitude": "number"
+  },
+  "searchRadius": "number"             // Optional - Search radius in km
 }
 ```
 
@@ -253,18 +336,32 @@ Content-Type: multipart/form-data
     "pet_image": "string",
     "likes": [],
     "discards": [],
-    "isNeutered": "string",
-    "temperament": ["string"],
-    "pet_socialize": "string",
-    "preferred_time": ["string"],
-    "preferred_location": "string",
-    "pet_size": "string",
-    "distance": "string",
-    "preferred_age": "string",
-    "notes_other": "string",
     "createdAt": "string",
     "updatedAt": "string"
-  }
+  },
+  // Included if dog match preferences were updated
+  "dogMatchPreferences": {
+    "_id": "string",
+    "user": "string",
+    "pet": "string",
+    "neutered": "string",
+    "temperament": ["string"],
+    "socialize": "string",
+    "time": ["string"],
+    "location": "string",
+    "size": "string",
+    "age": "string",
+    "coordinates": {
+      "latitude": "number",
+      "longitude": "number"
+    },
+    "searchRadius": "number",
+    "isActive": true,
+    "createdAt": "string",
+    "updatedAt": "string"
+  },
+  "matchingUsers": "number",           // Number of users that match
+  "notificationsSent": "number"        // Number of notifications sent
 }
 ```
 
@@ -301,11 +398,11 @@ Add or remove a pet from favorites.
 }
 ```
 
-### 6. Dog Match Settings
+### 6. Dog Match Settings (Legacy)
 
 **POST** `/match`
 
-Update dog matching preferences for a pet.
+Legacy endpoint for updating dog matching preferences (deprecated - use new dog match APIs instead).
 
 #### Request Body
 
@@ -321,43 +418,6 @@ Update dog matching preferences for a pet.
   "distance": "string",                // Required - Maximum distance (e.g., "5km")
   "age": "string",                     // Required - Preferred age range (e.g., "1-5 años")
   "notes": "string"                    // Required - Additional notes
-}
-```
-
-#### Response
-
-```javascript
-{
-  "success": true,
-  "message": "Se ha guardado la información del partido del perro",
-  "pet_details": {
-    "_id": "string",
-    "user": "string",
-    "pet_name": "string",
-    "pet_gender": "string",
-    "pet_dob": "string",
-    "pet_weight": "string",
-    "pet_height": "string",
-    "pet_microchip_number": "string",
-    "pet_race": "string",
-    "pet_description": "string",
-    "pet_color": "string",
-    "pet": "string",
-    "pet_image": "string",
-    "likes": [],
-    "discards": [],
-    "isNeutered": "string",
-    "temperament": ["string"],
-    "pet_socialize": "string",
-    "preferred_time": ["string"],
-    "preferred_location": "string",
-    "pet_size": "string",
-    "distance": "string",
-    "preferred_age": "string",
-    "notes_other": "string",
-    "createdAt": "string",
-    "updatedAt": "string"
-  }
 }
 ```
 
@@ -389,7 +449,7 @@ Add a pet to the discard list (swipe left functionality).
 
 **POST** `/delete`
 
-Permanently delete a pet from the database.
+Permanently delete a pet and all associated data (QR codes, dog match preferences, lost pet records).
 
 #### Request Body
 
@@ -404,7 +464,240 @@ Permanently delete a pet from the database.
 ```javascript
 {
   "success": true,
-  "message": "La mascota ha sido eliminada."
+  "message": "La mascota y todos sus datos asociados han sido eliminados."
+}
+```
+
+---
+
+## Dog Match Preferences API
+
+### 9. Create/Update Dog Match Preferences
+
+**POST** `/dogmatch/preferences`
+
+Create or update dog match preferences for a specific pet.
+
+#### Request Body
+
+```javascript
+{
+  "user": "string",                    // Required - User ID (ObjectId)
+  "pet": "string",                     // Required - Pet ID (ObjectId)
+  "neutered": "string",                // Required - Neutered status ("Yes"/"No")
+  "temperament": ["string"],           // Required - Array of temperament traits
+  "socialize": "string",               // Required - Socialization preference ("Yes"/"No")
+  "time": ["string"],                  // Required - Array of preferred times
+  "location": "string",                // Required - Preferred location
+  "size": "string",                    // Required - Preferred size
+  "age": "string",                     // Required - Preferred age range
+  "coordinates": {                     // Required - Location coordinates
+    "latitude": "number",              // Required - Latitude
+    "longitude": "number"              // Required - Longitude
+  },
+  "searchRadius": "number"             // Optional - Search radius in km (default: 10)
+}
+```
+
+#### Response
+
+```javascript
+{
+  "success": true,
+  "message": "Preferencias de dog match creadas/actualizadas correctamente",
+  "data": {
+    "_id": "string",
+    "user": {
+      "_id": "string",
+      "firstname": "string",
+      "lastname": "string",
+      "phone": "string",
+      "address": "string"
+    },
+    "pet": {
+      "_id": "string",
+      "pet_name": "string",
+      "pet_gender": "string",
+      "pet_color": "string",
+      "pet_image": "string",
+      "pet_race": "string"
+    },
+    "neutered": "string",
+    "temperament": ["string"],
+    "socialize": "string",
+    "time": ["string"],
+    "location": "string",
+    "size": "string",
+    "age": "string",
+    "coordinates": {
+      "latitude": "number",
+      "longitude": "number"
+    },
+    "searchRadius": "number",
+    "isActive": true,
+    "createdAt": "string",
+    "updatedAt": "string"
+  },
+  "matchingUsers": "number",           // Number of users that match
+  "shouldSendNotifications": "boolean",
+  "notificationType": "string",        // "new_preferences" or "updated_preferences"
+  "notificationsSent": "number",
+  "notificationResults": []
+}
+```
+
+### 10. Get Dog Match Preferences by Pet ID
+
+**POST** `/dogmatch/preferences/get`
+
+Get dog match preferences for a specific pet.
+
+#### Request Body
+
+```javascript
+{
+  "petId": "string"                    // Required - Pet ID (ObjectId)
+}
+```
+
+#### Response
+
+```javascript
+{
+  "success": true,
+  "message": "Preferencias de dog match obtenidas correctamente",
+  "data": {
+    "_id": "string",
+    "user": {
+      "_id": "string",
+      "firstname": "string",
+      "lastname": "string",
+      "phone": "string",
+      "address": "string"
+    },
+    "pet": {
+      "_id": "string",
+      "pet_name": "string",
+      "pet_gender": "string",
+      "pet_color": "string",
+      "pet_image": "string",
+      "pet_race": "string"
+    },
+    "neutered": "string",
+    "temperament": ["string"],
+    "socialize": "string",
+    "time": ["string"],
+    "location": "string",
+    "size": "string",
+    "age": "string",
+    "coordinates": {
+      "latitude": "number",
+      "longitude": "number"
+    },
+    "searchRadius": "number",
+    "isActive": "boolean",
+    "createdAt": "string",
+    "updatedAt": "string"
+  }
+}
+```
+
+### 11. Get All Dog Matches for Pet
+
+**POST** `/dogmatch/preferences/all`
+
+Get all matching dogs based on a pet's preferences within a specified radius.
+
+#### Request Body
+
+```javascript
+{
+  "petId": "string",                   // Required - Pet ID (ObjectId)
+  "coordinates": {                     // Required - Current location coordinates
+    "latitude": "number",              // Required - Current latitude
+    "longitude": "number"              // Required - Current longitude
+  },
+  "radius": "number"                   // Optional - Search radius in km (default: 10)
+}
+```
+
+#### Response
+
+```javascript
+{
+  "success": true,
+  "message": "Se encontraron X preferencias de dog match dentro de Xkm (ordenadas por similitud y distancia)",
+  "preferences": [
+    {
+      "_id": "string",
+      "user": {
+        "_id": "string",
+        "firstname": "string",
+        "lastname": "string",
+        "phone": "string",
+        "address": "string"
+      },
+      "pet": {
+        "_id": "string",
+        "pet_name": "string",
+        "pet_gender": "string",
+        "pet_color": "string",
+        "pet_image": "string",
+        "pet_race": "string"
+      },
+      "neutered": "string",
+      "temperament": ["string"],
+      "socialize": "string",
+      "time": ["string"],
+      "location": "string",
+      "size": "string",
+      "age": "string",
+      "coordinates": {
+        "latitude": "number",
+        "longitude": "number"
+      },
+      "searchRadius": "number",
+      "isActive": "boolean",
+      "createdAt": "string",
+      "updatedAt": "string",
+      "matchPercentage": "number",       // Match percentage (0-100)
+      "distance": "number"               // Distance in km
+    }
+  ],
+  "count": "number",                     // Number of matches found
+  "searchRadius": "number",
+  "petCoordinates": {
+    "latitude": "number",
+    "longitude": "number"
+  },
+  "debug": {
+    "totalPreferencesChecked": "number",
+    "preferencesWithCoordinates": "number",
+    "preferencesWithoutCoordinates": "number"
+  }
+}
+```
+
+### 12. Deactivate Dog Match Preferences
+
+**POST** `/dogmatch/preferences/deactivate`
+
+Deactivate dog match preferences for a user (sets isActive to false).
+
+#### Request Body
+
+```javascript
+{
+  "user": "string"                     // Required - User ID (ObjectId)
+}
+```
+
+#### Response
+
+```javascript
+{
+  "success": true,
+  "message": "Preferencias de dog match desactivadas correctamente"
 }
 ```
 
@@ -415,7 +708,7 @@ Permanently delete a pet from the database.
 ```javascript
 {
   "success": false,
-  "message": "Pet not found"
+  "message": "Missing required fields" // or specific validation error
 }
 ```
 
@@ -424,7 +717,7 @@ Permanently delete a pet from the database.
 ```javascript
 {
   "success": false,
-  "message": "Mascota no encontrada para este usuario"
+  "message": "Mascota no encontrada para este usuario" // or "No se encontraron preferencias..."
 }
 ```
 
@@ -433,7 +726,7 @@ Permanently delete a pet from the database.
 ```javascript
 {
   "success": false,
-  "message": "Error message description"
+  "message": "Error en el servidor." // or specific error message
 }
 ```
 
@@ -442,7 +735,7 @@ Permanently delete a pet from the database.
 ### Pet Object Fields
 
 - `_id`: MongoDB ObjectId (string)
-- `user`: User ObjectId reference (string)
+- `user`: User ObjectId reference (string) or populated user object
 - `pet_name`: Pet's name (string)
 - `pet_gender`: Pet's gender (string)
 - `pet_dob`: Date of birth (string)
@@ -456,23 +749,45 @@ Permanently delete a pet from the database.
 - `pet_image`: Cloudinary image URL (string)
 - `likes`: Array of like objects
 - `discards`: Array of discard objects
-- `isNeutered`: Neutered status (string, default: "No")
-- `temperament`: Array of temperament traits (array)
-- `pet_socialize`: Socialization preference (string, default: "No")
-- `preferred_time`: Array of preferred times (array)
-- `preferred_location`: Preferred location (string, default: "N/A")
-- `pet_size`: Preferred size (string, default: "Todos")
-- `distance`: Maximum distance (string)
-- `preferred_age`: Preferred age range (string, default: "1-5 años")
-- `notes_other`: Additional notes (string, default: "Prefiere perros tranquilos")
 - `createdAt`: Creation timestamp (string)
 - `updatedAt`: Last update timestamp (string)
+- `qrCode`: QR code object (if available)
+- `dogMatchPreferences`: Dog match preferences object (if available)
+
+### Dog Match Preferences Object Fields
+
+- `_id`: MongoDB ObjectId (string)
+- `user`: User ObjectId reference (string) or populated user object
+- `pet`: Pet ObjectId reference (string) or populated pet object
+- `neutered`: Neutered status (string)
+- `temperament`: Array of temperament traits (array of strings)
+- `socialize`: Socialization preference (string)
+- `time`: Array of preferred times (array of strings)
+- `location`: Preferred location (string)
+- `size`: Preferred size (string)
+- `age`: Preferred age range (string)
+- `coordinates`: Object with latitude and longitude (object)
+- `searchRadius`: Search radius in kilometers (number)
+- `isActive`: Whether preferences are active (boolean)
+- `createdAt`: Creation timestamp (string)
+- `updatedAt`: Last update timestamp (string)
+
+### Additional Response Fields for Matches
+
+- `matchPercentage`: Compatibility percentage (number, 0-100)
+- `distance`: Distance between pets in km (number)
 
 ## Notes
 
 - All image uploads are processed through Cloudinary
 - File uploads must be sent as multipart/form-data
 - User population includes: firstname, lastname, phone, address
+- Pet population includes: pet_name, pet_gender, pet_color, pet_image, pet_race
 - Dates should be in YYYY-MM-DD format
 - All responses are in JSON format
 - Error messages are primarily in Spanish
+- Dog match preferences are automatically created when registering/updating pets if the required fields are provided
+- When deleting a pet, all associated data (QR codes, dog match preferences, lost pet records) are automatically deleted
+- Dog match results are sorted by match percentage (highest first) and then by distance (closest first)
+- Coordinates are required for dog match functionality
+- Match percentages are calculated based on multiple criteria compatibility
