@@ -10,6 +10,7 @@ const {
   getSalesAnalytics,
   getAllPets,
   assignPetManually,
+  updateSubscriptionBadge,
 } = require("../controller/superadmin");
 
 router.get("/users", getAllUsers);
@@ -21,6 +22,8 @@ router.post("/business/toggle-status", toggleBusinessStatus);
 router.get("/user/toggle-status", toggleUserStatus);
 
 router.post("/send-notification", sendPushNotificationToUsers);
+
+router.post("/update_badge", updateSubscriptionBadge);
 
 // Analytics routes
 router.get("/analytics/users", getUserAnalytics);

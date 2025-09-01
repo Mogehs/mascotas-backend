@@ -525,11 +525,84 @@ const assignPetManually = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+const updateSubscriptionBadge = async (req, res) => {
+  const { userId, isActive, badgeName } = req.body;
+
+  // Basic validation
+  if (!userId || typeof isActive === "undefined") {
+    return res.status(400).json({
+      success: false,
+      message: "userId and isActive are required in the request body",
+    });
+  }
+
+  // Normalize isActive to boolean (accepts string 'true'/'false')
+  const isActiveBool =
+    isActive === true ||
+    isActive === "true" ||
+    isActive === 1 ||
+    isActive === "1";
+
+  try {
+    const user = await User.findById(userId).select("-password");
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    // Update fields
+    user.badge_subscription = !!isActiveBool;
+    if (user.badge_subscription) {
+      // If activating and badgeName provided, set it; otherwise leave existing name
+      if (typeof badgeName !== "undefined") user.badge_name = badgeName;
+    } else {
+      // If deactivating, clear badge name
+      user.badge_name = null;
+    }
+
+    await user.save();
+
+    // Optional: send notification to user about the change
+    if (user.device_token) {
+      try {
+        await sendGeneralNotification(
+          user.device_token,
+          "Badge subscription updated",
+          `Your badge subscription has been ${
+            user.badge_subscription ? "activated" : "deactivated"
+          }.`,
+          NOTIFICATION_TYPES.ADMIN_NOTIFICATION,
+          {
+            badge_subscription: user.badge_subscription,
+            badge_name: user.badge_name,
+          }
+        );
+      } catch (notifyErr) {
+        console.error(
+          "Failed to notify user about badge update:",
+          notifyErr.message
+        );
+        // don't fail the whole operation if notification fails
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Subscription updated successfully",
+      data: user,
+    });
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 module.exports = {
   getAllUsers,
   getAllBusinessProfiles,
   toggleBusinessStatus,
+  updateSubscriptionBadge,
   toggleUserStatus,
   sendPushNotificationToUsers,
   getUserAnalytics,
