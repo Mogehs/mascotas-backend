@@ -598,6 +598,116 @@ const updateSubscriptionBadge = async (req, res) => {
   }
 };
 
+// Toggle business PetPro subscription (activate/deactivate)
+const toggleBusinessSubscription = async (req, res) => {
+  try {
+    const { businessId, isActive } = req.body;
+
+    // Validate required parameters
+    if (!businessId || typeof isActive === "undefined") {
+      return res.status(400).json({
+        success: false,
+        message: "Business ID and isActive are required",
+      });
+    }
+
+    // Normalize isActive to boolean
+    const isActiveBool =
+      isActive === true ||
+      isActive === "true" ||
+      isActive === 1 ||
+      isActive === "1";
+
+    const business = await Business.findById(businessId);
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message: "Business profile not found",
+      });
+    }
+
+    // Update subscription status
+    business.petpro_subscription.is_active = isActiveBool;
+
+    if (isActiveBool) {
+      // Activating subscription
+      business.petpro_subscription.payment_status = "paid";
+      business.petpro_subscription.subscription_type = "premium";
+
+      // Enable premium features
+      business.features.can_create_featured_ads = true;
+      business.features.max_featured_ads = 10; // or whatever your limit is
+      business.features.can_showcase_products = true;
+      business.features.max_products = 50; // or whatever your limit is
+      business.features.can_create_promotions = true;
+      business.features.max_promotions = 5; // or whatever your limit is
+      business.features.analytics_access = true;
+    } else {
+      // Deactivating subscription
+      business.petpro_subscription.payment_status = "cancelled";
+      business.petpro_subscription.subscription_type = "none";
+
+      // Disable all premium features
+      business.features.can_create_featured_ads = false;
+      business.features.max_featured_ads = 0;
+      business.features.can_showcase_products = false;
+      business.features.max_products = 0;
+      business.features.can_create_promotions = false;
+      business.features.max_promotions = 0;
+      business.features.analytics_access = false;
+    }
+
+    await business.save();
+
+    // Optional: send notification to business owner about the change
+    const businessOwner = await User.findById(business.id);
+    if (businessOwner && businessOwner.device_token) {
+      try {
+        await sendGeneralNotification(
+          businessOwner.device_token,
+          `PetPro Subscription ${isActiveBool ? "Activated" : "Deactivated"}`,
+          `Your PetPro subscription has been ${
+            isActiveBool ? "activated" : "deactivated"
+          } by admin. ${
+            isActiveBool
+              ? "You now have access to premium features!"
+              : "Contact support for more information."
+          }`,
+          NOTIFICATION_TYPES.ADMIN_NOTIFICATION,
+          {
+            business_id: businessId,
+            subscription_status: isActiveBool ? "activated" : "deactivated",
+            updated_by: "super_admin",
+          }
+        );
+      } catch (notifyErr) {
+        console.error(
+          "Failed to notify business owner about subscription change:",
+          notifyErr.message
+        );
+        // don't fail the whole operation if notification fails
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Business subscription ${
+        isActiveBool ? "activated" : "deactivated"
+      } successfully`,
+      data: {
+        businessId,
+        is_active: isActiveBool,
+        payment_status: business.petpro_subscription.payment_status,
+        subscription_type: business.petpro_subscription.subscription_type,
+        features_enabled: isActiveBool,
+      },
+    });
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getAllBusinessProfiles,
@@ -609,4 +719,5 @@ module.exports = {
   getSalesAnalytics,
   getAllPets,
   assignPetManually,
+  toggleBusinessSubscription,
 };

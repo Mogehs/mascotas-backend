@@ -11,6 +11,7 @@ const {
   getAllPets,
   assignPetManually,
   updateSubscriptionBadge,
+  toggleBusinessSubscription,
 } = require("../controller/superadmin");
 
 router.get("/users", getAllUsers);
@@ -24,6 +25,8 @@ router.get("/user/toggle-status", toggleUserStatus);
 router.post("/send-notification", sendPushNotificationToUsers);
 
 router.post("/update_badge", updateSubscriptionBadge);
+
+router.post("/toggle_business_subscription", toggleBusinessSubscription);
 
 // Analytics routes
 router.get("/analytics/users", getUserAnalytics);
