@@ -13,6 +13,59 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// Helper function to parse form data into proper objects
+const parseFormData = (body) => {
+  const parsed = { ...body };
+
+  // Parse coordinates if they exist as separate fields
+  if (body["coordinates[latitude]"] && body["coordinates[longitude]"]) {
+    parsed.coordinates = {
+      latitude: parseFloat(body["coordinates[latitude]"]),
+      longitude: parseFloat(body["coordinates[longitude]"]),
+    };
+    // Remove the individual coordinate fields
+    delete parsed["coordinates[latitude]"];
+    delete parsed["coordinates[longitude]"];
+  } else if (typeof body.coordinates === "string") {
+    try {
+      parsed.coordinates = JSON.parse(body.coordinates);
+    } catch (e) {
+      console.warn("Failed to parse coordinates string:", e);
+    }
+  }
+
+  // Parse temperament array if it comes as string or individual fields
+  if (typeof body.temperament === "string") {
+    try {
+      parsed.temperament = JSON.parse(body.temperament);
+    } catch (e) {
+      // If it's a single value string, make it an array
+      parsed.temperament = [body.temperament];
+    }
+  } else if (Array.isArray(body.temperament)) {
+    parsed.temperament = body.temperament;
+  }
+
+  // Parse time array if it comes as string or individual fields
+  if (typeof body.time === "string") {
+    try {
+      parsed.time = JSON.parse(body.time);
+    } catch (e) {
+      // If it's a single value string, make it an array
+      parsed.time = [body.time];
+    }
+  } else if (Array.isArray(body.time)) {
+    parsed.time = body.time;
+  }
+
+  // Parse searchRadius as number
+  if (body.searchRadius && typeof body.searchRadius === "string") {
+    parsed.searchRadius = parseFloat(body.searchRadius) || 10;
+  }
+
+  return parsed;
+};
+
 // Helper function to calculate distance between two coordinates using Haversine formula
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
   const R = 6371; // Radius of the Earth in kilometers
@@ -223,6 +276,9 @@ const discard = async (req, res) => {
 
 const pet_register = async (req, res) => {
   try {
+    // Parse form data to handle nested objects and arrays
+    const parsedBody = parseFormData(req.body);
+
     const {
       user,
       name,
@@ -245,7 +301,9 @@ const pet_register = async (req, res) => {
       age,
       coordinates,
       searchRadius = 10,
-    } = req.body;
+    } = parsedBody;
+
+    console.log("Parsed body:", parsedBody);
 
     // ✅ Validate required fields
     if (!user || !name || !gender || !dob || !pet) {
@@ -307,7 +365,7 @@ const pet_register = async (req, res) => {
     ) {
       try {
         // Validate coordinates
-        if (!coordinates.latitude || !coordinates.longitude) {
+        if (!coordinates || !coordinates.latitude || !coordinates.longitude) {
           console.warn(
             "Invalid coordinates provided for dog match preferences"
           );
@@ -393,6 +451,9 @@ const pet_register = async (req, res) => {
 
 const update_pet = async (req, res) => {
   try {
+    // Parse form data to handle nested objects and arrays
+    const parsedBody = parseFormData(req.body);
+
     const { id } = req.params;
     const {
       name,
@@ -415,7 +476,9 @@ const update_pet = async (req, res) => {
       age,
       coordinates,
       searchRadius = 10,
-    } = req.body;
+    } = parsedBody;
+
+    console.log("Parsed body for update:", parsedBody);
 
     // ✅ Check if pet exists
     const existingPet = await Pet.findById(id);
@@ -494,7 +557,7 @@ const update_pet = async (req, res) => {
     ) {
       try {
         // Validate coordinates
-        if (!coordinates.latitude || !coordinates.longitude) {
+        if (!coordinates || !coordinates.latitude || !coordinates.longitude) {
           console.warn(
             "Invalid coordinates provided for dog match preferences"
           );
@@ -732,6 +795,9 @@ const deletePet = async (req, res) => {
 // New API: Create or update dog match preferences
 const createDogMatchPreferences = async (req, res) => {
   try {
+    // Parse form data to handle nested objects and arrays
+    const parsedBody = parseFormData(req.body);
+
     const {
       user,
       pet,
@@ -744,7 +810,9 @@ const createDogMatchPreferences = async (req, res) => {
       age,
       coordinates,
       searchRadius = 10, // Default radius in kilometers
-    } = req.body;
+    } = parsedBody;
+
+    console.log("Parsed body for dog match preferences:", parsedBody);
 
     // Validate coordinates
     if (!coordinates || !coordinates.latitude || !coordinates.longitude) {

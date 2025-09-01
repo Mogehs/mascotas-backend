@@ -6,6 +6,28 @@
 /api/pet
 ```
 
+## Form Data Handling
+
+This API supports both JSON and multipart form data submissions. When sending data as form-data (especially for file uploads), the backend automatically parses nested objects and arrays:
+
+### Form Data Examples
+
+**Coordinates can be sent as:**
+
+- JSON object: `coordinates: { "latitude": 12.22, "longitude": 34.44 }`
+- Separate fields: `coordinates[latitude]: "12.22"` and `coordinates[longitude]: "34.44"`
+- String: `coordinates: '{"latitude": 12.22, "longitude": 34.44}'`
+
+**Arrays can be sent as:**
+
+- JSON array: `temperament: ["friendly", "playful"]`
+- Stringified JSON: `temperament: '["friendly", "playful"]'`
+- Individual values: `temperament: "friendly"` (will be converted to array)
+
+**Numbers are automatically parsed:**
+
+- `searchRadius: "15"` → `searchRadius: 15`
+
 ## Endpoints
 
 ### 1. Register Pet
@@ -21,6 +43,8 @@ Content-Type: multipart/form-data
 ```
 
 #### Request Body (Form Data)
+
+**Option 1: Standard JSON-like form data**
 
 ```javascript
 {
@@ -40,17 +64,48 @@ Content-Type: multipart/form-data
 
   // Optional Dog Match Preferences (will auto-create preferences if provided)
   "neutered": "string",                // Optional - Neutered status ("Yes"/"No")
-  "temperament": ["string"],           // Optional - Array of temperament traits
+  "temperament": '["friendly","playful"]',  // Optional - JSON string of temperament array
   "socialize": "string",               // Optional - Socialization preference ("Yes"/"No")
-  "time": ["string"],                  // Optional - Array of preferred times
+  "time": '["morning","evening"]',     // Optional - JSON string of time array
   "location": "string",                // Optional - Preferred location
   "size": "string",                    // Optional - Preferred size
   "age": "string",                     // Optional - Preferred age range
-  "coordinates": {                     // Optional - Location coordinates
-    "latitude": "number",
-    "longitude": "number"
-  },
-  "searchRadius": "number"             // Optional - Search radius in km (default: 10)
+  "coordinates": '{"latitude":12.22,"longitude":34.44}',  // Optional - JSON string coordinates
+  "searchRadius": "10"                 // Optional - Search radius in km (default: 10)
+}
+```
+
+**Option 2: Separate field form data (recommended for frontend forms)**
+
+```javascript
+{
+  // Required Pet Fields
+  "user": "string",
+  "name": "string",
+  "gender": "string",
+  "dob": "string",
+  "pet": "string",
+  "picture": "file",
+
+  // Optional Pet Fields
+  "weight": "string",
+  "height": "string",
+  "microchip_number": "string",
+  "race": "string",
+  "description": "string",
+  "color": "string",
+
+  // Optional Dog Match Preferences with separate coordinate fields
+  "neutered": "string",
+  "temperament": '["friendly","playful"]',
+  "socialize": "string",
+  "time": '["morning","evening"]',
+  "location": "string",
+  "size": "string",
+  "age": "string",
+  "coordinates[latitude]": "12.22",    // Coordinate latitude as separate field
+  "coordinates[longitude]": "34.44",   // Coordinate longitude as separate field
+  "searchRadius": "10"
 }
 ```
 
@@ -277,6 +332,8 @@ Content-Type: multipart/form-data
 
 #### Request Body (Form Data)
 
+**Standard form data with flexible field formats:**
+
 ```javascript
 {
   // Optional Pet Fields
@@ -292,19 +349,29 @@ Content-Type: multipart/form-data
   "pet": "string",                     // Optional - Pet type
   "picture": "file",                   // Optional - New pet image file
 
-  // Optional Dog Match Preferences Update
+  // Optional Dog Match Preferences Update (multiple format options)
   "neutered": "string",                // Optional - Neutered status
-  "temperament": ["string"],           // Optional - Array of temperament traits
+
+  // Temperament can be sent as:
+  "temperament": '["friendly","playful"]',     // JSON string array
+  // OR "temperament": "friendly",             // Single value (converted to array)
+
   "socialize": "string",               // Optional - Socialization preference
-  "time": ["string"],                  // Optional - Array of preferred times
+
+  // Time can be sent as:
+  "time": '["morning","evening"]',     // JSON string array
+  // OR "time": "morning",              // Single value (converted to array)
+
   "location": "string",                // Optional - Preferred location
   "size": "string",                    // Optional - Preferred size
   "age": "string",                     // Optional - Preferred age range
-  "coordinates": {                     // Optional - Location coordinates
-    "latitude": "number",
-    "longitude": "number"
-  },
-  "searchRadius": "number"             // Optional - Search radius in km
+
+  // Coordinates can be sent as:
+  "coordinates[latitude]": "12.22",    // Separate fields (recommended)
+  "coordinates[longitude]": "34.44",
+  // OR "coordinates": '{"latitude":12.22,"longitude":34.44}',  // JSON string
+
+  "searchRadius": "10"                 // Optional - Search radius in km (auto-parsed to number)
 }
 ```
 
@@ -480,6 +547,8 @@ Create or update dog match preferences for a specific pet.
 
 #### Request Body
 
+**Option 1: JSON format**
+
 ```javascript
 {
   "user": "string",                    // Required - User ID (ObjectId)
@@ -496,6 +565,31 @@ Create or update dog match preferences for a specific pet.
     "longitude": "number"              // Required - Longitude
   },
   "searchRadius": "number"             // Optional - Search radius in km (default: 10)
+}
+```
+
+**Option 2: Form data format (supports multiple formats)**
+
+```javascript
+{
+  "user": "string",                    // Required - User ID (ObjectId)
+  "pet": "string",                     // Required - Pet ID (ObjectId)
+  "neutered": "string",                // Required - Neutered status ("Yes"/"No")
+  "socialize": "string",               // Required - Socialization preference ("Yes"/"No")
+  "location": "string",                // Required - Preferred location
+  "size": "string",                    // Required - Preferred size
+  "age": "string",                     // Required - Preferred age range
+
+  // Arrays can be sent as JSON strings or individual values:
+  "temperament": '["friendly","playful","energetic"]',  // JSON string array
+  "time": '["morning","evening"]',     // JSON string array
+
+  // Coordinates can be sent as separate fields or JSON string:
+  "coordinates[latitude]": "12.22",    // Separate fields (recommended for forms)
+  "coordinates[longitude]": "34.44",
+  // OR "coordinates": '{"latitude":12.22,"longitude":34.44}',
+
+  "searchRadius": "10"                 // String number (auto-parsed to number)
 }
 ```
 
@@ -791,3 +885,57 @@ Deactivate dog match preferences for a user (sets isActive to false).
 - Dog match results are sorted by match percentage (highest first) and then by distance (closest first)
 - Coordinates are required for dog match functionality
 - Match percentages are calculated based on multiple criteria compatibility
+
+## Form Data Parsing Features
+
+The backend includes intelligent form data parsing that automatically handles different data formats:
+
+### Nested Objects
+
+```javascript
+// Frontend can send coordinates as:
+coordinates[latitude]: "12.22"
+coordinates[longitude]: "34.44"
+
+// Backend automatically converts to:
+coordinates: { latitude: 12.22, longitude: 34.44 }
+```
+
+### Array Handling
+
+```javascript
+// Arrays can be sent as:
+temperament: '["friendly","playful"]'; // JSON string
+temperament: "friendly"; // Single value → converted to ["friendly"]
+temperament: ["friendly", "playful"]; // Native array (if supported by form)
+
+// All are converted to proper arrays in the backend
+```
+
+### Number Conversion
+
+```javascript
+// String numbers are automatically converted:
+searchRadius: "15"  →  searchRadius: 15
+```
+
+### Supported Endpoints
+
+The following endpoints support advanced form data parsing:
+
+- `POST /register_pet` - Pet registration with dog match preferences
+- `PUT /:id` - Pet updates with dog match preferences
+- `POST /dogmatch/preferences` - Dog match preference creation/updates
+
+### Error Handling
+
+- Invalid JSON strings in arrays are handled gracefully
+- Missing coordinate fields are validated properly
+- Single values for arrays are automatically converted to arrays
+- Invalid numbers default to sensible fallbacks (e.g., searchRadius defaults to 10)
+
+### Debugging
+
+- All parsed form data is logged to console for debugging
+- Original form data structure is preserved for fallback handling
+- Clear error messages for validation failures

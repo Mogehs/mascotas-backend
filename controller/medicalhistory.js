@@ -10,21 +10,16 @@ cloudinary.config({
 // Helper function to parse reminder times from string (for multipart form data)
 const parseReminderTimes = (reminderTimesString) => {
   try {
-    console.log("parseReminderTimes input:", reminderTimesString);
-
     if (!reminderTimesString) return null;
 
     // If it's already an array, return as is
     if (Array.isArray(reminderTimesString)) {
-      console.log("Input is array:", reminderTimesString);
       return reminderTimesString;
     }
 
     // If it's a string, try to parse it
     if (typeof reminderTimesString === "string") {
-      console.log("Input is string, parsing...");
       const parsed = JSON.parse(reminderTimesString);
-      console.log("Parsed result:", parsed);
 
       // Validate the structure
       if (Array.isArray(parsed)) {
@@ -32,7 +27,6 @@ const parseReminderTimes = (reminderTimesString) => {
           date: item.date,
           times: Array.isArray(item.times) ? item.times : [],
         }));
-        console.log("Final parsed result:", result);
         return result;
       }
     }
