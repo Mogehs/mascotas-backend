@@ -66,7 +66,7 @@ const getAllBusinessProfiles = async (req, res) => {
   try {
     // Get all business profiles (no admin validation needed)
     const businesses = await Business.find({})
-      .populate("id", "firstname lastname email")
+      .populate("id")
       .sort({ createdAt: -1 });
 
     res.status(200).json({
