@@ -151,6 +151,28 @@ const badge = async (req, res) => {
   }
 };
 
+const getBadgeStatus = async (req, res) => {
+  try {
+    const { id } = req.body;
+    const check = await user.findOne({ _id: id });
+    if (check) {
+      res.status(200).json({
+        success: true,
+        message: "Estado de la insignia encontrado",
+        badge_status: check.badge_subscription,
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        message: "Usuario no encontrado",
+      });
+    }
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 const business = async (req, res) => {
   try {
     const { id } = req.body;
@@ -323,4 +345,5 @@ module.exports = {
   deleteDeviceToken,
   filterUsers,
   updateUser,
+  getBadgeStatus,
 };
