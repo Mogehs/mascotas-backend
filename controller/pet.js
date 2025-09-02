@@ -1020,7 +1020,7 @@ function calculateMatchPercentage(userPref, otherPref) {
 // New API: Get matched dogs based on pet's preferences
 const getAllDogMatches = async (req, res) => {
   try {
-    const { petId, coordinates, radius = 10 } = req.body;
+    const { petId, userId, coordinates, radius = 10 } = req.body;
 
     if (!petId) {
       return res.status(400).json({
@@ -1060,6 +1060,7 @@ const getAllDogMatches = async (req, res) => {
     // Get all preferences (excluding this pet's preferences)
     const allPreferences = await DogMatch.find({
       pet: { $ne: petId },
+      user: { $ne: userId },
       isActive: true,
     })
       .populate("user", "firstname lastname phone address")
