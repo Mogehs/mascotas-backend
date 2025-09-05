@@ -1002,8 +1002,7 @@ const getBusinessesByLocation = async (req, res) => {
           $maxDistance: radiusKm * 1000, // Convert km to meters
         },
       },
-      petpro_subscription: { is_active: true }, // Only show businesses with active subscriptions
-
+      "petpro_subscription.is_active": true, // Only show businesses with active subscriptions
       is_blocked: false, // Only show non-blocked businesses
     }).populate("id", "firstname lastname email phone");
 
