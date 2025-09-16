@@ -433,7 +433,7 @@ const activatePetProSubscription = async (req, res) => {
   try {
     const {
       business_id,
-      subscription_type = "premium", // Only premium available
+      subscription_type = "premium",
       payment_method = "stripe",
       amount_paid = 0,
     } = req.body;
@@ -885,6 +885,7 @@ const expireSubscriptionsHelper = async () => {
     const expiredPromises = expiredBusinesses.map(async (business) => {
       await Business.findByIdAndUpdate(business._id, {
         $set: {
+          is_blocked: true,
           "petpro_subscription.is_active": false,
           "petpro_subscription.subscription_type": "none",
           "petpro_subscription.payment_status": "expired",
@@ -901,7 +902,6 @@ const expireSubscriptionsHelper = async () => {
         },
       });
 
-      // Update user subscription status
       await User.findByIdAndUpdate(
         { _id: business.id },
         {

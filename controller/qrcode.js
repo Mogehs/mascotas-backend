@@ -133,12 +133,12 @@ const getQRCodeInfo = async (req, res) => {
         path: "petId",
         populate: {
           path: "user",
-          select: "name email phone",
+          select: "firstname lastname email phone badge_subscription",
         },
       })
       .populate({
         path: "userId",
-        select: "name email phone",
+        select: "firstname lastname email phone badge_subscription",
       });
 
     if (!qrCode) {
@@ -150,6 +150,36 @@ const getQRCodeInfo = async (req, res) => {
 
     const pet = qrCode.petId;
     const petOwner = pet?.user || qrCode.userId;
+
+    // Check if the pet owner has an active badge subscription
+    if (petOwner && !petOwner.badge_subscription) {
+      return res.status(200).json({
+        success: true,
+        message:
+          "QR code is currently inactive due to expired badge subscription.",
+        data: {
+          id: qrCode._id,
+          url: null,
+          qrCodeImage: null,
+          isActive: false,
+          subscriptionStatus: "expired",
+          isAssigned: !!pet,
+          pet: null,
+          owner: null,
+          whatsappMessage: null,
+          message:
+            "This QR code is not active. The pet owner's badge subscription has expired. Please contact the pet owner to renew their subscription.",
+        },
+      });
+    }
+
+    // Check if QR code is assigned but no pet owner found (edge case)
+    if (pet && !petOwner) {
+      return res.status(404).json({
+        success: false,
+        message: "Pet owner information not found for this QR code.",
+      });
+    }
 
     // Build WhatsApp-style message (just text)
     let whatsappMessage = `Hi, I found your pet.`;

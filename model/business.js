@@ -120,15 +120,15 @@ const businessSchema = new Schema(
     features: {
       can_create_featured_ads: {
         type: Boolean,
-        default: false, // No features by default - must subscribe
+        default: false,
       },
       max_featured_ads: {
         type: Number,
-        default: 0, // No limit by default
+        default: 0,
       },
       can_showcase_products: {
         type: Boolean,
-        default: false, // No features by default - must subscribe
+        default: false,
       },
       max_products: {
         type: Number,

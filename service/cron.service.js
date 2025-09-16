@@ -4,6 +4,7 @@ const MedicalHistory = require("../model/medicalhistory");
 const User = require("../model/user");
 const Pet = require("../model/pet");
 const { sendMedicalReminder } = require("./notification.service");
+const { expireSubscriptionsHelper } = require("../controller/business");
 
 class CronService {
   constructor() {
@@ -28,6 +29,9 @@ class CronService {
 
     // Clean up old completed reminders weekly
     this.scheduleWeeklyCleanup();
+
+    // Check for expired business subscriptions daily at midnight
+    this.scheduleSubscriptionExpiration();
 
     this.isRunning = true;
     console.log("Medical Checkup Cron Service started successfully");
@@ -99,6 +103,24 @@ class CronService {
 
     this.scheduledJobs.set("weeklyCleanup", weeklyJob);
     console.log("Scheduled weekly cleanup every Sunday at 2:00 AM");
+  }
+
+  // Schedule subscription expiration check at midnight
+  scheduleSubscriptionExpiration() {
+    const subscriptionJob = cron.schedule(
+      "0 0 * * *", // Run at 12:00 AM (midnight) every day
+      async () => {
+        console.log("Running daily business subscription expiration check...");
+        await this.checkExpiredSubscriptions();
+      },
+      {
+        scheduled: true,
+        timezone: "America/Mexico_City",
+      }
+    );
+
+    this.scheduledJobs.set("subscriptionExpiration", subscriptionJob);
+    console.log("Scheduled daily subscription expiration checks at 12:00 AM");
   }
 
   // Main function to check and send reminders
@@ -439,12 +461,6 @@ class CronService {
       console.log(
         `Medical reminder sent successfully for ${record.pet.pet_name} - ${reminderType}`
       );
-
-      // Mark reminder as sent (optional - you can add a field to track this)
-      // await MedicalHistory.findByIdAndUpdate(record._id, {
-      //   [`${reminderField}_sent`]: true,
-      //   [`${reminderField}_sent_at`]: new Date()
-      // });
     } catch (error) {
       console.error(`Failed to send reminder for record ${record._id}:`, error);
     }
@@ -691,6 +707,31 @@ class CronService {
         `Error sending specific reminder for ${medicalRecordId}:`,
         error
       );
+    }
+  }
+
+  // Check for expired business subscriptions and reset their limits
+  async checkExpiredSubscriptions() {
+    try {
+      console.log("Checking for expired business subscriptions...");
+
+      // Use the existing helper function from the business controller
+      const result = await expireSubscriptionsHelper();
+
+      if (result.success) {
+        console.log(
+          `Successfully processed ${result.expired_count} expired business subscriptions`
+        );
+        if (result.expired_business_ids.length > 0) {
+          console.log(
+            `Expired business IDs: ${result.expired_business_ids.join(", ")}`
+          );
+        }
+      } else {
+        console.error("Failed to process expired subscriptions");
+      }
+    } catch (error) {
+      console.error("Error in checkExpiredSubscriptions:", error);
     }
   }
 
