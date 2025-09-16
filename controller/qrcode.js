@@ -12,14 +12,14 @@ const generateBulkQRCodes = async (req, res) => {
     if (!quantity || typeof quantity !== "number" || quantity <= 0) {
       return res.status(400).json({
         success: false,
-        message: "Please provide a valid quantity (positive number)",
+        message: "Por favor proporciona una cantidad válida (número positivo)",
       });
     }
 
     if (quantity > 1000) {
       return res.status(400).json({
         success: false,
-        message: "Maximum quantity allowed is 1000",
+        message: "La cantidad máxima permitida es 1000",
       });
     }
 
@@ -32,7 +32,7 @@ const generateBulkQRCodes = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: `Successfully generated ${quantity} QR codes`,
+      message: `Se generaron exitosamente ${quantity} códigos QR`,
       data: {
         count: qrCodes.length,
         qrCodes: qrCodes,
@@ -42,7 +42,7 @@ const generateBulkQRCodes = async (req, res) => {
     console.error("Error generating bulk QR codes:", error);
     res.status(500).json({
       success: false,
-      message: "Internal server error while generating QR codes",
+      message: "Error interno del servidor al generar códigos QR",
       error: error.message,
     });
   }
@@ -94,7 +94,7 @@ const generateSingleQRCode = async () => {
       updatedAt: updatedQRCode.updatedAt,
     };
   } catch (error) {
-    throw new Error(`Failed to generate QR code: ${error.message}`);
+    throw new Error(`Error al generar código QR: ${error.message}`);
   }
 };
 
@@ -104,14 +104,14 @@ const generateSingleQRCodeEndpoint = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "QR code generated successfully",
+      message: "Código QR generado exitosamente",
       data: qrCode,
     });
   } catch (error) {
     console.error("Error generating single QR code:", error);
     res.status(500).json({
       success: false,
-      message: "Internal server error while generating QR code",
+      message: "Error interno del servidor al generar código QR",
       error: error.message,
     });
   }
@@ -124,7 +124,7 @@ const getQRCodeInfo = async (req, res) => {
     if (!qrId) {
       return res.status(400).json({
         success: false,
-        message: "QR code ID is required",
+        message: "Se requiere el ID del código QR",
       });
     }
 
@@ -144,7 +144,7 @@ const getQRCodeInfo = async (req, res) => {
     if (!qrCode) {
       return res.status(404).json({
         success: false,
-        message: "QR code not found",
+        message: "Código QR no encontrado",
       });
     }
 
@@ -156,7 +156,7 @@ const getQRCodeInfo = async (req, res) => {
       return res.status(200).json({
         success: true,
         message:
-          "QR code is currently inactive due to expired badge subscription.",
+          "El código QR está actualmente inactivo debido a que la suscripción de la placa ha expirado.",
         data: {
           id: qrCode._id,
           url: null,
@@ -168,7 +168,7 @@ const getQRCodeInfo = async (req, res) => {
           owner: null,
           whatsappMessage: null,
           message:
-            "This QR code is not active. The pet owner's badge subscription has expired. Please contact the pet owner to renew their subscription.",
+            "Este código QR no está activo. La suscripción de la placa del dueño de la mascota ha expirado. Por favor contacta al dueño para renovar su suscripción.",
         },
       });
     }
@@ -177,17 +177,20 @@ const getQRCodeInfo = async (req, res) => {
     if (pet && !petOwner) {
       return res.status(404).json({
         success: false,
-        message: "Pet owner information not found for this QR code.",
+        message:
+          "No se encontró información del dueño de la mascota para este código QR.",
       });
     }
 
     // Build WhatsApp-style message (just text)
-    let whatsappMessage = `Hi, I found your pet.`;
+    let whatsappMessage = `Hola, encontré a tu mascota.`;
 
     if (pet) {
-      whatsappMessage = `Hi, I found your pet ${pet.pet_name || ""}${
+      whatsappMessage = `Hola, encontré a tu mascota ${pet.pet_name || ""}${
         pet.pet_color ? ", color " + pet.pet_color : ""
-      }${pet.pet_breed ? ", breed " + pet.pet_breed : ""}. Please contact me.`;
+      }${
+        pet.pet_breed ? ", raza " + pet.pet_breed : ""
+      }. Por favor contáctame.`;
     }
 
     const responseData = {
@@ -205,19 +208,19 @@ const getQRCodeInfo = async (req, res) => {
 
     if (!pet) {
       responseData.message =
-        "QR code is not assigned to any pet. You can proceed to register a pet.";
+        "El código QR no está asignado a ninguna mascota. Puedes proceder a registrar una mascota.";
     }
 
     res.status(200).json({
       success: true,
-      message: "QR code information retrieved successfully",
+      message: "Información del código QR obtenida exitosamente",
       data: responseData,
     });
   } catch (error) {
     console.error("Error retrieving QR code info:", error);
     res.status(500).json({
       success: false,
-      message: "Internal server error while retrieving QR code",
+      message: "Error interno del servidor al obtener el código QR",
       error: error.message,
     });
   }
@@ -244,7 +247,7 @@ const assignPetToQRCode = async (req, res) => {
     if (!user) {
       return res.status(400).json({
         success: false,
-        message: "User ID is required",
+        message: "Se requiere el ID del usuario",
       });
     }
 
@@ -255,14 +258,14 @@ const assignPetToQRCode = async (req, res) => {
       if (!qrCode) {
         return res.status(404).json({
           success: false,
-          message: "QR code not found",
+          message: "Código QR no encontrado",
         });
       }
 
       if (qrCode.petId) {
         return res.status(400).json({
           success: false,
-          message: "QR code is already assigned to a pet",
+          message: "El código QR ya está asignado a una mascota",
         });
       }
     } else {
@@ -313,7 +316,7 @@ const assignPetToQRCode = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Pet created and assigned to QR code successfully",
+      message: "Mascota creada y asignada al código QR exitosamente",
       data: {
         qrCode: updatedQRCode,
         pet: newPet,
@@ -323,7 +326,7 @@ const assignPetToQRCode = async (req, res) => {
     console.error("Error assigning pet to QR code:", error);
     res.status(500).json({
       success: false,
-      message: "Internal server error while assigning pet to QR code",
+      message: "Error interno del servidor al asignar mascota al código QR",
       error: error.message,
     });
   }
@@ -351,7 +354,7 @@ const getAllQRCodes = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "QR codes retrieved successfully",
+      message: "Códigos QR obtenidos exitosamente",
       data: {
         qrCodes,
         pagination: {
@@ -367,7 +370,7 @@ const getAllQRCodes = async (req, res) => {
     console.error("Error retrieving QR codes:", error);
     res.status(500).json({
       success: false,
-      message: "Internal server error while retrieving QR codes",
+      message: "Error interno del servidor al obtener códigos QR",
       error: error.message,
     });
   }
