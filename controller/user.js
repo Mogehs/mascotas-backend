@@ -129,12 +129,18 @@ const badge = async (req, res) => {
     const { id, name } = req.body;
     const check = await user.findOne({ _id: id });
     if (check) {
+      const currentDate = new Date();
+      const endDate = new Date(currentDate);
+      endDate.setFullYear(endDate.getFullYear() + 1); // 1 year subscription
+
       const data = await user.findByIdAndUpdate(
         { _id: check._id },
         {
           $set: {
             badge_subscription: true,
             badge_name: name,
+            badge_subscription_start_date: currentDate,
+            badge_subscription_end_date: endDate,
           },
         },
         { new: true }

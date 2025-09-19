@@ -33,6 +33,9 @@ class CronService {
     // Check for expired business subscriptions daily at midnight
     this.scheduleSubscriptionExpiration();
 
+    // Check for expired badge subscriptions daily at midnight
+    this.scheduleBadgeSubscriptionExpiration();
+
     this.isRunning = true;
     console.log("Medical Checkup Cron Service started successfully");
   }
@@ -121,6 +124,26 @@ class CronService {
 
     this.scheduledJobs.set("subscriptionExpiration", subscriptionJob);
     console.log("Scheduled daily subscription expiration checks at 12:00 AM");
+  }
+
+  // Schedule badge subscription expiration check at midnight
+  scheduleBadgeSubscriptionExpiration() {
+    const badgeSubscriptionJob = cron.schedule(
+      "0 0 * * *", // Run at 12:00 AM (midnight) every day
+      async () => {
+        console.log("Running daily badge subscription expiration check...");
+        await this.checkExpiredBadgeSubscriptions();
+      },
+      {
+        scheduled: true,
+        timezone: "America/Mexico_City",
+      }
+    );
+
+    this.scheduledJobs.set("badgeSubscriptionExpiration", badgeSubscriptionJob);
+    console.log(
+      "Scheduled daily badge subscription expiration checks at 12:00 AM"
+    );
   }
 
   // Main function to check and send reminders
@@ -732,6 +755,63 @@ class CronService {
       }
     } catch (error) {
       console.error("Error in checkExpiredSubscriptions:", error);
+    }
+  }
+
+  // Check for expired badge subscriptions and disable them
+  async checkExpiredBadgeSubscriptions() {
+    try {
+      console.log("Checking for expired badge subscriptions...");
+
+      const currentDate = new Date();
+
+      // Find all users with active badge subscriptions that have expired
+      const expiredUsers = await User.find({
+        badge_subscription: true,
+        badge_subscription_end_date: { $lt: currentDate, $ne: null },
+      });
+
+      console.log(
+        `Found ${expiredUsers.length} expired badge subscriptions to process`
+      );
+
+      if (expiredUsers.length === 0) {
+        console.log("No expired badge subscriptions found");
+        return;
+      }
+
+      // Expire each badge subscription
+      const expiredPromises = expiredUsers.map(async (user) => {
+        await User.findByIdAndUpdate(user._id, {
+          $set: {
+            badge_subscription: false,
+            badge_subscription_end_date: null,
+          },
+        });
+
+        console.log(
+          `Expired badge subscription for user: ${user.firstname} ${user.lastname} (ID: ${user._id})`
+        );
+        return user._id;
+      });
+
+      const expiredIds = await Promise.all(expiredPromises);
+
+      console.log(
+        `Successfully expired ${expiredIds.length} badge subscriptions`
+      );
+      if (expiredIds.length > 0) {
+        console.log(`Expired user IDs: ${expiredIds.join(", ")}`);
+      }
+
+      return {
+        success: true,
+        expired_count: expiredIds.length,
+        expired_user_ids: expiredIds,
+      };
+    } catch (error) {
+      console.error("Error in checkExpiredBadgeSubscriptions:", error);
+      throw error;
     }
   }
 
