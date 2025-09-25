@@ -68,6 +68,39 @@ const businessRegister = async (req, res) => {
       });
     }
 
+    // Validate operation timings if provided
+    let validatedOperationTimings = null;
+    if (operation_timings && Array.isArray(operation_timings)) {
+      const validDays = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+      ];
+
+      for (const timing of operation_timings) {
+        if (!timing.day || !validDays.includes(timing.day)) {
+          return res.status(400).json({
+            success: false,
+            message: `Invalid day: ${
+              timing.day
+            }. Must be one of: ${validDays.join(", ")}`,
+          });
+        }
+        if (!timing.time || typeof timing.time !== "string") {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Invalid time format. Time must be a string (e.g., '09:00-17:00' or 'Closed')",
+          });
+        }
+      }
+      validatedOperationTimings = operation_timings;
+    }
+
     // Validate coordinates if provided
     let validatedLatitude = null;
     let validatedLongitude = null;
@@ -110,7 +143,7 @@ const businessRegister = async (req, res) => {
       website: website,
       additional: addition,
       physical_address: address,
-      operation_timing: operation_timings,
+      operation_timing: validatedOperationTimings,
       tax_identification_number: tax,
       latitude: validatedLatitude,
       longitude: validatedLongitude,
@@ -334,7 +367,6 @@ const getBusinessByUserId = async (req, res) => {
 
 const updateBusiness = async (req, res) => {
   try {
-    console.log("working");
     const {
       id,
       name,
@@ -370,6 +402,38 @@ const updateBusiness = async (req, res) => {
       });
     }
 
+    // Validate operation timings if provided
+    let validatedOperationTimings = operation_timings;
+    if (operation_timings && Array.isArray(operation_timings)) {
+      const validDays = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+      ];
+
+      for (const timing of operation_timings) {
+        if (!timing.day || !validDays.includes(timing.day)) {
+          return res.status(400).json({
+            success: false,
+            message: `Invalid day: ${
+              timing.day
+            }. Must be one of: ${validDays.join(", ")}`,
+          });
+        }
+        if (!timing.time || typeof timing.time !== "string") {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Invalid time format. Time must be a string (e.g., '09:00-17:00' or 'Closed')",
+          });
+        }
+      }
+    }
+
     // Prepare update data
     const updateData = {
       company_name: name,
@@ -381,7 +445,7 @@ const updateBusiness = async (req, res) => {
       website: website,
       additional: addition,
       physical_address: address,
-      operation_timing: operation_timings,
+      operation_timing: validatedOperationTimings,
       tax_identification_number: tax,
     };
 

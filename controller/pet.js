@@ -823,7 +823,7 @@ const createDogMatchPreferences = async (req, res) => {
     }
 
     // Check if user already has preferences
-    const existingPreferences = await DogMatch.findOne({ user });
+    const existingPreferences = await DogMatch.findOne({ user, pet });
 
     let preferencesData;
     let isNewPreferences = false;
@@ -1067,6 +1067,7 @@ const getAllDogMatches = async (req, res) => {
       .populate("pet", "pet_name pet_gender pet_color pet_image pet_race");
 
     if (!allPreferences || allPreferences.length === 0) {
+      console.log("No other dog match preferences found in database");
       return res.status(404).json({
         success: false,
         message: "No hay preferencias de dog match guardadas",

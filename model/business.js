@@ -71,7 +71,27 @@ const businessSchema = new Schema(
         default: [0, 0],
       },
     },
-    operation_timing: {},
+    operation_timing: [
+      {
+        day: {
+          type: String,
+          enum: [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday",
+          ],
+          required: true,
+        },
+        time: {
+          type: String, // e.g. "10:00-17:00" or "Closed"
+          required: true,
+        },
+      },
+    ],
     tax_identification_number: {
       type: String,
       default: "N/A",
