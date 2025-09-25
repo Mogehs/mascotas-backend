@@ -5,8 +5,7 @@ const Pet = require("../model/pet");
 
 const registeruser = async (req, res) => {
   try {
-    console.log(req.body);
-    const { email, password, token } = req.body;
+    const { email, password, device_token } = req.body;
     let check = await user.findOne({ email: email });
     if (check) {
       return res.status(400).json({
@@ -19,7 +18,7 @@ const registeruser = async (req, res) => {
       check = await user.create({
         email: email,
         password: securePass,
-        device_token: token,
+        device_token: device_token,
       });
       res.status(200).json({
         success: true,
