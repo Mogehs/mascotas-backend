@@ -1179,8 +1179,8 @@ const findMatchingUsersForNotification = async (newUserPreferences) => {
         pref
       );
 
-      // Only include if match percentage is greater than 0
-      return matchPercentage > 0;
+      // Only include if match percentage is exactly 100
+      return matchPercentage === 100;
     });
 
     return matchingUsers;
