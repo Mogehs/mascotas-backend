@@ -12,6 +12,7 @@ const {
   assignPetManually,
   updateSubscriptionBadge,
   toggleBusinessSubscription,
+  deleteUserCompletely,
 } = require("../controller/superadmin");
 
 router.get("/users", getAllUsers);
@@ -36,5 +37,8 @@ router.get("/analytics/sales", getSalesAnalytics);
 router.get("/pets", getAllPets);
 
 router.post("/:id/assign", assignPetManually);
+
+// DANGER ZONE - Complete user deletion with all associated data
+router.delete("/user/:userId/delete-completely", deleteUserCompletely);
 
 module.exports = router;

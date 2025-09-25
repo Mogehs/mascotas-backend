@@ -3,6 +3,14 @@ const Business = require("../model/business");
 const Order = require("../model/order");
 const QRCode = require("../model/qrcode");
 const Pet = require("../model/pet");
+const Ads = require("../model/ads");
+const Product = require("../model/product");
+const Promotion = require("../model/promotion");
+const Lost = require("../model/lost");
+const MedicalHistory = require("../model/medicalhistory");
+const Message = require("../model/message");
+const Analytics = require("../model/analytics");
+const DogMatch = require("../model/dogmatch");
 const {
   sendGeneralNotification,
   NOTIFICATION_TYPES,
@@ -554,7 +562,6 @@ const updateSubscriptionBadge = async (req, res) => {
     // Update fields
     user.badge_subscription = !!isActiveBool;
     if (user.badge_subscription) {
-      // If activating and badgeName provided, set it; otherwise leave existing name
       if (typeof badgeName !== "undefined") user.badge_name = badgeName;
     } else {
       // If deactivating, clear badge name
@@ -708,6 +715,159 @@ const toggleBusinessSubscription = async (req, res) => {
   }
 };
 
+// Delete user and all associated data (DANGEROUS - use with caution)
+const deleteUserCompletely = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { confirmDelete = false } = req.body;
+
+    // Validate required parameters
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    // Confirmation check to prevent accidental deletion
+    if (!confirmDelete) {
+      return res.status(400).json({
+        success: false,
+        message: "Please confirm deletion by setting confirmDelete to true",
+        warning: "This action is IRREVERSIBLE and will delete ALL user data",
+      });
+    }
+
+    // Check if user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Prevent deletion of super admin users
+    if (user.role === "super_admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Cannot delete super admin users",
+      });
+    }
+
+    // Start deletion process - track what gets deleted
+    const deletionResults = {
+      user_data: false,
+      business_profile: 0,
+      pets: 0,
+      orders: 0,
+      qr_codes: 0,
+      ads: 0,
+      products: 0,
+      promotions: 0,
+      lost_pets: 0,
+      medical_history: 0,
+      messages: 0,
+      analytics: 0,
+      dog_matches: 0,
+    };
+
+    console.log(`Starting deletion process for user: ${userId}`);
+
+    // 1. Find and delete business profile(s) and all business-related data
+    const businessProfiles = await Business.find({ id: userId });
+    for (const business of businessProfiles) {
+      const businessId = business._id;
+
+      // Delete ads created by this business
+      const deletedAds = await Ads.deleteMany({ business_id: businessId });
+      deletionResults.ads += deletedAds.deletedCount;
+
+      // Delete products created by this business
+      const deletedProducts = await Product.deleteMany({
+        business_id: businessId,
+      });
+      deletionResults.products += deletedProducts.deletedCount;
+
+      // Delete promotions created by this business
+      const deletedPromotions = await Promotion.deleteMany({
+        business_id: businessId,
+      });
+      deletionResults.promotions += deletedPromotions.deletedCount;
+
+      // Delete analytics for this business
+      const deletedAnalytics = await Analytics.deleteMany({
+        business_id: businessId,
+      });
+      deletionResults.analytics += deletedAnalytics.deletedCount;
+
+      // Delete the business profile itself
+      await Business.findByIdAndDelete(businessId);
+      deletionResults.business_profile += 1;
+    }
+
+    // 2. Delete user's pets
+    const deletedPets = await Pet.deleteMany({ user: userId });
+    deletionResults.pets = deletedPets.deletedCount;
+
+    // 3. Delete user's orders
+    const deletedOrders = await Order.deleteMany({ user: userId });
+    deletionResults.orders = deletedOrders.deletedCount;
+
+    // 4. Delete user's QR codes
+    const deletedQRCodes = await QRCode.deleteMany({ userId: userId });
+    deletionResults.qr_codes = deletedQRCodes.deletedCount;
+
+    // 5. Delete user's lost pet reports
+    const deletedLostPets = await Lost.deleteMany({ user: userId });
+    deletionResults.lost_pets = deletedLostPets.deletedCount;
+
+    // 6. Delete medical history records for user's pets
+    const userPetIds = await Pet.find({ user: userId }).distinct("_id");
+    const deletedMedicalHistory = await MedicalHistory.deleteMany({
+      pet: { $in: userPetIds },
+    });
+    deletionResults.medical_history = deletedMedicalHistory.deletedCount;
+
+    // 7. Delete user's messages (as sender)
+    const deletedMessages = await Message.deleteMany({
+      $or: [{ sender: userId }, { receiver: userId }],
+    });
+    deletionResults.messages = deletedMessages.deletedCount;
+
+    // 8. Delete dog match preferences
+    const deletedDogMatches = await DogMatch.deleteMany({ userId: userId });
+    deletionResults.dog_matches = deletedDogMatches.deletedCount;
+
+    // 9. Finally, delete the user account itself
+    await User.findByIdAndDelete(userId);
+    deletionResults.user_data = true;
+
+    console.log(`User deletion completed for: ${userId}`, deletionResults);
+
+    res.status(200).json({
+      success: true,
+      message: "User and all associated data deleted successfully",
+      deleted_user: {
+        id: userId,
+        username: user.username || user.email,
+        firstname: user.firstname,
+        lastname: user.lastname,
+      },
+      deletion_summary: deletionResults,
+      warning:
+        "This action was irreversible - all user data has been permanently deleted",
+    });
+  } catch (error) {
+    console.error("Delete user completely error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error deleting user and associated data",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getAllBusinessProfiles,
@@ -720,4 +880,5 @@ module.exports = {
   getAllPets,
   assignPetManually,
   toggleBusinessSubscription,
+  deleteUserCompletely,
 };

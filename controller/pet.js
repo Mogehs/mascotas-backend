@@ -478,8 +478,6 @@ const update_pet = async (req, res) => {
       searchRadius = 10,
     } = parsedBody;
 
-    console.log("Parsed body for update:", parsedBody);
-
     // ✅ Check if pet exists
     const existingPet = await Pet.findById(id);
     if (!existingPet) {
