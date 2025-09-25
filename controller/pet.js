@@ -1066,8 +1066,6 @@ const getAllDogMatches = async (req, res) => {
       .populate("user", "firstname lastname phone address")
       .populate("pet", "pet_name pet_gender pet_color pet_image pet_race");
 
-    console.log(`Found ${allPreferences.length} other preferences to check`);
-
     if (!allPreferences || allPreferences.length === 0) {
       return res.status(404).json({
         success: false,
@@ -1141,19 +1139,6 @@ const getAllDogMatches = async (req, res) => {
       petCoordinates: {
         latitude: petLat,
         longitude: petLon,
-      },
-      debug: {
-        totalPreferencesChecked: allPreferences.length,
-        preferencesWithCoordinates: allPreferences.filter(
-          (p) =>
-            p.coordinates && p.coordinates.latitude && p.coordinates.longitude
-        ).length,
-        preferencesWithoutCoordinates: allPreferences.filter(
-          (p) =>
-            !p.coordinates ||
-            !p.coordinates.latitude ||
-            !p.coordinates.longitude
-        ).length,
       },
     });
   } catch (error) {

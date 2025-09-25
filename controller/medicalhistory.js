@@ -643,7 +643,7 @@ const petmedicalcheckup = async (req, res) => {
       results,
       name,
       reminder_date,
-      reminder_times, // New field for multiple reminder times
+      reminder_times,
       price,
       user,
     } = req.body;

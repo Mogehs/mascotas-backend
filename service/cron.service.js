@@ -470,7 +470,7 @@ class CronService {
 
       const reminderType =
         reminderTypeMap[reminderField] || "recordatorio médico";
-      const formattedDate = reminderDate.format("DD/MM/YYYY HH:mm");
+      const formattedDate = `#${reminderDate.format("DD/MM/YYYY HH:mm")}#`;
 
       await sendMedicalReminder(
         record.user.device_token,
