@@ -719,22 +719,12 @@ const toggleBusinessSubscription = async (req, res) => {
 const deleteUserCompletely = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { confirmDelete = false } = req.body;
 
     // Validate required parameters
     if (!userId) {
       return res.status(400).json({
         success: false,
         message: "User ID is required",
-      });
-    }
-
-    // Confirmation check to prevent accidental deletion
-    if (!confirmDelete) {
-      return res.status(400).json({
-        success: false,
-        message: "Please confirm deletion by setting confirmDelete to true",
-        warning: "This action is IRREVERSIBLE and will delete ALL user data",
       });
     }
 
