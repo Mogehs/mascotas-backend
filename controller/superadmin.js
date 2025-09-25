@@ -719,6 +719,7 @@ const toggleBusinessSubscription = async (req, res) => {
 const deleteUserCompletely = async (req, res) => {
   try {
     const { userId } = req.params;
+    let userDeviceToken = null;
 
     // Validate required parameters
     if (!userId) {
@@ -829,8 +830,39 @@ const deleteUserCompletely = async (req, res) => {
     const deletedDogMatches = await DogMatch.deleteMany({ userId: userId });
     deletionResults.dog_matches = deletedDogMatches.deletedCount;
 
-    // 9. Finally, delete the user account itself
+    // 9. Send notification to user before account deletion (if they have device token)
+    let notificationSent = false;
+    if (user.device_token) {
+      userDeviceToken = user.device_token;
+    }
+
+    // 10. Finally, delete the user account itself
     await User.findByIdAndDelete(userId);
+
+    try {
+      await sendGeneralNotification(
+        userDeviceToken,
+        "Account Deletion Notice",
+        "Your account and all associated data have been permanently deleted by an administrator. If you believe this is an error, please contact support immediately.",
+        NOTIFICATION_TYPES.DELETE_USER,
+        {
+          action: "account_deletion",
+          deleted_by: "super_admin",
+          deletion_date: new Date().toISOString(),
+          support_contact: "support@mascotas.com", // Update with your actual support contact
+        }
+      );
+      notificationSent = true;
+      console.log(`Deletion notification sent to user: ${userId}`);
+    } catch (notifyErr) {
+      console.error(
+        `Failed to send deletion notification to user ${userId}:`,
+        notifyErr.message
+      );
+      // Don't fail the deletion if notification fails, but log it
+      notificationSent = false;
+    }
+
     deletionResults.user_data = true;
 
     console.log(`User deletion completed for: ${userId}`, deletionResults);
@@ -843,7 +875,14 @@ const deleteUserCompletely = async (req, res) => {
         username: user.username || user.email,
         firstname: user.firstname,
         lastname: user.lastname,
+        email: user.email,
       },
+      notification_sent: notificationSent,
+      notification_status: notificationSent
+        ? "Deletion notification sent to user successfully"
+        : user.device_token
+        ? "Failed to send notification - check logs for details"
+        : "No device token available - notification not sent",
       deletion_summary: deletionResults,
       warning:
         "This action was irreversible - all user data has been permanently deleted",

@@ -26,6 +26,7 @@ const NOTIFICATION_TYPES = {
   // Admin notifications
   ADMIN_ANNOUNCEMENT: "admin_announcement",
   ADMIN_NOTIFICATION: "admin_notification",
+  DELETE_USER: "delete_user",
   SYSTEM_UPDATE: "system_update",
 
   // QR Code notifications
