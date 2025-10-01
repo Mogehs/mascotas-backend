@@ -128,18 +128,14 @@ const getQRCodeInfo = async (req, res) => {
       });
     }
 
-    const qrCode = await QRCodeModel.findById(qrId)
-      .populate({
-        path: "petId",
-        populate: {
-          path: "user",
-          select: "firstname lastname email phone badge_subscription",
-        },
-      })
-      .populate({
-        path: "userId",
-        select: "firstname lastname email phone badge_subscription",
-      });
+    const qrCode = await QRCodeModel.findById(qrId).populate({
+      path: "petId",
+      populate: {
+        path: "user",
+        select: "firstname lastname email phone",
+      },
+    });
+    console.log(qrCode);
 
     if (!qrCode) {
       return res.status(404).json({
@@ -149,10 +145,30 @@ const getQRCodeInfo = async (req, res) => {
     }
 
     const pet = qrCode.petId;
-    const petOwner = pet?.user || qrCode.userId;
+    const petOwner = pet ? pet.user : null;
 
-    // Check if the pet owner has an active badge subscription
-    if (petOwner && !petOwner.badge_subscription) {
+    // Check if the pet has an active badge subscription
+    const currentDate = new Date();
+    const isBadgeExpired =
+      pet &&
+      pet.badge_subscription_end_date &&
+      new Date(pet.badge_subscription_end_date) < currentDate;
+
+    if (pet && (!pet.badge_subscription || isBadgeExpired)) {
+      console.log({
+        id: qrCode._id,
+        url: null,
+        qrCodeImage: null,
+        isActive: false,
+        subscriptionStatus:
+          pet.badge_subscription && !isBadgeExpired ? "active" : "expired",
+        isAssigned: !!pet,
+        pet: null,
+        owner: null,
+        whatsappMessage: null,
+        message:
+          "Este código QR no está activo. La suscripción de la placa de la mascota ha expirado. Por favor contacta al dueño para renovar su suscripción.",
+      });
       return res.status(200).json({
         success: true,
         message:
@@ -168,7 +184,7 @@ const getQRCodeInfo = async (req, res) => {
           owner: null,
           whatsappMessage: null,
           message:
-            "Este código QR no está activo. La suscripción de la placa del dueño de la mascota ha expirado. Por favor contacta al dueño para renovar su suscripción.",
+            "Este código QR no está activo. La suscripción de la placa de la mascota ha expirado. Por favor contacta al dueño para renovar su suscripción.",
         },
       });
     }
@@ -188,9 +204,7 @@ const getQRCodeInfo = async (req, res) => {
     if (pet) {
       whatsappMessage = `Hola, encontré a tu mascota ${pet.pet_name || ""}${
         pet.pet_color ? ", color " + pet.pet_color : ""
-      }${
-        pet.pet_breed ? ", raza " + pet.pet_breed : ""
-      }. Por favor contáctame.`;
+      }${pet.pet_race ? ", raza " + pet.pet_race : ""}. Por favor contáctame.`;
     }
 
     const responseData = {
