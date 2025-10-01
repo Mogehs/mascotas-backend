@@ -291,7 +291,6 @@ const pet_register = async (req, res) => {
       description,
       color,
       pet,
-      // Dog match preferences (optional)
       neutered,
       temperament,
       socialize,
@@ -303,9 +302,6 @@ const pet_register = async (req, res) => {
       searchRadius = 10,
     } = parsedBody;
 
-    console.log("Parsed body:", parsedBody);
-
-    // ✅ Validate required fields
     if (!user || !name || !gender || !dob || !pet) {
       return res
         .status(400)

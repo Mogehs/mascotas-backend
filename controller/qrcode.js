@@ -390,10 +390,77 @@ const getAllQRCodes = async (req, res) => {
   }
 };
 
+const updateQRCodeSaleInfo = async (req, res) => {
+  try {
+    const { qrId } = req.params;
+    const { shopName, soldBy } = req.body;
+
+    if (!qrId) {
+      return res.status(400).json({
+        success: false,
+        message: "Se requiere el ID del código QR",
+      });
+    }
+
+    // Find the QR code
+    const qrCode = await QRCodeModel.findById(qrId);
+
+    if (!qrCode) {
+      return res.status(404).json({
+        success: false,
+        message: "Código QR no encontrado",
+      });
+    }
+
+    // Prepare update data
+    const updateData = {
+      updatedAt: new Date(),
+    };
+
+    // Add shopName if provided
+    if (shopName !== undefined) {
+      updateData.shopName = shopName;
+    }
+
+    // Add soldBy if provided
+    if (soldBy !== undefined) {
+      updateData.soldBy = soldBy;
+    }
+
+    // Update the QR code
+    const updatedQRCode = await QRCodeModel.findByIdAndUpdate(
+      qrId,
+      { $set: updateData },
+      { new: true }
+    ).populate({
+      path: "petId",
+      populate: {
+        path: "user",
+        select: "firstname lastname email phone",
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Información de venta del código QR actualizada exitosamente",
+      data: updatedQRCode,
+    });
+  } catch (error) {
+    console.error("Error updating QR code sale info:", error);
+    res.status(500).json({
+      success: false,
+      message:
+        "Error interno del servidor al actualizar la información de venta",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   generateBulkQRCodes,
   generateSingleQRCodeEndpoint,
   getQRCodeInfo,
   assignPetToQRCode,
   getAllQRCodes,
+  updateQRCodeSaleInfo,
 };
