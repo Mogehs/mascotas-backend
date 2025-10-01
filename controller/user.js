@@ -125,14 +125,14 @@ const fetchUsers = async (req, res) => {
 
 const badge = async (req, res) => {
   try {
-    const { id, name } = req.body;
-    const check = await user.findOne({ _id: id });
+    const { pet_id, name } = req.body;
+    const check = await Pet.findOne({ _id: pet_id });
     if (check) {
       const currentDate = new Date();
       const endDate = new Date(currentDate);
       endDate.setFullYear(endDate.getFullYear() + 1); // 1 year subscription
 
-      const data = await user.findByIdAndUpdate(
+      const data = await Pet.findByIdAndUpdate(
         { _id: check._id },
         {
           $set: {
@@ -149,6 +149,11 @@ const badge = async (req, res) => {
         message: "La información de la insignia se guardó correctamente",
         pet_details: data,
       });
+    } else {
+      res.status(404).json({
+        success: false,
+        message: "Mascota no encontrada",
+      });
     }
   } catch (error) {
     console.log(error.message);
@@ -158,18 +163,21 @@ const badge = async (req, res) => {
 
 const getBadgeStatus = async (req, res) => {
   try {
-    const { id } = req.body;
-    const check = await user.findOne({ _id: id });
+    const { pet_id } = req.body;
+    const check = await Pet.findOne({ _id: pet_id });
     if (check) {
       res.status(200).json({
         success: true,
         message: "Estado de la insignia encontrado",
         badge_status: check.badge_subscription,
+        badge_name: check.badge_name,
+        badge_start_date: check.badge_subscription_start_date,
+        badge_end_date: check.badge_subscription_end_date,
       });
     } else {
       res.status(404).json({
         success: false,
-        message: "Usuario no encontrado",
+        message: "Mascota no encontrada",
       });
     }
   } catch (error) {
