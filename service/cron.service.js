@@ -1,5 +1,5 @@
 const cron = require("node-cron");
-const moment = require("moment");
+const moment = require("moment-timezone");
 const MedicalHistory = require("../model/medicalhistory");
 const User = require("../model/user");
 const Pet = require("../model/pet");
@@ -470,7 +470,10 @@ class CronService {
 
       const reminderType =
         reminderTypeMap[reminderField] || "recordatorio médico";
-      const formattedDate = `#${reminderDate.format("DD/MM/YYYY HH:mm")}#`;
+
+      // Convert UTC time to Spain timezone (Europe/Madrid) for the notification display
+      const spainTime = reminderDate.clone().tz("Europe/Madrid");
+      const formattedDate = `#${spainTime.format("DD/MM/YYYY HH:mm")}#`;
 
       await sendMedicalReminder(
         record.user.device_token,
