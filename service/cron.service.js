@@ -473,7 +473,7 @@ class CronService {
 
       // Convert UTC time to Spain timezone (Europe/Madrid) for the notification display
       const spainTime = reminderDate.clone().tz("Europe/Madrid");
-      const formattedDate = `#${spainTime.format("DD/MM/YYYY HH:mm")}#`;
+      const formattedDate = `${spainTime.format("DD/MM/YYYY HH:mm")}`;
 
       await sendMedicalReminder(
         record.user.device_token,
