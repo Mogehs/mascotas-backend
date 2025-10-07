@@ -1217,6 +1217,159 @@ const deactivateDogMatchPreferences = async (req, res) => {
   }
 };
 
+// New API: Update badge subscription status for all pets of a user
+const updateAllUserPetBadges = async (req, res) => {
+  try {
+    const { userId, status } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    if (!status || (status !== "active" && status !== "inactive")) {
+      return res.status(400).json({
+        success: false,
+        message: "Status is required and must be either 'active' or 'inactive'",
+      });
+    }
+
+    // Find all pets belonging to the user
+    const userPets = await Pet.find({ user: userId });
+
+    if (!userPets || userPets.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No se encontraron mascotas para este usuario",
+      });
+    }
+
+    let updateData;
+    let message;
+
+    if (status === "active") {
+      // Activate badge subscription
+      updateData = {
+        $set: {
+          badge_subscription: true,
+          badge_subscription_start_date: new Date(),
+          badge_subscription_end_date: null,
+        },
+      };
+      message = `Suscripción de insignia activada para ${userPets.length} mascotas del usuario`;
+    } else {
+      // Deactivate badge subscription
+      updateData = {
+        $set: {
+          badge_subscription: false,
+          badge_name: null,
+          badge_subscription_start_date: null,
+          badge_subscription_end_date: new Date(),
+        },
+      };
+      message = `Suscripción de insignia desactivada para ${userPets.length} mascotas del usuario`;
+    }
+
+    // Update all pets badge subscriptions
+    const updateResult = await Pet.updateMany({ user: userId }, updateData);
+
+    res.status(200).json({
+      success: true,
+      message: message,
+      status: status,
+      modifiedPets: updateResult.modifiedCount,
+      totalPets: userPets.length,
+    });
+  } catch (error) {
+    console.error("Error updating user pet badges:", error.message);
+    return res.status(500).json({
+      success: false,
+      message:
+        "Error interno del servidor al actualizar las insignias de las mascotas",
+    });
+  }
+};
+
+// New API: Update badge subscription status for a specific pet
+const updatePetBadge = async (req, res) => {
+  try {
+    const { petId, status } = req.body;
+
+    if (!petId) {
+      return res.status(400).json({
+        success: false,
+        message: "Pet ID is required",
+      });
+    }
+
+    if (!status || (status !== "active" && status !== "inactive")) {
+      return res.status(400).json({
+        success: false,
+        message: "Status is required and must be either 'active' or 'inactive'",
+      });
+    }
+
+    // Find the specific pet
+    const pet = await Pet.findById(petId);
+
+    if (!pet) {
+      return res.status(404).json({
+        success: false,
+        message: "Mascota no encontrada",
+      });
+    }
+
+    let updateData;
+    let message;
+
+    if (status === "active") {
+      // Activate badge subscription
+      updateData = {
+        $set: {
+          badge_subscription: true,
+          badge_subscription_start_date: new Date(),
+          badge_subscription_end_date: null,
+        },
+      };
+      message =
+        "Suscripción de insignia activada correctamente para la mascota";
+    } else {
+      // Deactivate badge subscription
+      updateData = {
+        $set: {
+          badge_subscription: false,
+          badge_name: null,
+          badge_subscription_start_date: null,
+          badge_subscription_end_date: new Date(),
+        },
+      };
+      message =
+        "Suscripción de insignia desactivada correctamente para la mascota";
+    }
+
+    // Update the pet's badge subscription
+    const updatedPet = await Pet.findByIdAndUpdate(petId, updateData, {
+      new: true,
+    }).populate("user", "firstname lastname phone address");
+
+    res.status(200).json({
+      success: true,
+      message: message,
+      status: status,
+      pet: updatedPet,
+    });
+  } catch (error) {
+    console.error("Error updating pet badge:", error.message);
+    return res.status(500).json({
+      success: false,
+      message:
+        "Error interno del servidor al actualizar la insignia de la mascota",
+    });
+  }
+};
+
 module.exports = {
   pet_register,
   get_pet,
@@ -1231,4 +1384,7 @@ module.exports = {
   getDogMatchPreferences,
   getAllDogMatches,
   deactivateDogMatchPreferences,
+  // New badge management APIs
+  updateAllUserPetBadges,
+  updatePetBadge,
 };

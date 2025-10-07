@@ -15,6 +15,9 @@ const {
   getDogMatchPreferences,
   getAllDogMatches,
   deactivateDogMatchPreferences,
+  // New badge management APIs
+  updateAllUserPetBadges,
+  updatePetBadge,
 } = require("../controller/pet");
 
 const upload = require("../config/multer");
@@ -33,5 +36,9 @@ router.post("/dogmatch/preferences", createDogMatchPreferences);
 router.post("/dogmatch/preferences/get", getDogMatchPreferences);
 router.post("/dogmatch/preferences/all", getAllDogMatches);
 router.post("/dogmatch/preferences/deactivate", deactivateDogMatchPreferences);
+
+// New badge management routes
+router.post("/badge/update-user-badges", updateAllUserPetBadges);
+router.post("/badge/update-pet-badge", updatePetBadge);
 
 module.exports = router;
