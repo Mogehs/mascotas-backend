@@ -345,6 +345,82 @@ const updateUser = async (req, res) => {
   }
 };
 
+// New API: Get all pets for a user with complete details
+const getUserPetsWithDetails = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    // Check if user exists
+    const userExists = await user.findById(userId);
+    if (!userExists) {
+      return res.status(404).json({
+        success: false,
+        message: "Usuario no encontrado",
+      });
+    }
+
+    // Get all pets for the user with user details populated
+    let pets = await Pet.find({ user: userId }).populate(
+      "user",
+      "firstname lastname email phone address city state postalcode"
+    );
+
+    if (!pets || pets.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No se encontraron mascotas para este usuario",
+      });
+    }
+
+    // Import required models for additional data
+    const QRCode = require("../model/qrcode");
+    const DogMatch = require("../model/dogmatch");
+
+    // Convert pets to plain objects and add additional data
+    const petsWithCompleteDetails = await Promise.all(
+      pets.map(async (pet) => {
+        const petObj = pet.toObject();
+
+        // Get QR code data
+        const qrCode = await QRCode.findOne({ petId: pet._id });
+        petObj.qrCode = qrCode ? qrCode.toObject() : null;
+
+        // Get dog match preferences
+        const dogMatchPreferences = await DogMatch.findOne({
+          pet: pet._id,
+          isActive: true,
+        });
+        petObj.dogMatchPreferences = dogMatchPreferences
+          ? dogMatchPreferences.toObject()
+          : null;
+
+        return petObj;
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Mascotas del usuario obtenidas correctamente",
+      userId: userId,
+      totalPets: petsWithCompleteDetails.length,
+      pets: petsWithCompleteDetails,
+    });
+  } catch (error) {
+    console.error("Error getting user pets with details:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Error interno del servidor al obtener las mascotas del usuario",
+    });
+  }
+};
+
 module.exports = {
   login,
   registeruser,
@@ -359,4 +435,5 @@ module.exports = {
   filterUsers,
   updateUser,
   getBadgeStatus,
+  getUserPetsWithDetails,
 };
