@@ -827,7 +827,7 @@ const deleteUserCompletely = async (req, res) => {
     deletionResults.messages = deletedMessages.deletedCount;
 
     // 8. Delete dog match preferences
-    const deletedDogMatches = await DogMatch.deleteMany({ userId: userId });
+    const deletedDogMatches = await DogMatch.deleteMany({ user: userId });
     deletionResults.dog_matches = deletedDogMatches.deletedCount;
 
     // 9. Send notification to user before account deletion (if they have device token)
