@@ -7,6 +7,14 @@ cloudinary.config({
 
 const Business = require("../model/business");
 const User = require("../model/user");
+const Ads = require("../model/ads");
+const Product = require("../model/product");
+const Promotion = require("../model/promotion");
+const Analytics = require("../model/analytics");
+const {
+  sendGeneralNotification,
+  NOTIFICATION_TYPES,
+} = require("../service/notification.service");
 
 const businessRegister = async (req, res) => {
   try {
@@ -1115,6 +1123,144 @@ const getBusinessesForMap = async (req, res) => {
   }
 };
 
+// Delete business completely and all associated data (DANGEROUS - use with caution)
+const deleteBusinessCompletely = async (req, res) => {
+  try {
+    const { businessId } = req.params;
+
+    // Validate required parameters
+    if (!businessId) {
+      return res.status(400).json({
+        success: false,
+        message: "Business ID is required",
+      });
+    }
+
+    // Check if business exists
+    const business = await Business.findById(businessId);
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message: "Business not found",
+      });
+    }
+
+    // Get the business owner user
+    const businessOwner = await User.findById(business.id);
+
+    // Start deletion process - track what gets deleted
+    const deletionResults = {
+      business_data: false,
+      ads: 0,
+      products: 0,
+      promotions: 0,
+      analytics: 0,
+    };
+
+    console.log(`Starting deletion process for business: ${businessId}`);
+
+    // 1. Delete all ads created by this business
+    const deletedAds = await Ads.deleteMany({ business_id: businessId });
+    deletionResults.ads = deletedAds.deletedCount;
+
+    // 2. Delete all products created by this business
+    const deletedProducts = await Product.deleteMany({
+      business_id: businessId,
+    });
+    deletionResults.products = deletedProducts.deletedCount;
+
+    // 3. Delete all promotions created by this business
+    const deletedPromotions = await Promotion.deleteMany({
+      business_id: businessId,
+    });
+    deletionResults.promotions = deletedPromotions.deletedCount;
+
+    // 4. Delete all analytics for this business
+    const deletedAnalytics = await Analytics.deleteMany({
+      business_id: businessId,
+    });
+    deletionResults.analytics = deletedAnalytics.deletedCount;
+
+    // 5. Update user's company_registered status and business_subscription status
+    if (businessOwner) {
+      await User.findByIdAndUpdate(business.id, {
+        $set: {
+          company_registered: false,
+          business_subscription: false,
+        },
+      });
+    }
+
+    // 6. Send notification to business owner before deletion (if they have device token)
+    let notificationSent = false;
+    if (businessOwner && businessOwner.device_token) {
+      try {
+        await sendGeneralNotification(
+          businessOwner.device_token,
+          "Business Profile Deletion Notice",
+          `Your business profile "${business.company_name}" and all associated data have been permanently deleted by an administrator. If you believe this is an error, please contact support immediately.`,
+          NOTIFICATION_TYPES.ADMIN_NOTIFICATION,
+          {
+            action: "business_deletion",
+            business_id: businessId,
+            business_name: business.company_name,
+            deleted_by: "admin",
+            deletion_date: new Date().toISOString(),
+            support_contact: "support@mascotas.com",
+          }
+        );
+        notificationSent = true;
+        console.log(
+          `Deletion notification sent to business owner: ${business.id}`
+        );
+      } catch (notifyErr) {
+        console.error(
+          `Failed to send deletion notification to business owner ${business.id}:`,
+          notifyErr.message
+        );
+        // Don't fail the deletion if notification fails, but log it
+        notificationSent = false;
+      }
+    }
+
+    // 7. Finally, delete the business profile itself
+    await Business.findByIdAndDelete(businessId);
+    deletionResults.business_data = true;
+
+    console.log(
+      `Business deletion completed for: ${businessId}`,
+      deletionResults
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Business and all associated data deleted successfully",
+      deleted_business: {
+        id: businessId,
+        company_name: business.company_name,
+        company_type: business.company_type,
+        owner_id: business.id,
+      },
+      notification_sent: notificationSent,
+      notification_status: notificationSent
+        ? "Deletion notification sent to business owner successfully"
+        : businessOwner && businessOwner.device_token
+        ? "Failed to send notification - check logs for details"
+        : "No device token available - notification not sent",
+      deletion_summary: deletionResults,
+      warning:
+        "This action was irreversible - all business data has been permanently deleted",
+    });
+  } catch (error) {
+    console.error("Delete business completely error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error deleting business and associated data",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   businessRegister,
   uploadBusinessImage,
@@ -1132,4 +1278,5 @@ module.exports = {
   getBusinessesByLocation,
   getBusinessesForMap,
   getBusinessById,
+  deleteBusinessCompletely,
 };

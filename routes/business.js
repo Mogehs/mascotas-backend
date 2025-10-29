@@ -17,6 +17,7 @@ const {
   getBusinessesByLocation,
   getBusinessesForMap,
   getBusinessById,
+  deleteBusinessCompletely,
 } = require("../controller/business");
 
 // Existing routes
@@ -41,5 +42,8 @@ router.post("/petpro/renew/:business_id", renewSubscription);
 router.post("/petpro/cancel/:business_id", cancelSubscription);
 router.post("/petpro/upgrade/:business_id", upgradeSubscription);
 router.post("/petpro/expire-subscriptions", expireSubscriptions);
+
+// Delete business completely (admin use - DANGEROUS)
+router.delete("/delete/:businessId", deleteBusinessCompletely);
 
 module.exports = router;
