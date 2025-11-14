@@ -1,7 +1,4 @@
-const OPENROUTER_API_KEY =
-  "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";
-// const YOUR_SITE_URL = "https://fe12-144-48-134-48.ngrok-free.app";
-// const YOUR_SITE_NAME = "NGROK";
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY
 
 const getVeterinaryAdvice = async (message) => {
   console;
