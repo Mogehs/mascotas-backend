@@ -14,6 +14,8 @@ const {
   deleteDeviceToken,
   filterUsers,
   updateUser,
+  getBadgeStatus,
+  getUserPetsWithDetails,
 } = require("../controller/user");
 
 router.post("/register", registeruser);
@@ -28,5 +30,7 @@ router.post("/owner", userDetails);
 router.post("/logout", deleteDeviceToken);
 router.post("/filter-users", filterUsers);
 router.put("/update", updateUser);
+router.put("/checkStatus", getBadgeStatus);
+router.get("/pets-details/:userId", getUserPetsWithDetails);
 
 module.exports = router;

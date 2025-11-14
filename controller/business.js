@@ -7,6 +7,14 @@ cloudinary.config({
 
 const Business = require("../model/business");
 const User = require("../model/user");
+const Ads = require("../model/ads");
+const Product = require("../model/product");
+const Promotion = require("../model/promotion");
+const Analytics = require("../model/analytics");
+const {
+  sendGeneralNotification,
+  NOTIFICATION_TYPES,
+} = require("../service/notification.service");
 
 const businessRegister = async (req, res) => {
   try {
@@ -23,8 +31,9 @@ const businessRegister = async (req, res) => {
       operation_timings,
       tax,
       addition,
+      latitude,
+      longitude,
     } = req.body;
-    console.log(req.body);
 
     // Basic required field validation
     if (!id) {
@@ -57,15 +66,6 @@ const businessRegister = async (req, res) => {
       });
     }
 
-    // Check if user has an active subscription
-    if (!userExists.business_subscription) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "Active subscription required to create a business. Please subscribe first.",
-      });
-    }
-
     // Check if user already has a business registered
     const existingBusiness = await Business.findOne({ id: id });
     if (existingBusiness) {
@@ -74,6 +74,70 @@ const businessRegister = async (req, res) => {
         message: "User already has a business registered",
         business_id: existingBusiness._id,
       });
+    }
+
+    // Validate operation timings if provided
+    let validatedOperationTimings = null;
+    if (operation_timings && Array.isArray(operation_timings)) {
+      const validDays = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+      ];
+
+      for (const timing of operation_timings) {
+        if (!timing.day || !validDays.includes(timing.day)) {
+          return res.status(400).json({
+            success: false,
+            message: `Invalid day: ${
+              timing.day
+            }. Must be one of: ${validDays.join(", ")}`,
+          });
+        }
+        if (!timing.time || typeof timing.time !== "string") {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Invalid time format. Time must be a string (e.g., '09:00-17:00' or 'Closed')",
+          });
+        }
+      }
+      validatedOperationTimings = operation_timings;
+    }
+
+    // Validate coordinates if provided
+    let validatedLatitude = null;
+    let validatedLongitude = null;
+    let geoLocation = null;
+
+    if (latitude !== undefined && longitude !== undefined) {
+      const lat = parseFloat(latitude);
+      const lon = parseFloat(longitude);
+
+      if (isNaN(lat) || lat < -90 || lat > 90) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid latitude. Must be between -90 and 90",
+        });
+      }
+
+      if (isNaN(lon) || lon < -180 || lon > 180) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid longitude. Must be between -180 and 180",
+        });
+      }
+
+      validatedLatitude = lat;
+      validatedLongitude = lon;
+      geoLocation = {
+        type: "Point",
+        coordinates: [lon, lat], // GeoJSON format: [longitude, latitude]
+      };
     }
 
     const data = await Business.create({
@@ -87,8 +151,11 @@ const businessRegister = async (req, res) => {
       website: website,
       additional: addition,
       physical_address: address,
-      operation_timing: operation_timings,
+      operation_timing: validatedOperationTimings,
       tax_identification_number: tax,
+      latitude: validatedLatitude,
+      longitude: validatedLongitude,
+      location: geoLocation,
     });
 
     await User.findByIdAndUpdate(
@@ -218,6 +285,10 @@ const uploadLatlng = async (req, res) => {
         $set: {
           latitude: lat,
           longitude: lon,
+          location: {
+            type: "Point",
+            coordinates: [lon, lat], // GeoJSON format: [longitude, latitude]
+          },
         },
       },
       { new: true }
@@ -238,6 +309,29 @@ const getBusiness = async (req, res) => {
     res
       .status(200)
       .json({ success: true, message: "Business are fetcched", data: data });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const getBusinessById = async (req, res) => {
+  try {
+    const { business_id } = req.params;
+
+    const business = await Business.findById(business_id);
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message: "Business not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Business details retrieved successfully",
+      data: business,
+    });
   } catch (error) {
     console.log(error.message);
     res.status(500).json({ success: false, message: error.message });
@@ -281,7 +375,6 @@ const getBusinessByUserId = async (req, res) => {
 
 const updateBusiness = async (req, res) => {
   try {
-    console.log("working");
     const {
       id,
       name,
@@ -295,6 +388,8 @@ const updateBusiness = async (req, res) => {
       operation_timings,
       tax,
       addition,
+      latitude,
+      longitude,
     } = req.body;
     console.log(req.body);
 
@@ -315,23 +410,83 @@ const updateBusiness = async (req, res) => {
       });
     }
 
+    // Validate operation timings if provided
+    let validatedOperationTimings = operation_timings;
+    if (operation_timings && Array.isArray(operation_timings)) {
+      const validDays = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+      ];
+
+      for (const timing of operation_timings) {
+        if (!timing.day || !validDays.includes(timing.day)) {
+          return res.status(400).json({
+            success: false,
+            message: `Invalid day: ${
+              timing.day
+            }. Must be one of: ${validDays.join(", ")}`,
+          });
+        }
+        if (!timing.time || typeof timing.time !== "string") {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Invalid time format. Time must be a string (e.g., '09:00-17:00' or 'Closed')",
+          });
+        }
+      }
+    }
+
+    // Prepare update data
+    const updateData = {
+      company_name: name,
+      company_type: type,
+      company_description: description,
+      branches: branch,
+      phone: phone,
+      email: email,
+      website: website,
+      additional: addition,
+      physical_address: address,
+      operation_timing: validatedOperationTimings,
+      tax_identification_number: tax,
+    };
+
+    // Validate and add coordinates if provided
+    if (latitude !== undefined && longitude !== undefined) {
+      const lat = parseFloat(latitude);
+      const lon = parseFloat(longitude);
+
+      if (isNaN(lat) || lat < -90 || lat > 90) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid latitude. Must be between -90 and 90",
+        });
+      }
+
+      if (isNaN(lon) || lon < -180 || lon > 180) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid longitude. Must be between -180 and 180",
+        });
+      }
+
+      updateData.latitude = lat;
+      updateData.longitude = lon;
+      updateData.location = {
+        type: "Point",
+        coordinates: [lon, lat], // GeoJSON format: [longitude, latitude]
+      };
+    }
+
     const data = await Business.findByIdAndUpdate(
       { _id: id },
-      {
-        $set: {
-          company_name: name,
-          company_type: type,
-          company_description: description,
-          branches: branch,
-          phone: phone,
-          email: email,
-          website: website,
-          additional: addition,
-          physical_address: address,
-          operation_timing: operation_timings,
-          tax_identification_number: tax,
-        },
-      },
+      { $set: updateData },
       { new: true }
     );
     res.status(200).json({
@@ -350,7 +505,7 @@ const activatePetProSubscription = async (req, res) => {
   try {
     const {
       business_id,
-      subscription_type = "premium", // Only premium available
+      subscription_type = "premium",
       payment_method = "stripe",
       amount_paid = 0,
     } = req.body;
@@ -802,6 +957,7 @@ const expireSubscriptionsHelper = async () => {
     const expiredPromises = expiredBusinesses.map(async (business) => {
       await Business.findByIdAndUpdate(business._id, {
         $set: {
+          is_blocked: true,
           "petpro_subscription.is_active": false,
           "petpro_subscription.subscription_type": "none",
           "petpro_subscription.payment_status": "expired",
@@ -818,7 +974,6 @@ const expireSubscriptionsHelper = async () => {
         },
       });
 
-      // Update user subscription status
       await User.findByIdAndUpdate(
         { _id: business.id },
         {
@@ -869,6 +1024,243 @@ const expireSubscriptions = async (req, res) => {
   }
 };
 
+// Get businesses by location radius for map display
+const getBusinessesByLocation = async (req, res) => {
+  try {
+    const { latitude, longitude, radius = 10 } = req.query; // radius in kilometers, default 10km
+
+    // Validate required parameters
+    if (!latitude || !longitude) {
+      return res.status(400).json({
+        success: false,
+        message: "Latitude and longitude are required",
+      });
+    }
+
+    // Validate coordinate ranges
+    const lat = parseFloat(latitude);
+    const lon = parseFloat(longitude);
+    const radiusKm = parseFloat(radius);
+
+    if (isNaN(lat) || lat < -90 || lat > 90) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid latitude. Must be between -90 and 90",
+      });
+    }
+
+    if (isNaN(lon) || lon < -180 || lon > 180) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid longitude. Must be between -180 and 180",
+      });
+    }
+
+    if (isNaN(radiusKm) || radiusKm <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid radius. Must be a positive number",
+      });
+    }
+
+    // Find businesses within the specified radius using GeoJSON
+    const businesses = await Business.find({
+      location: {
+        $near: {
+          $geometry: {
+            type: "Point",
+            coordinates: [lon, lat], // GeoJSON format: [longitude, latitude]
+          },
+          $maxDistance: radiusKm * 1000, // Convert km to meters
+        },
+      },
+      "petpro_subscription.is_active": true, // Only show businesses with active subscriptions
+      is_blocked: false, // Only show non-blocked businesses
+    }).populate("id", "firstname lastname email phone");
+
+    res.status(200).json({
+      success: true,
+      message: `Found ${businesses.length} businesses within ${radiusKm}km`,
+      data: businesses,
+      center: { latitude: lat, longitude: lon },
+      radius: radiusKm,
+    });
+  } catch (error) {
+    console.error("Get businesses by location error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching businesses by location",
+      error: error.message,
+    });
+  }
+};
+
+// Get all businesses with valid coordinates for map display
+const getBusinessesForMap = async (req, res) => {
+  try {
+    const businesses = await Business.find({
+      latitude: { $ne: null },
+      longitude: { $ne: null },
+      is_blocked: false, // Only show non-blocked businesses
+    })
+      .select(
+        "company_name company_type physical_address latitude longitude location company_logo phone email website"
+      )
+      .populate("id", "firstname lastname email phone");
+
+    res.status(200).json({
+      success: true,
+      message: `Found ${businesses.length} businesses with location data`,
+      data: businesses,
+    });
+  } catch (error) {
+    console.error("Get businesses for map error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching businesses for map",
+      error: error.message,
+    });
+  }
+};
+
+// Delete business completely and all associated data (DANGEROUS - use with caution)
+const deleteBusinessCompletely = async (req, res) => {
+  try {
+    const { businessId } = req.params;
+
+    // Validate required parameters
+    if (!businessId) {
+      return res.status(400).json({
+        success: false,
+        message: "Business ID is required",
+      });
+    }
+
+    // Check if business exists
+    const business = await Business.findById(businessId);
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message: "Business not found",
+      });
+    }
+
+    // Get the business owner user
+    const businessOwner = await User.findById(business.id);
+
+    // Start deletion process - track what gets deleted
+    const deletionResults = {
+      business_data: false,
+      ads: 0,
+      products: 0,
+      promotions: 0,
+      analytics: 0,
+    };
+
+    console.log(`Starting deletion process for business: ${businessId}`);
+
+    // 1. Delete all ads created by this business
+    const deletedAds = await Ads.deleteMany({ business_id: businessId });
+    deletionResults.ads = deletedAds.deletedCount;
+
+    // 2. Delete all products created by this business
+    const deletedProducts = await Product.deleteMany({
+      business_id: businessId,
+    });
+    deletionResults.products = deletedProducts.deletedCount;
+
+    // 3. Delete all promotions created by this business
+    const deletedPromotions = await Promotion.deleteMany({
+      business_id: businessId,
+    });
+    deletionResults.promotions = deletedPromotions.deletedCount;
+
+    // 4. Delete all analytics for this business
+    const deletedAnalytics = await Analytics.deleteMany({
+      business_id: businessId,
+    });
+    deletionResults.analytics = deletedAnalytics.deletedCount;
+
+    // 5. Update user's company_registered status and business_subscription status
+    if (businessOwner) {
+      await User.findByIdAndUpdate(business.id, {
+        $set: {
+          company_registered: false,
+          business_subscription: false,
+        },
+      });
+    }
+
+    // 6. Send notification to business owner before deletion (if they have device token)
+    let notificationSent = false;
+    if (businessOwner && businessOwner.device_token) {
+      try {
+        await sendGeneralNotification(
+          businessOwner.device_token,
+          "Business Profile Deletion Notice",
+          `Your business profile "${business.company_name}" and all associated data have been permanently deleted by an administrator. If you believe this is an error, please contact support immediately.`,
+          NOTIFICATION_TYPES.ADMIN_NOTIFICATION,
+          {
+            action: "business_deletion",
+            business_id: businessId,
+            business_name: business.company_name,
+            deleted_by: "admin",
+            deletion_date: new Date().toISOString(),
+            support_contact: "support@mascotas.com",
+          }
+        );
+        notificationSent = true;
+        console.log(
+          `Deletion notification sent to business owner: ${business.id}`
+        );
+      } catch (notifyErr) {
+        console.error(
+          `Failed to send deletion notification to business owner ${business.id}:`,
+          notifyErr.message
+        );
+        // Don't fail the deletion if notification fails, but log it
+        notificationSent = false;
+      }
+    }
+
+    // 7. Finally, delete the business profile itself
+    await Business.findByIdAndDelete(businessId);
+    deletionResults.business_data = true;
+
+    console.log(
+      `Business deletion completed for: ${businessId}`,
+      deletionResults
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Business and all associated data deleted successfully",
+      deleted_business: {
+        id: businessId,
+        company_name: business.company_name,
+        company_type: business.company_type,
+        owner_id: business.id,
+      },
+      notification_sent: notificationSent,
+      notification_status: notificationSent
+        ? "Deletion notification sent to business owner successfully"
+        : businessOwner && businessOwner.device_token
+        ? "Failed to send notification - check logs for details"
+        : "No device token available - notification not sent",
+      deletion_summary: deletionResults,
+      warning:
+        "This action was irreversible - all business data has been permanently deleted",
+    });
+  } catch (error) {
+    console.error("Delete business completely error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error deleting business and associated data",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   businessRegister,
   uploadBusinessImage,
@@ -883,4 +1275,8 @@ module.exports = {
   upgradeSubscription,
   expireSubscriptions,
   expireSubscriptionsHelper,
+  getBusinessesByLocation,
+  getBusinessesForMap,
+  getBusinessById,
+  deleteBusinessCompletely,
 };

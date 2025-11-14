@@ -3,7 +3,18 @@ const Business = require("../model/business");
 const Order = require("../model/order");
 const QRCode = require("../model/qrcode");
 const Pet = require("../model/pet");
-const { sendGeneralNotification } = require("../service/notification.service");
+const Ads = require("../model/ads");
+const Product = require("../model/product");
+const Promotion = require("../model/promotion");
+const Lost = require("../model/lost");
+const MedicalHistory = require("../model/medicalhistory");
+const Message = require("../model/message");
+const Analytics = require("../model/analytics");
+const DogMatch = require("../model/dogmatch");
+const {
+  sendGeneralNotification,
+  NOTIFICATION_TYPES,
+} = require("../service/notification.service");
 
 // Get all users with detailed analytics
 const getAllUsers = async (req, res) => {
@@ -63,7 +74,7 @@ const getAllBusinessProfiles = async (req, res) => {
   try {
     // Get all business profiles (no admin validation needed)
     const businesses = await Business.find({})
-      .populate("id", "firstname lastname email")
+      .populate("id")
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -221,6 +232,13 @@ const sendPushNotificationToUsers = async (req, res) => {
       });
     }
 
+    // Validate notification type or use default admin notification
+    const validNotificationType = Object.values(NOTIFICATION_TYPES).includes(
+      notificationType
+    )
+      ? notificationType
+      : NOTIFICATION_TYPES.ADMIN_NOTIFICATION;
+
     // Send notifications to all users
     for (const user of targetUsers) {
       try {
@@ -228,8 +246,13 @@ const sendPushNotificationToUsers = async (req, res) => {
           user.device_token,
           title,
           message,
-          notificationType || "admin_notification",
-          extraData || {}
+          validNotificationType,
+          {
+            ...extraData,
+            admin_broadcast: true,
+            target_audience: "all_users",
+            sent_by: "super_admin",
+          }
         );
         sentCount++;
         results.push({
@@ -259,6 +282,7 @@ const sendPushNotificationToUsers = async (req, res) => {
         totalTargeted: targetUsers.length,
         sentCount,
         failedCount,
+        notificationType: validNotificationType,
         results: results,
       },
     });
@@ -509,15 +533,381 @@ const assignPetManually = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+const updateSubscriptionBadge = async (req, res) => {
+  const { userId, isActive, badgeName } = req.body;
+
+  // Basic validation
+  if (!userId || typeof isActive === "undefined") {
+    return res.status(400).json({
+      success: false,
+      message: "userId and isActive are required in the request body",
+    });
+  }
+
+  // Normalize isActive to boolean (accepts string 'true'/'false')
+  const isActiveBool =
+    isActive === true ||
+    isActive === "true" ||
+    isActive === 1 ||
+    isActive === "1";
+
+  try {
+    const user = await User.findById(userId).select("-password");
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    // Update fields
+    user.badge_subscription = !!isActiveBool;
+    if (user.badge_subscription) {
+      if (typeof badgeName !== "undefined") user.badge_name = badgeName;
+    } else {
+      // If deactivating, clear badge name
+      user.badge_name = null;
+    }
+
+    await user.save();
+
+    // Optional: send notification to user about the change
+    if (user.device_token) {
+      try {
+        await sendGeneralNotification(
+          user.device_token,
+          "Badge subscription updated",
+          `Your badge subscription has been ${
+            user.badge_subscription ? "activated" : "deactivated"
+          }.`,
+          NOTIFICATION_TYPES.ADMIN_NOTIFICATION,
+          {
+            badge_subscription: user.badge_subscription,
+            badge_name: user.badge_name,
+          }
+        );
+      } catch (notifyErr) {
+        console.error(
+          "Failed to notify user about badge update:",
+          notifyErr.message
+        );
+        // don't fail the whole operation if notification fails
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Subscription updated successfully",
+      data: user,
+    });
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Toggle business PetPro subscription (activate/deactivate)
+const toggleBusinessSubscription = async (req, res) => {
+  try {
+    const { businessId, isActive } = req.body;
+
+    // Validate required parameters
+    if (!businessId || typeof isActive === "undefined") {
+      return res.status(400).json({
+        success: false,
+        message: "Business ID and isActive are required",
+      });
+    }
+
+    // Normalize isActive to boolean
+    const isActiveBool =
+      isActive === true ||
+      isActive === "true" ||
+      isActive === 1 ||
+      isActive === "1";
+
+    const business = await Business.findById(businessId);
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message: "Business profile not found",
+      });
+    }
+
+    // Update subscription status
+    business.petpro_subscription.is_active = isActiveBool;
+
+    if (isActiveBool) {
+      // Activating subscription
+      business.petpro_subscription.payment_status = "paid";
+      business.petpro_subscription.subscription_type = "premium";
+
+      // Enable premium features
+      business.features.can_create_featured_ads = true;
+      business.features.max_featured_ads = 10; // or whatever your limit is
+      business.features.can_showcase_products = true;
+      business.features.max_products = 50; // or whatever your limit is
+      business.features.can_create_promotions = true;
+      business.features.max_promotions = 5; // or whatever your limit is
+      business.features.analytics_access = true;
+    } else {
+      // Deactivating subscription
+      business.petpro_subscription.payment_status = "cancelled";
+      business.petpro_subscription.subscription_type = "none";
+
+      // Disable all premium features
+      business.features.can_create_featured_ads = false;
+      business.features.max_featured_ads = 0;
+      business.features.can_showcase_products = false;
+      business.features.max_products = 0;
+      business.features.can_create_promotions = false;
+      business.features.max_promotions = 0;
+      business.features.analytics_access = false;
+    }
+
+    await business.save();
+
+    // Optional: send notification to business owner about the change
+    const businessOwner = await User.findById(business.id);
+    if (businessOwner && businessOwner.device_token) {
+      try {
+        await sendGeneralNotification(
+          businessOwner.device_token,
+          `PetPro Subscription ${isActiveBool ? "Activated" : "Deactivated"}`,
+          `Your PetPro subscription has been ${
+            isActiveBool ? "activated" : "deactivated"
+          } by admin. ${
+            isActiveBool
+              ? "You now have access to premium features!"
+              : "Contact support for more information."
+          }`,
+          NOTIFICATION_TYPES.ADMIN_NOTIFICATION,
+          {
+            business_id: businessId,
+            subscription_status: isActiveBool ? "activated" : "deactivated",
+            updated_by: "super_admin",
+          }
+        );
+      } catch (notifyErr) {
+        console.error(
+          "Failed to notify business owner about subscription change:",
+          notifyErr.message
+        );
+        // don't fail the whole operation if notification fails
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Business subscription ${
+        isActiveBool ? "activated" : "deactivated"
+      } successfully`,
+      data: {
+        businessId,
+        is_active: isActiveBool,
+        payment_status: business.petpro_subscription.payment_status,
+        subscription_type: business.petpro_subscription.subscription_type,
+        features_enabled: isActiveBool,
+      },
+    });
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Delete user and all associated data (DANGEROUS - use with caution)
+const deleteUserCompletely = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    let userDeviceToken = null;
+
+    // Validate required parameters
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    // Check if user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Prevent deletion of super admin users
+    if (user.role === "super_admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Cannot delete super admin users",
+      });
+    }
+
+    // Start deletion process - track what gets deleted
+    const deletionResults = {
+      user_data: false,
+      business_profile: 0,
+      pets: 0,
+      orders: 0,
+      qr_codes: 0,
+      ads: 0,
+      products: 0,
+      promotions: 0,
+      lost_pets: 0,
+      medical_history: 0,
+      messages: 0,
+      analytics: 0,
+      dog_matches: 0,
+    };
+
+    console.log(`Starting deletion process for user: ${userId}`);
+
+    // 1. Find and delete business profile(s) and all business-related data
+    const businessProfiles = await Business.find({ id: userId });
+    for (const business of businessProfiles) {
+      const businessId = business._id;
+
+      // Delete ads created by this business
+      const deletedAds = await Ads.deleteMany({ business_id: businessId });
+      deletionResults.ads += deletedAds.deletedCount;
+
+      // Delete products created by this business
+      const deletedProducts = await Product.deleteMany({
+        business_id: businessId,
+      });
+      deletionResults.products += deletedProducts.deletedCount;
+
+      // Delete promotions created by this business
+      const deletedPromotions = await Promotion.deleteMany({
+        business_id: businessId,
+      });
+      deletionResults.promotions += deletedPromotions.deletedCount;
+
+      // Delete analytics for this business
+      const deletedAnalytics = await Analytics.deleteMany({
+        business_id: businessId,
+      });
+      deletionResults.analytics += deletedAnalytics.deletedCount;
+
+      // Delete the business profile itself
+      await Business.findByIdAndDelete(businessId);
+      deletionResults.business_profile += 1;
+    }
+
+    // 2. Delete user's pets
+    const deletedPets = await Pet.deleteMany({ user: userId });
+    deletionResults.pets = deletedPets.deletedCount;
+
+    // 3. Delete user's orders
+    const deletedOrders = await Order.deleteMany({ user: userId });
+    deletionResults.orders = deletedOrders.deletedCount;
+
+    // 4. Delete user's QR codes
+    const deletedQRCodes = await QRCode.deleteMany({ userId: userId });
+    deletionResults.qr_codes = deletedQRCodes.deletedCount;
+
+    // 5. Delete user's lost pet reports
+    const deletedLostPets = await Lost.deleteMany({ user: userId });
+    deletionResults.lost_pets = deletedLostPets.deletedCount;
+
+    // 6. Delete medical history records for user's pets
+    const userPetIds = await Pet.find({ user: userId }).distinct("_id");
+    const deletedMedicalHistory = await MedicalHistory.deleteMany({
+      pet: { $in: userPetIds },
+    });
+    deletionResults.medical_history = deletedMedicalHistory.deletedCount;
+
+    // 7. Delete user's messages (as sender)
+    const deletedMessages = await Message.deleteMany({
+      $or: [{ sender: userId }, { receiver: userId }],
+    });
+    deletionResults.messages = deletedMessages.deletedCount;
+
+    // 8. Delete dog match preferences
+    const deletedDogMatches = await DogMatch.deleteMany({ user: userId });
+    deletionResults.dog_matches = deletedDogMatches.deletedCount;
+
+    // 9. Send notification to user before account deletion (if they have device token)
+    let notificationSent = false;
+    if (user.device_token) {
+      userDeviceToken = user.device_token;
+    }
+
+    // 10. Finally, delete the user account itself
+    await User.findByIdAndDelete(userId);
+
+    try {
+      await sendGeneralNotification(
+        userDeviceToken,
+        "Account Deletion Notice",
+        "Your account and all associated data have been permanently deleted by an administrator. If you believe this is an error, please contact support immediately.",
+        NOTIFICATION_TYPES.DELETE_USER,
+        {
+          action: "account_deletion",
+          deleted_by: "super_admin",
+          deletion_date: new Date().toISOString(),
+          support_contact: "support@mascotas.com", // Update with your actual support contact
+        }
+      );
+      notificationSent = true;
+      console.log(`Deletion notification sent to user: ${userId}`);
+    } catch (notifyErr) {
+      console.error(
+        `Failed to send deletion notification to user ${userId}:`,
+        notifyErr.message
+      );
+      // Don't fail the deletion if notification fails, but log it
+      notificationSent = false;
+    }
+
+    deletionResults.user_data = true;
+
+    console.log(`User deletion completed for: ${userId}`, deletionResults);
+
+    res.status(200).json({
+      success: true,
+      message: "User and all associated data deleted successfully",
+      deleted_user: {
+        id: userId,
+        username: user.username || user.email,
+        firstname: user.firstname,
+        lastname: user.lastname,
+        email: user.email,
+      },
+      notification_sent: notificationSent,
+      notification_status: notificationSent
+        ? "Deletion notification sent to user successfully"
+        : user.device_token
+        ? "Failed to send notification - check logs for details"
+        : "No device token available - notification not sent",
+      deletion_summary: deletionResults,
+      warning:
+        "This action was irreversible - all user data has been permanently deleted",
+    });
+  } catch (error) {
+    console.error("Delete user completely error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error deleting user and associated data",
+      error: error.message,
+    });
+  }
+};
 
 module.exports = {
   getAllUsers,
   getAllBusinessProfiles,
   toggleBusinessStatus,
+  updateSubscriptionBadge,
   toggleUserStatus,
   sendPushNotificationToUsers,
   getUserAnalytics,
   getSalesAnalytics,
   getAllPets,
   assignPetManually,
+  toggleBusinessSubscription,
+  deleteUserCompletely,
 };

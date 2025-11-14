@@ -5,8 +5,7 @@ const Pet = require("../model/pet");
 
 const registeruser = async (req, res) => {
   try {
-    console.log(req.body);
-    const { email, password, token } = req.body;
+    const { email, password, device_token } = req.body;
     let check = await user.findOne({ email: email });
     if (check) {
       return res.status(400).json({
@@ -19,7 +18,7 @@ const registeruser = async (req, res) => {
       check = await user.create({
         email: email,
         password: securePass,
-        device_token: token,
+        device_token: device_token,
       });
       res.status(200).json({
         success: true,
@@ -126,15 +125,21 @@ const fetchUsers = async (req, res) => {
 
 const badge = async (req, res) => {
   try {
-    const { id, name } = req.body;
-    const check = await user.findOne({ _id: id });
+    const { pet_id, name } = req.body;
+    const check = await Pet.findOne({ _id: pet_id });
     if (check) {
-      const data = await user.findByIdAndUpdate(
+      const currentDate = new Date();
+      const endDate = new Date(currentDate);
+      endDate.setFullYear(endDate.getFullYear() + 1); // 1 year subscription
+
+      const data = await Pet.findByIdAndUpdate(
         { _id: check._id },
         {
           $set: {
             badge_subscription: true,
             badge_name: name,
+            badge_subscription_start_date: currentDate,
+            badge_subscription_end_date: endDate,
           },
         },
         { new: true }
@@ -143,6 +148,36 @@ const badge = async (req, res) => {
         success: true,
         message: "La información de la insignia se guardó correctamente",
         pet_details: data,
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        message: "Mascota no encontrada",
+      });
+    }
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const getBadgeStatus = async (req, res) => {
+  try {
+    const { pet_id } = req.body;
+    const check = await Pet.findOne({ _id: pet_id });
+    if (check) {
+      res.status(200).json({
+        success: true,
+        message: "Estado de la insignia encontrado",
+        badge_status: check.badge_subscription,
+        badge_name: check.badge_name,
+        badge_start_date: check.badge_subscription_start_date,
+        badge_end_date: check.badge_subscription_end_date,
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        message: "Mascota no encontrada",
       });
     }
   } catch (error) {
@@ -310,6 +345,82 @@ const updateUser = async (req, res) => {
   }
 };
 
+// New API: Get all pets for a user with complete details
+const getUserPetsWithDetails = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    // Check if user exists
+    const userExists = await user.findById(userId);
+    if (!userExists) {
+      return res.status(404).json({
+        success: false,
+        message: "Usuario no encontrado",
+      });
+    }
+
+    // Get all pets for the user with user details populated
+    let pets = await Pet.find({ user: userId }).populate(
+      "user",
+      "firstname lastname email phone address city state postalcode"
+    );
+
+    if (!pets || pets.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No se encontraron mascotas para este usuario",
+      });
+    }
+
+    // Import required models for additional data
+    const QRCode = require("../model/qrcode");
+    const DogMatch = require("../model/dogmatch");
+
+    // Convert pets to plain objects and add additional data
+    const petsWithCompleteDetails = await Promise.all(
+      pets.map(async (pet) => {
+        const petObj = pet.toObject();
+
+        // Get QR code data
+        const qrCode = await QRCode.findOne({ petId: pet._id });
+        petObj.qrCode = qrCode ? qrCode.toObject() : null;
+
+        // Get dog match preferences
+        const dogMatchPreferences = await DogMatch.findOne({
+          pet: pet._id,
+          isActive: true,
+        });
+        petObj.dogMatchPreferences = dogMatchPreferences
+          ? dogMatchPreferences.toObject()
+          : null;
+
+        return petObj;
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Mascotas del usuario obtenidas correctamente",
+      userId: userId,
+      totalPets: petsWithCompleteDetails.length,
+      pets: petsWithCompleteDetails,
+    });
+  } catch (error) {
+    console.error("Error getting user pets with details:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Error interno del servidor al obtener las mascotas del usuario",
+    });
+  }
+};
+
 module.exports = {
   login,
   registeruser,
@@ -323,4 +434,6 @@ module.exports = {
   deleteDeviceToken,
   filterUsers,
   updateUser,
+  getBadgeStatus,
+  getUserPetsWithDetails,
 };

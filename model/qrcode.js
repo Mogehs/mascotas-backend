@@ -23,6 +23,16 @@ const qrCodeSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  soldBy: {
+    type: String,
+    default: null,
+    required: false,
+  },
+  shopName: {
+    type: String,
+    default: null,
+    required: false,
+  },
   createdAt: {
     type: Date,
     default: Date.now,

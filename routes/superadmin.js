@@ -10,6 +10,9 @@ const {
   getSalesAnalytics,
   getAllPets,
   assignPetManually,
+  updateSubscriptionBadge,
+  toggleBusinessSubscription,
+  deleteUserCompletely,
 } = require("../controller/superadmin");
 
 router.get("/users", getAllUsers);
@@ -22,6 +25,10 @@ router.get("/user/toggle-status", toggleUserStatus);
 
 router.post("/send-notification", sendPushNotificationToUsers);
 
+router.post("/update_badge", updateSubscriptionBadge);
+
+router.post("/toggle_business_subscription", toggleBusinessSubscription);
+
 // Analytics routes
 router.get("/analytics/users", getUserAnalytics);
 
@@ -30,5 +37,8 @@ router.get("/analytics/sales", getSalesAnalytics);
 router.get("/pets", getAllPets);
 
 router.post("/:id/assign", assignPetManually);
+
+// DANGER ZONE - Complete user deletion with all associated data
+router.delete("/user/:userId/delete-completely", deleteUserCompletely);
 
 module.exports = router;

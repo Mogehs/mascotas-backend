@@ -6,8 +6,8 @@ const cors = require("cors");
 
 // Import configurations and services
 const configureServer = require("./config/server");
-const initializeSocket = require("./config/socket");
-const { startCronJob } = require("./service/cron.service");
+const { initializeSocket } = require("./config/socket");
+const cronService = require("./service/cron.service");
 
 // Initialize Express app and HTTP server
 const app = express();
@@ -34,6 +34,9 @@ app.use("/api/ai", require("./routes/ai"));
 app.use("/api/chat", require("./routes/chat"));
 app.use("/api/qrcode", require("./routes/qrcode"));
 
+// Hour-based reminders
+app.use("/api/hourly-reminders", require("./routes/hourlyreminders"));
+
 // New PetPro features
 app.use("/api/products", require("./routes/product"));
 app.use("/api/promotions", require("./routes/promotion"));
@@ -43,22 +46,22 @@ app.use("/api/payments", require("./routes/payment"));
 // Super Admin routes
 app.use("/api/superadmin", require("./routes/superadmin"));
 
+// Tags routes
+app.use("/api/tags", require("./routes/tags"));
+
 // Legacy routess (keeping for backward compatibility)
 app.post("/api", require("./controller/ai").getVeterinaryAdvice);
 app.post("/trainer", require("./controller/ai").getTrainingAdvice);
-app.get(
-  "/chatHistory/:senderId/:receiverId",
-  require("./controller/chat").getChatHistory
-);
 
 // Initialize Socket.IO
 const io = initializeSocket(server);
 
-// Start cron job for notifications
-startCronJob();
+// Start Medical Checkup Cron Service
+cronService.start();
 
 // Start server
 server.listen(process.env.PORT, () => {
   console.log("Server is running on port:", process.env.PORT);
+  console.log("Medical Checkup Cron Service initialized");
   connectToMongo();
 });

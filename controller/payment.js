@@ -1,12 +1,29 @@
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+if (!stripeSecretKey) {
+  console.error("STRIPE_SECRET_KEY environment variable is not set");
+}
+const stripe = require("stripe")(stripeSecretKey || "sk_test_placeholder");
 const Business = require("../model/business");
 const User = require("../model/user");
+const {
+  sendPaymentNotification,
+  sendBusinessNotification,
+  NOTIFICATION_TYPES,
+} = require("../service/notification.service");
 
 /**
  * Create payment intent for PetPro premium subscription only
  */
 const createPaymentIntent = async (req, res) => {
   try {
+    // Check if Stripe is properly configured
+    if (!stripeSecretKey) {
+      return res.status(500).json({
+        success: false,
+        message: "Payment system is not properly configured",
+      });
+    }
+
     const {
       business_id,
       user_id, // Can use either business_id or user_id
@@ -114,11 +131,18 @@ const createPaymentIntent = async (req, res) => {
     });
   } catch (error) {
     console.error("Create payment intent error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error creating payment intent",
-      error: error.message,
-    });
+
+    // Ensure we always return a proper JSON response
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        message: "Error creating payment intent",
+        error:
+          process.env.NODE_ENV === "production"
+            ? "Internal server error"
+            : error.message,
+      });
+    }
   }
 };
 
@@ -127,6 +151,14 @@ const createPaymentIntent = async (req, res) => {
  */
 const confirmPayment = async (req, res) => {
   try {
+    // Check if Stripe is properly configured
+    if (!stripeSecretKey) {
+      return res.status(500).json({
+        success: false,
+        message: "Payment system is not properly configured",
+      });
+    }
+
     const {
       payment_intent_id,
       business_id,
@@ -134,10 +166,33 @@ const confirmPayment = async (req, res) => {
       subscription_type = "premium",
     } = req.body;
 
+    // Validate required fields
+    if (!payment_intent_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Payment intent ID is required",
+      });
+    }
+
+    if (!business_id && !user_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Either business_id or user_id is required",
+      });
+    }
+
     // Retrieve payment intent from Stripe
-    const paymentIntent = await stripe.paymentIntents.retrieve(
-      payment_intent_id
-    );
+    let paymentIntent;
+    try {
+      paymentIntent = await stripe.paymentIntents.retrieve(payment_intent_id);
+    } catch (stripeError) {
+      console.error("Stripe API error:", stripeError);
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payment intent ID or Stripe error",
+        error: stripeError.message,
+      });
+    }
 
     if (paymentIntent.status !== "succeeded") {
       return res.status(400).json({
@@ -150,14 +205,27 @@ const confirmPayment = async (req, res) => {
     let business;
 
     // Find business by business_id or user_id
-    if (business_id) {
-      business = await Business.findById(business_id);
-    } else if (user_id) {
-      business = await Business.findOne({ id: user_id });
-    } else {
-      return res.status(400).json({
+    try {
+      if (business_id) {
+        business = await Business.findById(business_id).populate(
+          "id",
+          "device_token firstname lastname"
+        );
+      } else if (user_id) {
+        business = await Business.findOne({ id: user_id }).populate(
+          "id",
+          "device_token firstname lastname"
+        );
+      }
+    } catch (dbError) {
+      console.error("Database error when finding business:", dbError);
+      return res.status(500).json({
         success: false,
-        message: "Either business_id or user_id is required",
+        message: "Database error while finding business",
+        error:
+          process.env.NODE_ENV === "production"
+            ? "Internal server error"
+            : dbError.message,
       });
     }
 
@@ -203,34 +271,90 @@ const confirmPayment = async (req, res) => {
     };
 
     // Update business with subscription details
-    const updatedBusiness = await Business.findByIdAndUpdate(
-      business._id,
-      {
-        $set: {
-          "petpro_subscription.is_active": true,
-          "petpro_subscription.subscription_type": "premium",
-          "petpro_subscription.start_date": currentDate,
-          "petpro_subscription.end_date": endDate,
-          "petpro_subscription.payment_status": "paid",
-          "petpro_subscription.amount_paid": paymentIntent.amount / 100, // Convert cents to dollars
-          "petpro_subscription.payment_method": "stripe",
-          "petpro_subscription.stripe_payment_intent_id": payment_intent_id,
-          features: premiumFeatures,
+    let updatedBusiness;
+    try {
+      updatedBusiness = await Business.findByIdAndUpdate(
+        business._id,
+        {
+          $set: {
+            "petpro_subscription.is_active": true,
+            "petpro_subscription.subscription_type": "premium",
+            "petpro_subscription.start_date": currentDate,
+            "petpro_subscription.end_date": endDate,
+            "petpro_subscription.payment_status": "paid",
+            "petpro_subscription.amount_paid": paymentIntent.amount / 100, // Convert cents to dollars
+            "petpro_subscription.payment_method": "stripe",
+            "petpro_subscription.stripe_payment_intent_id": payment_intent_id,
+            features: premiumFeatures,
+          },
         },
-      },
-      { new: true }
-    );
+        { new: true }
+      );
 
-    // Update user subscription status
-    await User.findByIdAndUpdate(
-      { _id: business.id },
-      {
-        $set: {
-          business_subscription: true,
-        },
-      },
-      { new: true }
-    );
+      if (!updatedBusiness) {
+        throw new Error("Failed to update business subscription");
+      }
+
+      // Update user subscription status
+      await User.findByIdAndUpdate(
+        business.id._id || business.id, // make sure it's just the ObjectId
+        { $set: { business_subscription: true } },
+        { new: true }
+      );
+    } catch (updateError) {
+      console.error("Database update error:", updateError);
+      return res.status(500).json({
+        success: false,
+        message: "Error updating subscription in database",
+        error:
+          process.env.NODE_ENV === "production"
+            ? "Internal server error"
+            : updateError.message,
+      });
+    }
+
+    // Send payment success notification
+    if (business.id && business.id.device_token) {
+      try {
+        await sendPaymentNotification(
+          business.id.device_token,
+          "¡Pago exitoso!",
+          `Tu suscripción Premium de PetPro ha sido activada. Válida hasta ${endDate.toLocaleDateString(
+            "es-ES"
+          )}.`,
+          NOTIFICATION_TYPES.PAYMENT_SUCCESS,
+          {
+            amount: paymentIntent.amount / 100,
+            transaction_id: payment_intent_id,
+            subscription_type: "premium",
+            business_name: business.company_name,
+            start_date: currentDate.toISOString(),
+            end_date: endDate.toISOString(),
+            features_unlocked: premiumFeatures,
+          }
+        );
+
+        // Also send business notification about subscription activation
+        await sendBusinessNotification(
+          business.id.device_token,
+          "Suscripción Premium Activada",
+          "¡Felicidades! Tu negocio ahora tiene acceso completo a todas las funciones Premium de PetPro.",
+          NOTIFICATION_TYPES.BUSINESS_APPROVED,
+          {
+            business_id: business._id,
+            subscription_type: "premium",
+            features: premiumFeatures,
+          }
+        );
+
+        console.log(
+          `Payment success notification sent to business: ${business.company_name}`
+        );
+      } catch (notificationError) {
+        console.error("Error sending payment notification:", notificationError);
+        // Don't fail the payment confirmation because of notification error
+      }
+    }
 
     res.status(200).json({
       success: true,
@@ -246,11 +370,55 @@ const confirmPayment = async (req, res) => {
     });
   } catch (error) {
     console.error("Confirm payment error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error confirming payment",
-      error: error.message,
-    });
+
+    // Extract business_id and user_id from request body for error handling
+    const { business_id, user_id, payment_intent_id } = req.body || {};
+
+    // Try to send payment failure notification if we have user info
+    if (business_id || user_id) {
+      try {
+        let user;
+        if (business_id) {
+          const business = await Business.findById(business_id).populate(
+            "id",
+            "device_token"
+          );
+          user = business?.id;
+        } else if (user_id) {
+          user = await User.findById(user_id, "device_token");
+        }
+
+        if (user && user.device_token) {
+          await sendPaymentNotification(
+            user.device_token,
+            "Error en el pago",
+            "Hubo un problema al procesar tu pago. Por favor, intenta nuevamente.",
+            NOTIFICATION_TYPES.PAYMENT_FAILED,
+            {
+              error_message: error.message,
+              payment_intent_id: payment_intent_id || "unknown",
+            }
+          );
+        }
+      } catch (notificationError) {
+        console.error(
+          "Error sending payment failure notification:",
+          notificationError
+        );
+      }
+    }
+
+    // Ensure we always return a proper JSON response
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        message: "Error confirming payment",
+        error:
+          process.env.NODE_ENV === "production"
+            ? "Internal server error"
+            : error.message,
+      });
+    }
   }
 };
 

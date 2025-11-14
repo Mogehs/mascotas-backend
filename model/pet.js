@@ -112,6 +112,22 @@ const petschema = new Schema(
       type: String,
       default: "Prefiere perros tranquilos",
     },
+    badge_subscription: {
+      type: Boolean,
+      default: false,
+    },
+    badge_name: {
+      type: String,
+      default: null,
+    },
+    badge_subscription_start_date: {
+      type: Date,
+      default: null,
+    },
+    badge_subscription_end_date: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

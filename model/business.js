@@ -49,12 +49,49 @@ const businessSchema = new Schema(
       default: "N/A",
     },
     latitude: {
-      type: String,
+      type: Number,
+      min: -90,
+      max: 90,
+      default: null,
     },
     longitude: {
-      type: String,
+      type: Number,
+      min: -180,
+      max: 180,
+      default: null,
     },
-    operation_timing: {},
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        default: "Point",
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        default: [0, 0],
+      },
+    },
+    operation_timing: [
+      {
+        day: {
+          type: String,
+          enum: [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday",
+          ],
+          required: true,
+        },
+        time: {
+          type: String, // e.g. "10:00-17:00" or "Closed"
+          required: true,
+        },
+      },
+    ],
     tax_identification_number: {
       type: String,
       default: "N/A",
@@ -103,15 +140,15 @@ const businessSchema = new Schema(
     features: {
       can_create_featured_ads: {
         type: Boolean,
-        default: false, // No features by default - must subscribe
+        default: false,
       },
       max_featured_ads: {
         type: Number,
-        default: 0, // No limit by default
+        default: 0,
       },
       can_showcase_products: {
         type: Boolean,
-        default: false, // No features by default - must subscribe
+        default: false,
       },
       max_products: {
         type: Number,
@@ -161,4 +198,8 @@ const businessSchema = new Schema(
     timestamps: true,
   }
 );
+
+// Create geospatial index for location-based queries
+businessSchema.index({ location: "2dsphere" });
+
 module.exports = mongoose.model("business", businessSchema);

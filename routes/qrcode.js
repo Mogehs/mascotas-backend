@@ -6,6 +6,7 @@ const {
   getQRCodeInfo,
   assignPetToQRCode,
   getAllQRCodes,
+  updateQRCodeSaleInfo,
 } = require("../controller/qrcode");
 
 router.post("/bulk", generateBulkQRCodes);
@@ -17,6 +18,8 @@ router.get("/all", getAllQRCodes);
 router.get("/:qrId", getQRCodeInfo);
 
 router.post("/assign-pet", assignPetToQRCode);
+
+router.put("/:qrId/sale-info", updateQRCodeSaleInfo);
 
 router.get("/health", (req, res) => {
   res.status(200).json({

@@ -40,13 +40,6 @@ const userSchema = new Schema(
       type: Boolean,
       default: false,
     },
-    badge_subscription: {
-      type: Boolean,
-      default: false,
-    },
-    badge_name: {
-      type: String,
-    },
     device_token: {
       type: String,
     },

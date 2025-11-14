@@ -1,8 +1,10 @@
 const Lost = require("../model/lost");
+const User = require("../model/user"); // Add User model import
 const cloudinary = require("cloudinary").v2;
 const {
   sendLostPetAlert,
   sendGeneralNotification,
+  NOTIFICATION_TYPES,
 } = require("../service/notification.service");
 
 cloudinary.config({
@@ -50,20 +52,13 @@ const lostPet = async (req, res) => {
       longitude: longitude,
     });
 
-    const users = await Lost.find().populate(
-      "user",
-      "device_token firstname lastname phone"
-    );
+    const allUsers = await User.find({
+      _id: { $ne: req.body.user },
+      device_token: { $exists: true, $ne: null, $ne: "" },
+    });
 
-    const petsToNotify = users.filter(
-      (pet) =>
-        pet.user &&
-        pet.user._id.toString() !== req.body.user.toString() &&
-        pet.user.device_token
-    );
-
-    const notificationPromises = users.map(async (pet) => {
-      if (pet.user?.device_token) {
+    const notificationPromises = allUsers.map(async (user) => {
+      if (user.device_token) {
         const petData = {
           name,
           contact,
@@ -73,10 +68,11 @@ const lostPet = async (req, res) => {
           date,
           details,
         };
-        return sendLostPetAlert(pet.user.device_token, petData);
+        return sendLostPetAlert(user.device_token, petData, data._id);
       }
       return null;
     });
+
     await Promise.all(notificationPromises.filter((p) => p !== null));
 
     res.json({

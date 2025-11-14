@@ -177,6 +177,22 @@ const createProduct = async (req, res) => {
         imageUrls.push(result.secure_url);
       }
     }
+    let parsedSpecifications = new Map();
+    if (specifications) {
+      try {
+        // If it's already an object
+        if (typeof specifications === "object") {
+          parsedSpecifications = new Map(Object.entries(specifications));
+        }
+        // If it's a string (e.g. '{"color":"red","size":"M"}')
+        else if (typeof specifications === "string") {
+          const specObj = JSON.parse(specifications);
+          parsedSpecifications = new Map(Object.entries(specObj));
+        }
+      } catch (err) {
+        console.warn("Invalid specifications format:", specifications);
+      }
+    }
 
     const product = await Product.create({
       business_id,
@@ -186,9 +202,7 @@ const createProduct = async (req, res) => {
       price,
       availability_status: availability_status || "in_stock",
       images: imageUrls,
-      specifications: specifications
-        ? new Map(Object.entries(specifications))
-        : new Map(),
+      specifications: parsedSpecifications,
       tags: tags ? tags.split(",").map((tag) => tag.trim()) : [],
       weight,
       dimensions,
