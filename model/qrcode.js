@@ -33,6 +33,11 @@ const qrCodeSchema = new mongoose.Schema({
     default: null,
     required: false,
   },
+  printStatus: {
+    type: String,
+    enum: ["pending", "sent_for_print", "assigned"],
+    default: "pending",
+  },
   createdAt: {
     type: Date,
     default: Date.now,

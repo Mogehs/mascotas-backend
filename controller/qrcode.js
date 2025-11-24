@@ -348,13 +348,20 @@ const assignPetToQRCode = async (req, res) => {
 
 const getAllQRCodes = async (req, res) => {
   try {
-    const { page = 1, limit = 50, assigned } = req.query;
+    const { page = 1, limit = 50, assigned, printStatus } = req.query;
 
     let filter = {};
+
+    // Filter by assignment status
     if (assigned === "true") {
       filter.petId = { $ne: null };
     } else if (assigned === "false") {
       filter.petId = null;
+    }
+
+    // Filter by print status
+    if (printStatus) {
+      filter.printStatus = printStatus;
     }
 
     const qrCodes = await QRCodeModel.find(filter)
@@ -456,6 +463,72 @@ const updateQRCodeSaleInfo = async (req, res) => {
   }
 };
 
+const updateQRCodeStatus = async (req, res) => {
+  try {
+    const { qrId } = req.params;
+    const { printStatus } = req.body;
+
+    if (!qrId) {
+      return res.status(400).json({
+        success: false,
+        message: "Se requiere el ID del código QR",
+      });
+    }
+
+    if (!printStatus) {
+      return res.status(400).json({
+        success: false,
+        message: "Se requiere el estado de impresión",
+      });
+    }
+
+    // Validate printStatus value
+    const validStatuses = ["pending", "sent_for_print", "assigned"];
+    if (!validStatuses.includes(printStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: `Estado inválido. Debe ser uno de: ${validStatuses.join(
+          ", "
+        )}`,
+      });
+    }
+
+    // Find and update the QR code
+    const updatedQRCode = await QRCodeModel.findByIdAndUpdate(
+      qrId,
+      {
+        $set: {
+          printStatus,
+          updatedAt: new Date(),
+        },
+      },
+      { new: true }
+    )
+      .populate("petId", "pet_name pet_gender pet_race")
+      .populate("userId", "firstname lastname email");
+
+    if (!updatedQRCode) {
+      return res.status(404).json({
+        success: false,
+        message: "Código QR no encontrado",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Estado del código QR actualizado exitosamente",
+      data: updatedQRCode,
+    });
+  } catch (error) {
+    console.error("Error updating QR code status:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error interno del servidor al actualizar el estado del QR",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   generateBulkQRCodes,
   generateSingleQRCodeEndpoint,
@@ -463,4 +536,5 @@ module.exports = {
   assignPetToQRCode,
   getAllQRCodes,
   updateQRCodeSaleInfo,
+  updateQRCodeStatus,
 };
