@@ -1,9 +1,8 @@
-const cloudinary = require("cloudinary").v2;
-
 const QRCode = require("qrcode");
 const QRCodeModel = require("../model/qrcode");
 const Pet = require("../model/pet");
 const User = require("../model/user");
+const { saveFile } = require("../utils/fileUpload.helper");
 
 const generateBulkQRCodes = async (req, res) => {
   try {
@@ -291,14 +290,10 @@ const assignPetToQRCode = async (req, res) => {
     let petImageUrl = "";
     if (req.files && req.files.pet_image) {
       const file = req.files.pet_image;
-      const result = await cloudinary.uploader.upload(file.tempFilePath, {
-        folder: "petpro_pets",
-        transformation: [
-          { width: 800, height: 800, crop: "limit" },
-          { quality: "auto:good" },
-        ],
-      });
-      petImageUrl = result.secure_url;
+      const uploadResult = await saveFile(file, "qrcodes");
+      if (uploadResult.success) {
+        petImageUrl = uploadResult.url;
+      }
     }
 
     // Create new pet

@@ -1,13 +1,7 @@
 const ads = require("../model/ads");
 const Business = require("../model/business");
 const Analytics = require("../model/analytics");
-const cloudinary = require("cloudinary").v2;
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_APP_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+const { saveFile } = require("../utils/fileUpload.helper");
 
 // Helper function to track analytics
 const trackAnalytics = async (
@@ -64,31 +58,35 @@ const adsRegister = async (req, res) => {
     if (!business.petpro_subscription.is_active) {
       return res.status(403).json({
         success: false,
-        message: "Active subscription required to create ads. Please subscribe to unlock this feature.",
+        message:
+          "Active subscription required to create ads. Please subscribe to unlock this feature.",
         subscription_status: {
           is_active: false,
           subscription_type: business.petpro_subscription.subscription_type,
         },
-        action_required: "Subscribe to start creating ads and reach more customers."
+        action_required:
+          "Subscribe to start creating ads and reach more customers.",
       });
     }
 
     // Check if subscription is expired
     const currentDate = new Date();
-    const isExpired = business.petpro_subscription.end_date &&
-                     business.petpro_subscription.end_date < currentDate;
+    const isExpired =
+      business.petpro_subscription.end_date &&
+      business.petpro_subscription.end_date < currentDate;
 
     if (isExpired) {
       return res.status(403).json({
         success: false,
-        message: "Your subscription has expired. Please renew to continue creating ads.",
+        message:
+          "Your subscription has expired. Please renew to continue creating ads.",
         subscription_status: {
           is_active: business.petpro_subscription.is_active,
           subscription_type: business.petpro_subscription.subscription_type,
           is_expired: true,
           end_date: business.petpro_subscription.end_date,
         },
-        action_required: "Renew your subscription to continue creating ads."
+        action_required: "Renew your subscription to continue creating ads.",
       });
     }
 
@@ -97,11 +95,12 @@ const adsRegister = async (req, res) => {
       if (!business.features.can_create_featured_ads) {
         return res.status(403).json({
           success: false,
-          message: "Featured ads creation requires an active subscription. Please subscribe to unlock this feature.",
+          message:
+            "Featured ads creation requires an active subscription. Please subscribe to unlock this feature.",
           current_limits: {
             max_featured_ads: business.features.max_featured_ads,
             subscription_type: business.petpro_subscription.subscription_type,
-          }
+          },
         });
       }
 
@@ -126,7 +125,7 @@ const adsRegister = async (req, res) => {
             message: `Featured ads limit reached. Current plan allows ${business.features.max_featured_ads} featured ads. Upgrade to Premium for unlimited featured ads.`,
             current_count: currentFeaturedAds,
             max_allowed: business.features.max_featured_ads,
-            upgrade_message: "Upgrade to Premium for unlimited featured ads."
+            upgrade_message: "Upgrade to Premium for unlimited featured ads.",
           });
         }
       }
@@ -138,37 +137,27 @@ const adsRegister = async (req, res) => {
         .json({ success: false, message: "Please upload the ad image." });
 
     const file = req.files.picture;
-    const result = await cloudinary.uploader.upload(file.tempFilePath, {
-      public_id: file.name,
-      resource_type: "image",
-      folder: "mascotas/ads",
-      transformation: [
-        { width: 1200, height: 800, crop: "limit" },
-        { quality: "auto:good" },
-      ],
-    });
+    const uploadResult = await saveFile(file, "ads");
+
+    if (!uploadResult.success) {
+      return res.status(500).json({
+        success: false,
+        message: "Error uploading image",
+      });
+    }
 
     // Handle multiple images if provided
-    let imageUrls = [result.secure_url];
+    let imageUrls = [uploadResult.url];
     if (req.files.additionalImages) {
       const additionalFiles = Array.isArray(req.files.additionalImages)
         ? req.files.additionalImages
         : [req.files.additionalImages];
 
       for (const additionalFile of additionalFiles) {
-        const additionalResult = await cloudinary.uploader.upload(
-          additionalFile.tempFilePath,
-          {
-            public_id: additionalFile.name,
-            resource_type: "image",
-            folder: "mascotas/ads",
-            transformation: [
-              { width: 1200, height: 800, crop: "limit" },
-              { quality: "auto:good" },
-            ],
-          }
-        );
-        imageUrls.push(additionalResult.secure_url);
+        const additionalUploadResult = await saveFile(additionalFile, "ads");
+        if (additionalUploadResult.success) {
+          imageUrls.push(additionalUploadResult.url);
+        }
       }
     }
 
@@ -180,7 +169,7 @@ const adsRegister = async (req, res) => {
         title: title || content.substring(0, 50),
         description: description,
         category: category,
-        add_link: result.secure_url,
+        add_link: uploadResult.url,
         images: imageUrls,
         payment_method: method,
         billing_name: name,
@@ -424,22 +413,13 @@ const updateAd = async (req, res) => {
 
     // Handle new image uploads
     if (req.files?.picture) {
-      const result = await cloudinary.uploader.upload(
-        req.files.picture.tempFilePath,
-        {
-          public_id: req.files.picture.name,
-          resource_type: "image",
-          folder: "mascotas/ads",
-          transformation: [
-            { width: 1200, height: 800, crop: "limit" },
-            { quality: "auto:good" },
-          ],
-        }
-      );
-      updateData.add_link = result.secure_url;
+      const uploadResult = await saveFile(req.files.picture, "ads");
 
-      if (!updateData.images) updateData.images = [];
-      updateData.images[0] = result.secure_url;
+      if (uploadResult.success) {
+        updateData.add_link = uploadResult.url;
+        if (!updateData.images) updateData.images = [];
+        updateData.images[0] = uploadResult.url;
+      }
     }
 
     const ad = await ads

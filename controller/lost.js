@@ -1,17 +1,11 @@
 const Lost = require("../model/lost");
 const User = require("../model/user"); // Add User model import
-const cloudinary = require("cloudinary").v2;
 const {
   sendLostPetAlert,
   sendGeneralNotification,
   NOTIFICATION_TYPES,
 } = require("../service/notification.service");
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_APP_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+const { saveFile } = require("../utils/fileUpload.helper");
 
 const lostPet = async (req, res) => {
   try {
@@ -33,11 +27,14 @@ const lostPet = async (req, res) => {
       });
 
     const file = req.files.picture;
-    const result = await cloudinary.uploader.upload(file.tempFilePath, {
-      public_id: file.name,
-      resource_type: "image",
-      folder: "mascotas",
-    });
+    const uploadResult = await saveFile(file, "lost");
+
+    if (!uploadResult.success) {
+      return res.status(500).json({
+        success: false,
+        message: "Error uploading image",
+      });
+    }
 
     const data = await Lost.create({
       user: user,
@@ -47,7 +44,7 @@ const lostPet = async (req, res) => {
       time: time,
       contact: contact,
       details: details,
-      pet_image: result.secure_url,
+      pet_image: uploadResult.url,
       latitude: latitude,
       longitude: longitude,
     });
@@ -64,7 +61,7 @@ const lostPet = async (req, res) => {
           contact,
           location,
           time,
-          image: result.secure_url,
+          image: uploadResult.url,
           date,
           details,
         };

@@ -1,5 +1,5 @@
 const Tag = require("../model/tags");
-const cloudinary = require("../config/cloudinary");
+const { saveFile, deleteFile } = require("../utils/fileUpload.helper");
 const fs = require("fs");
 
 // Helper function to parse stringified JSON data
@@ -66,26 +66,13 @@ const createTag = async (req, res) => {
 
     const uploadedIcons = [];
 
-    // Upload all icons to Cloudinary
+    // Upload all icons to local storage
     for (const file of iconFiles) {
-      try {
-        const result = await cloudinary.uploader.upload(file.tempFilePath, {
-          folder: "tags/icons",
-          width: 300,
-          height: 300,
-          crop: "fit", // Maintains aspect ratio, no cropping
-          quality: "auto:good", // Better quality setting
-          resource_type: "image",
-          flags: "preserve_transparency", // Preserve PNG transparency
-        });
-
+      const uploadResult = await saveFile(file, "tags");
+      if (uploadResult.success) {
         uploadedIcons.push({
-          url: result.secure_url,
-          public_id: result.public_id,
+          url: uploadResult.url,
         });
-      } finally {
-        // Always cleanup temp file
-        fs.unlinkSync(file.tempFilePath);
       }
     }
 
@@ -251,12 +238,13 @@ const updateTag = async (req, res) => {
 
     // Handle icons update if new images are uploaded
     if (req?.files?.icons) {
-      // Delete old icons from Cloudinary
+      // Delete old icons from local storage
       if (tag.icons && tag.icons.length > 0) {
         for (const icon of tag.icons) {
-          if (icon.public_id) {
+          if (icon.url && icon.url.includes("/uploads/")) {
             try {
-              await cloudinary.uploader.destroy(icon.public_id);
+              const relativePath = icon.url.split("/uploads/")[1];
+              await deleteFile(relativePath);
             } catch (error) {
               console.error("Error deleting old icon:", error);
             }
@@ -271,33 +259,19 @@ const updateTag = async (req, res) => {
 
       const uploadedIcons = [];
 
-      // Upload all new icons to Cloudinary
+      // Upload all new icons to local storage
       for (const file of iconFiles) {
-        try {
-          const result = await cloudinary.uploader.upload(file.tempFilePath, {
-            folder: "tags/icons",
-            width: 300,
-            height: 300,
-            crop: "fit", // Maintains aspect ratio, no cropping
-            quality: "auto:good", // Better quality setting
-            resource_type: "image",
-            flags: "preserve_transparency", // Preserve PNG transparency
-          });
-
+        const uploadResult = await saveFile(file, "tags");
+        if (uploadResult.success) {
           uploadedIcons.push({
-            url: result.secure_url,
-            public_id: result.public_id,
+            url: uploadResult.url,
           });
-        } catch (uploadError) {
-          console.error("Error uploading new icon:", uploadError);
+        } else {
           return res.status(500).json({
             success: false,
             message: "Error uploading icon image",
-            error: uploadError.message,
+            error: uploadResult.error,
           });
-        } finally {
-          // Always cleanup temp file
-          fs.unlinkSync(file.tempFilePath);
         }
       }
 
@@ -337,18 +311,19 @@ const deleteTag = async (req, res) => {
       });
     }
 
-    // Delete all icons from Cloudinary
+    // Delete all icons from local storage
     if (tag.icons && tag.icons.length > 0) {
       for (const icon of tag.icons) {
-        if (icon.public_id) {
+        if (icon.url && icon.url.includes("/uploads/")) {
           try {
-            await cloudinary.uploader.destroy(icon.public_id);
-          } catch (cloudinaryError) {
+            const relativePath = icon.url.split("/uploads/")[1];
+            await deleteFile(relativePath);
+          } catch (deleteError) {
             console.error(
-              "Error deleting icon from Cloudinary:",
-              cloudinaryError
+              "Error deleting icon from local storage:",
+              deleteError
             );
-            // Continue with tag deletion even if Cloudinary deletion fails
+            // Continue with tag deletion even if file deletion fails
           }
         }
       }

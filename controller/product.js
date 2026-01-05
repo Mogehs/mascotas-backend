@@ -1,7 +1,7 @@
-const cloudinary = require("cloudinary").v2;
 const Product = require("../model/product");
 const Business = require("../model/business");
 const Analytics = require("../model/analytics");
+const { saveFile } = require("../utils/fileUpload.helper");
 
 // Helper function for pagination
 const paginate = async (model, query, options) => {
@@ -167,14 +167,10 @@ const createProduct = async (req, res) => {
         : [req.files.images];
 
       for (const file of imageFiles) {
-        const result = await cloudinary.uploader.upload(file.tempFilePath, {
-          folder: "petpro_products",
-          transformation: [
-            { width: 800, height: 800, crop: "limit" },
-            { quality: "auto:good" },
-          ],
-        });
-        imageUrls.push(result.secure_url);
+        const uploadResult = await saveFile(file, "products");
+        if (uploadResult.success) {
+          imageUrls.push(uploadResult.url);
+        }
       }
     }
     let parsedSpecifications = new Map();
@@ -540,14 +536,10 @@ const updateProduct = async (req, res) => {
 
       let newImageUrls = [];
       for (const file of imageFiles) {
-        const result = await cloudinary.uploader.upload(file.tempFilePath, {
-          folder: "petpro_products",
-          transformation: [
-            { width: 800, height: 800, crop: "limit" },
-            { quality: "auto:good" },
-          ],
-        });
-        newImageUrls.push(result.secure_url);
+        const uploadResult = await saveFile(file, "products");
+        if (uploadResult.success) {
+          newImageUrls.push(uploadResult.url);
+        }
       }
 
       if (updateData.replace_images === "true") {

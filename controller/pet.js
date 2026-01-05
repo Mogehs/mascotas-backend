@@ -6,12 +6,7 @@ const DogMatch = require("../model/dogmatch");
 const {
   sendDogMatchNotificationsToUsers,
 } = require("../service/notification.service");
-const cloudinary = require("cloudinary").v2;
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_APP_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+const { saveFile, deleteFile } = require("../utils/fileUpload.helper");
 
 // Helper function to parse form data into proper objects
 const parseFormData = (body) => {
@@ -315,18 +310,15 @@ const pet_register = async (req, res) => {
       });
     }
 
-    // ✅ Upload image to Cloudinary
+    // ✅ Upload image to local storage
     const file = req.files.picture;
-    let result;
-    try {
-      result = await cloudinary.uploader.upload(file.tempFilePath, {
-        public_id: `${Date.now()}_${file.name}`,
-        resource_type: "image",
-        folder: "mascotas",
+    const uploadResult = await saveFile(file, "pets");
+
+    if (!uploadResult.success) {
+      return res.status(500).json({
+        success: false,
+        message: "Error uploading image",
       });
-    } finally {
-      // ✅ Always cleanup temp file
-      fs.unlinkSync(file.tempFilePath);
     }
 
     // ✅ Create pet in DB
@@ -342,7 +334,7 @@ const pet_register = async (req, res) => {
       pet_microchip_number: microchip_number,
       pet_description: description,
       pet_color: color,
-      pet_image: result.secure_url,
+      pet_image: uploadResult.url,
     });
 
     // ✅ Create dog match preferences if provided
@@ -506,25 +498,19 @@ const update_pet = async (req, res) => {
     // ✅ Handle new image if provided
     if (req?.files?.picture) {
       const file = req.files.picture;
-      let result;
-      try {
-        result = await cloudinary.uploader.upload(file.tempFilePath, {
-          public_id: `${Date.now()}_${file.name}`,
-          resource_type: "image",
-          folder: "mascotas",
-        });
-      } finally {
-        fs.unlinkSync(file.tempFilePath);
-      }
+      const uploadResult = await saveFile(file, "pets");
 
-      if (result) {
-        updateData.pet_image = result.secure_url;
+      if (uploadResult.success) {
+        updateData.pet_image = uploadResult.url;
 
-        // ✅ (Optional) Delete old image from Cloudinary
-        // if (existingPet.pet_image) {
-        //   const publicId = existingPet.pet_image.split("/").pop().split(".")[0];
-        //   await cloudinary.uploader.destroy(`mascotas/${publicId}`);
-        // }
+        // ✅ Delete old image from local storage if it exists
+        if (
+          existingPet.pet_image &&
+          existingPet.pet_image.includes("/uploads/")
+        ) {
+          const oldImagePath = existingPet.pet_image.split("/uploads/")[1];
+          await deleteFile(oldImagePath);
+        }
       }
     }
 

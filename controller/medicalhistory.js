@@ -1,11 +1,6 @@
 const Medical = require("../model/medicalhistory");
 const cronService = require("../service/cron.service");
-const cloudinary = require("cloudinary").v2;
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_APP_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+const { saveFile } = require("../utils/fileUpload.helper");
 
 // Helper function to parse reminder times from string (for multipart form data)
 const parseReminderTimes = (reminderTimesString) => {
@@ -109,54 +104,56 @@ const petvaccine = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Please upload the ad image image." });
     const file = req.files.picture;
-    const result = await cloudinary.uploader.upload(file.tempFilePath, {
-      public_id: file.name,
-      resource_type: "image",
-      folder: "mascotas",
-    });
-    if (result) {
-      // Create medical record data
-      const medicalData = {
-        pet_vaccine: vaccine,
-        pet_vaccine_date: vaccine_date,
-        pet_vaccine_reminder_date: vaccine_reminder,
-        pet_vaccine_price: vaccine_price,
-        veterinary_managed: veterinary_managed,
-        pet_vaccine_image: result.secure_url,
-        pet: id,
-        user: user,
-      };
+    const uploadResult = await saveFile(file, "medical");
 
-      // Add multiple reminder times if provided
-      const parsedReminderTimes = parseReminderTimes(reminder_times);
-      if (parsedReminderTimes && parsedReminderTimes.length > 0) {
-        medicalData.pet_vaccine_reminder_times = parsedReminderTimes;
-      }
-
-      const data = await Medical.create(medicalData);
-
-      // Schedule reminders for multiple times if provided
-      if (parsedReminderTimes && Array.isArray(parsedReminderTimes)) {
-        await scheduleMultipleReminders(
-          data._id,
-          "pet_vaccine_reminder_times",
-          parsedReminderTimes
-        );
-      } else if (vaccine_reminder && vaccine_reminder !== "N/A") {
-        // Fallback to single reminder
-        cronService.scheduleSpecificReminder(
-          data._id,
-          "pet_vaccine_reminder_date",
-          vaccine_reminder
-        );
-      }
-
-      res.status(200).json({
-        success: true,
-        message: "Vacuna añadida con éxito",
-        id: data._id,
+    if (!uploadResult.success) {
+      return res.status(500).json({
+        success: false,
+        message: "Error uploading image",
       });
     }
+
+    // Create medical record data
+    const medicalData = {
+      pet_vaccine: vaccine,
+      pet_vaccine_date: vaccine_date,
+      pet_vaccine_reminder_date: vaccine_reminder,
+      pet_vaccine_price: vaccine_price,
+      veterinary_managed: veterinary_managed,
+      pet_vaccine_image: uploadResult.url,
+      pet: id,
+      user: user,
+    };
+
+    // Add multiple reminder times if provided
+    const parsedReminderTimes = parseReminderTimes(reminder_times);
+    if (parsedReminderTimes && parsedReminderTimes.length > 0) {
+      medicalData.pet_vaccine_reminder_times = parsedReminderTimes;
+    }
+
+    const data = await Medical.create(medicalData);
+
+    // Schedule reminders for multiple times if provided
+    if (parsedReminderTimes && Array.isArray(parsedReminderTimes)) {
+      await scheduleMultipleReminders(
+        data._id,
+        "pet_vaccine_reminder_times",
+        parsedReminderTimes
+      );
+    } else if (vaccine_reminder && vaccine_reminder !== "N/A") {
+      // Fallback to single reminder
+      cronService.scheduleSpecificReminder(
+        data._id,
+        "pet_vaccine_reminder_date",
+        vaccine_reminder
+      );
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Vacuna añadida con éxito",
+      id: data._id,
+    });
   } catch (error) {
     console.log(error.message);
     return res.status(500).json({ success: false, message: error.message });
@@ -260,55 +257,57 @@ const petdeworming = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Please upload the ad image image." });
     const file = req.files.picture;
-    const result = await cloudinary.uploader.upload(file.tempFilePath, {
-      public_id: file.name,
-      resource_type: "image",
-      folder: "mascotas",
-    });
-    if (result) {
-      // Create medical record data
-      const medicalData = {
-        pet_deworming_type: type,
-        pet_deworming_method: method,
-        pet_deworming_date: deworming_date,
-        pet_deworming_reminder_date: deworming_reminder,
-        used_product_in_deworming: used_product,
-        pet_deworming_price: deworming_price,
-        pet_deworming_image: result.secure_url,
-        pet: id,
-        user: user,
-      };
+    const uploadResult = await saveFile(file, "medical");
 
-      // Add multiple reminder times if provided
-      const parsedReminderTimes = parseReminderTimes(reminder_times);
-      if (parsedReminderTimes && parsedReminderTimes.length > 0) {
-        medicalData.pet_deworming_reminder_times = parsedReminderTimes;
-      }
-
-      const data = await Medical.create(medicalData);
-
-      // Schedule reminders for multiple times if provided
-      if (parsedReminderTimes && Array.isArray(parsedReminderTimes)) {
-        await scheduleMultipleReminders(
-          data._id,
-          "pet_deworming_reminder_times",
-          parsedReminderTimes
-        );
-      } else if (deworming_reminder && deworming_reminder !== "N/A") {
-        // Fallback to single reminder
-        cronService.scheduleSpecificReminder(
-          data._id,
-          "pet_deworming_reminder_date",
-          deworming_reminder
-        );
-      }
-
-      res.status(200).json({
-        success: true,
-        message: "Desparasitación añadida con éxito",
-        id: data._id,
+    if (!uploadResult.success) {
+      return res.status(500).json({
+        success: false,
+        message: "Error uploading image",
       });
     }
+
+    // Create medical record data
+    const medicalData = {
+      pet_deworming_type: type,
+      pet_deworming_method: method,
+      pet_deworming_date: deworming_date,
+      pet_deworming_reminder_date: deworming_reminder,
+      used_product_in_deworming: used_product,
+      pet_deworming_price: deworming_price,
+      pet_deworming_image: uploadResult.url,
+      pet: id,
+      user: user,
+    };
+
+    // Add multiple reminder times if provided
+    const parsedReminderTimes = parseReminderTimes(reminder_times);
+    if (parsedReminderTimes && parsedReminderTimes.length > 0) {
+      medicalData.pet_deworming_reminder_times = parsedReminderTimes;
+    }
+
+    const data = await Medical.create(medicalData);
+
+    // Schedule reminders for multiple times if provided
+    if (parsedReminderTimes && Array.isArray(parsedReminderTimes)) {
+      await scheduleMultipleReminders(
+        data._id,
+        "pet_deworming_reminder_times",
+        parsedReminderTimes
+      );
+    } else if (deworming_reminder && deworming_reminder !== "N/A") {
+      // Fallback to single reminder
+      cronService.scheduleSpecificReminder(
+        data._id,
+        "pet_deworming_reminder_date",
+        deworming_reminder
+      );
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Desparasitación añadida con éxito",
+      id: data._id,
+    });
   } catch (error) {
     console.log(error.message);
     return res.status(500).json({ success: false, message: error.message });
@@ -1150,36 +1149,38 @@ const petactivity = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Please upload the ad image image." });
     const file = req.files.picture;
-    const result = await cloudinary.uploader.upload(file.tempFilePath, {
-      public_id: file.name,
-      resource_type: "image",
-      folder: "mascotas",
-    });
-    if (result) {
-      // Create medical record data
-      const medicalData = {
-        activity_type: type,
-        activity_description: description,
-        activity_date: date,
-        activity_duration: duration,
-        distance_traveled: travelled,
-        altitude_reached: altitude,
-        activity_location: location,
-        difficulty: difficult,
-        fun_level: fun,
-        activity_image: result.secure_url,
-        pet: id,
-        user: user,
-      };
+    const uploadResult = await saveFile(file, "medical");
 
-      const data = await Medical.create(medicalData);
-
-      res.status(200).json({
-        success: true,
-        message: "Información de actividades y ocio guardada correctamente",
-        id: data._id,
+    if (!uploadResult.success) {
+      return res.status(500).json({
+        success: false,
+        message: "Error uploading image",
       });
     }
+
+    // Create medical record data
+    const medicalData = {
+      activity_type: type,
+      activity_description: description,
+      activity_date: date,
+      activity_duration: duration,
+      distance_traveled: travelled,
+      altitude_reached: altitude,
+      activity_location: location,
+      difficulty: difficult,
+      fun_level: fun,
+      activity_image: uploadResult.url,
+      pet: id,
+      user: user,
+    };
+
+    const data = await Medical.create(medicalData);
+
+    res.status(200).json({
+      success: true,
+      message: "Información de actividades y ocio guardada correctamente",
+      id: data._id,
+    });
   } catch (error) {
     console.log(error.message);
     return res.status(500).json({ success: false, message: error.message });
@@ -1249,59 +1250,60 @@ const pethair = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Please upload the ad image image." });
     const file = req.files.picture;
-    const result = await cloudinary.uploader.upload(file.tempFilePath, {
-      public_id: file.name,
-      resource_type: "image",
-      folder: "mascotas",
-    });
-    if (result) {
-      // Create medical record data
-      const medicalData = {
-        hair_service: service,
-        hair_description: description,
-        date_served: date,
-        hair_price: price,
-        hair_image: result.secure_url,
-        pet: id,
-        user: user,
-      };
+    const uploadResult = await saveFile(file, "medical");
 
-      // Add single reminder date if provided
-      if (reminder_date && reminder_date !== "N/A") {
-        medicalData.hair_reminder_date = reminder_date;
-      }
-
-      // Parse and add multiple reminder times if provided
-      const parsedReminderTimes = parseReminderTimes(reminder_times);
-      if (parsedReminderTimes && parsedReminderTimes.length > 0) {
-        medicalData.hair_reminder_times = parsedReminderTimes;
-      }
-
-      const data = await Medical.create(medicalData);
-
-      // Schedule reminders for multiple times if provided
-      if (parsedReminderTimes && Array.isArray(parsedReminderTimes)) {
-        await scheduleMultipleReminders(
-          data._id,
-          "hair_reminder_times",
-          parsedReminderTimes
-        );
-      } else if (reminder_date && reminder_date !== "N/A") {
-        // Fallback to single reminder
-        cronService.scheduleSpecificReminder(
-          data._id,
-          "hair_reminder_date",
-          reminder_date
-        );
-      }
-
-      res.status(200).json({
-        success: true,
-        message:
-          "La información del pelo de la mascota se guardó correctamente",
-        id: data._id,
+    if (!uploadResult.success) {
+      return res.status(500).json({
+        success: false,
+        message: "Error uploading image",
       });
     }
+
+    // Create medical record data
+    const medicalData = {
+      hair_service: service,
+      hair_description: description,
+      date_served: date,
+      hair_price: price,
+      hair_image: uploadResult.url,
+      pet: id,
+      user: user,
+    };
+
+    // Add single reminder date if provided
+    if (reminder_date && reminder_date !== "N/A") {
+      medicalData.hair_reminder_date = reminder_date;
+    }
+
+    // Parse and add multiple reminder times if provided
+    const parsedReminderTimes = parseReminderTimes(reminder_times);
+    if (parsedReminderTimes && parsedReminderTimes.length > 0) {
+      medicalData.hair_reminder_times = parsedReminderTimes;
+    }
+
+    const data = await Medical.create(medicalData);
+
+    // Schedule reminders for multiple times if provided
+    if (parsedReminderTimes && Array.isArray(parsedReminderTimes)) {
+      await scheduleMultipleReminders(
+        data._id,
+        "hair_reminder_times",
+        parsedReminderTimes
+      );
+    } else if (reminder_date && reminder_date !== "N/A") {
+      // Fallback to single reminder
+      cronService.scheduleSpecificReminder(
+        data._id,
+        "hair_reminder_date",
+        reminder_date
+      );
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "La información del pelo de la mascota se guardó correctamente",
+      id: data._id,
+    });
   } catch (error) {
     console.log(error.message);
     return res.status(500).json({ success: false, message: error.message });
@@ -1446,34 +1448,35 @@ const registration = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Please upload the ad image image." });
     const file = req.files.picture;
-    const result = await cloudinary.uploader.upload(file.tempFilePath, {
-      public_id: file.name,
-      resource_type: "image",
-      folder: "mascotas",
-    });
-    if (result) {
-      // Create medical record data
-      const medicalData = {
-        personal_type: type,
-        personal_description: description,
-        personal_date: date,
-        personal_duration: duration,
-        personal_location: location,
-        personal_travelled: travelled,
-        personal_fun: fun,
-        personal_image: result.secure_url,
-        pet: id,
-      };
+    const uploadResult = await saveFile(file, "medical");
 
-      const data = await Medical.create(medicalData);
-
-      res.status(200).json({
-        success: true,
-        message:
-          "Información de Registro personal y ocio guardada correctamente",
-        id: data._id,
+    if (!uploadResult.success) {
+      return res.status(500).json({
+        success: false,
+        message: "Error uploading image",
       });
     }
+
+    // Create medical record data
+    const medicalData = {
+      personal_type: type,
+      personal_description: description,
+      personal_date: date,
+      personal_duration: duration,
+      personal_location: location,
+      personal_travelled: travelled,
+      personal_fun: fun,
+      personal_image: uploadResult.url,
+      pet: id,
+    };
+
+    const data = await Medical.create(medicalData);
+
+    res.status(200).json({
+      success: true,
+      message: "Información de Registro personal y ocio guardada correctamente",
+      id: data._id,
+    });
   } catch (error) {
     console.log(error.message);
     return res.status(500).json({ success: false, message: error.message });

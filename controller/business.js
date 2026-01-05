@@ -1,10 +1,3 @@
-const cloudinary = require("cloudinary").v2;
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_APP_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
-
 const Business = require("../model/business");
 const User = require("../model/user");
 const Ads = require("../model/ads");
@@ -15,6 +8,7 @@ const {
   sendGeneralNotification,
   NOTIFICATION_TYPES,
 } = require("../service/notification.service");
+const { saveFile, deleteFile } = require("../utils/fileUpload.helper");
 
 const businessRegister = async (req, res) => {
   try {
@@ -209,26 +203,27 @@ const uploadBusinessImage = async (req, res) => {
     }
 
     const file = req.files.picture;
-    const result = await cloudinary.uploader.upload(file.tempFilePath, {
-      public_id: file.name,
-      resource_type: "image",
-      folder: "mascotas",
-    });
+    const uploadResult = await saveFile(file, "business");
 
-    if (result) {
-      const data = await Business.findByIdAndUpdate(
-        { _id: req.body.uid },
-        {
-          $set: {
-            company_logo: result.secure_url,
-          },
-        },
-        { new: true }
-      );
-      res
-        .status(200)
-        .json({ success: true, message: "Imagen cargada exitosamente" });
+    if (!uploadResult.success) {
+      return res.status(500).json({
+        success: false,
+        message: "Error uploading image",
+      });
     }
+
+    const data = await Business.findByIdAndUpdate(
+      { _id: req.body.uid },
+      {
+        $set: {
+          company_logo: uploadResult.url,
+        },
+      },
+      { new: true }
+    );
+    res
+      .status(200)
+      .json({ success: true, message: "Imagen cargada exitosamente" });
   } catch (error) {
     console.log(error.message);
     return res.status(500).json({ success: false, message: error.message });

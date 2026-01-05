@@ -1,8 +1,8 @@
-const cloudinary = require("cloudinary").v2;
 const Promotion = require("../model/promotion");
 const Business = require("../model/business");
 const Product = require("../model/product");
 const Analytics = require("../model/analytics");
+const { saveFile } = require("../utils/fileUpload.helper");
 
 // Helper function to track analytics
 const trackAnalytics = async (
@@ -60,31 +60,36 @@ const createPromotion = async (req, res) => {
     if (!business.petpro_subscription.is_active) {
       return res.status(403).json({
         success: false,
-        message: "Active subscription required to create promotions. Please subscribe to unlock this feature.",
+        message:
+          "Active subscription required to create promotions. Please subscribe to unlock this feature.",
         subscription_status: {
           is_active: false,
           subscription_type: business.petpro_subscription.subscription_type,
         },
-        action_required: "Subscribe to start creating promotions and boost your sales."
+        action_required:
+          "Subscribe to start creating promotions and boost your sales.",
       });
     }
 
     // Check if subscription is expired
     const currentDate = new Date();
-    const isExpired = business.petpro_subscription.end_date &&
-                     business.petpro_subscription.end_date < currentDate;
+    const isExpired =
+      business.petpro_subscription.end_date &&
+      business.petpro_subscription.end_date < currentDate;
 
     if (isExpired) {
       return res.status(403).json({
         success: false,
-        message: "Your subscription has expired. Please renew to continue creating promotions.",
+        message:
+          "Your subscription has expired. Please renew to continue creating promotions.",
         subscription_status: {
           is_active: business.petpro_subscription.is_active,
           subscription_type: business.petpro_subscription.subscription_type,
           is_expired: true,
           end_date: business.petpro_subscription.end_date,
         },
-        action_required: "Renew your subscription to continue creating promotions."
+        action_required:
+          "Renew your subscription to continue creating promotions.",
       });
     }
 
@@ -92,11 +97,12 @@ const createPromotion = async (req, res) => {
     if (!business.features.can_create_promotions) {
       return res.status(403).json({
         success: false,
-        message: "Promotion creation requires an active subscription. Please subscribe to unlock this feature.",
+        message:
+          "Promotion creation requires an active subscription. Please subscribe to unlock this feature.",
         current_limits: {
           max_promotions: business.features.max_promotions,
           subscription_type: business.petpro_subscription.subscription_type,
-        }
+        },
       });
     }
 
@@ -121,7 +127,7 @@ const createPromotion = async (req, res) => {
           message: `Active promotion limit reached. Current plan allows ${business.features.max_promotions} promotions. Upgrade to Premium for unlimited promotions.`,
           current_count: activePromotions,
           max_allowed: business.features.max_promotions,
-          upgrade_message: "Upgrade to Premium for unlimited promotions."
+          upgrade_message: "Upgrade to Premium for unlimited promotions.",
         });
       }
     }
@@ -129,17 +135,10 @@ const createPromotion = async (req, res) => {
     // Handle banner image upload
     let banner_image = null;
     if (req.files && req.files.banner_image) {
-      const result = await cloudinary.uploader.upload(
-        req.files.banner_image.tempFilePath,
-        {
-          folder: "petpro_promotions",
-          transformation: [
-            { width: 1200, height: 600, crop: "fill" },
-            { quality: "auto:good" },
-          ],
-        }
-      );
-      banner_image = result.secure_url;
+      const uploadResult = await saveFile(req.files.banner_image, "promotions");
+      if (uploadResult.success) {
+        banner_image = uploadResult.url;
+      }
     }
 
     const promotion = await Promotion.create({
@@ -327,17 +326,10 @@ const updatePromotion = async (req, res) => {
 
     // Handle banner image upload
     if (req.files && req.files.banner_image) {
-      const result = await cloudinary.uploader.upload(
-        req.files.banner_image.tempFilePath,
-        {
-          folder: "petpro_promotions",
-          transformation: [
-            { width: 1200, height: 600, crop: "fill" },
-            { quality: "auto:good" },
-          ],
-        }
-      );
-      updateData.banner_image = result.secure_url;
+      const uploadResult = await saveFile(req.files.banner_image, "promotions");
+      if (uploadResult.success) {
+        updateData.banner_image = uploadResult.url;
+      }
     }
 
     // Convert date strings to Date objects
