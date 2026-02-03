@@ -1,6 +1,7 @@
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const GEMINI_URL =
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 
 const getVeterinaryAdvice = async (message) => {
   // Check if it's a greeting
@@ -23,7 +24,7 @@ const getVeterinaryAdvice = async (message) => {
       message
         .toLowerCase()
         .trim()
-        .startsWith(greeting + ",")
+        .startsWith(greeting + ","),
   );
 
   if (isGreeting) {
@@ -64,20 +65,19 @@ const getVeterinaryAdvice = async (message) => {
     `You are a helpful veterinary assistant. Answer user questions about common pet health issues in a direct and conversational style. Do not include greetings or polite phrases like "Hi", "Hope you're well". Respond naturally and professionally. If the message is in Spanish, respond in Spanish. If it's in English, respond in English. Always recommend visiting a real veterinarian for serious issues.\n\n` +
     message;
 
-  const response = await fetch(OPENROUTER_URL, {
+  const response = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${OPENROUTER_API_KEY}`,
       "Content-Type": "application/json",
-      "HTTP-Referer": "https://mascotas-backend.com",
-      "X-Title": "Mascotas Veterinary Assistant",
     },
     body: JSON.stringify({
-      model: "google/gemini-2.0-flash-exp:free",
-      messages: [
+      contents: [
         {
-          role: "user",
-          content: prompt,
+          parts: [
+            {
+              text: prompt,
+            },
+          ],
         },
       ],
     }),
@@ -85,22 +85,24 @@ const getVeterinaryAdvice = async (message) => {
 
   const data = await response.json();
 
-  // Convert OpenRouter response format to match Gemini format for compatibility
-  return {
-    candidates: [
-      {
-        content: {
-          parts: [
-            {
-              text:
-                data.choices?.[0]?.message?.content ||
-                "Sorry, I couldn't generate a response.",
-            },
-          ],
+  if (data.error) {
+    console.error("Gemini API Error:", data.error);
+    return {
+      candidates: [
+        {
+          content: {
+            parts: [
+              {
+                text: "I apologize, but I am currently unable to access my veterinary knowledge base. Please try again later.",
+              },
+            ],
+          },
         },
-      },
-    ],
-  };
+      ],
+    };
+  }
+
+  return data;
 };
 
 const getTrainingAdvice = async (message) => {
@@ -124,7 +126,7 @@ const getTrainingAdvice = async (message) => {
       message
         .toLowerCase()
         .trim()
-        .startsWith(greeting + ",")
+        .startsWith(greeting + ","),
   );
 
   if (isGreeting) {
@@ -165,20 +167,19 @@ const getTrainingAdvice = async (message) => {
     `You are a professional dog training assistant. Give accurate, helpful answers using positive reinforcement techniques and ethical training methods. Respond directly, like you're having a casual, honest conversation. Avoid polite or generic phrases like "Hi there" or "Hope you're doing well". If the question is asked in Spanish, reply in Spanish. If in English, reply in English. If harmful methods are mentioned, suggest positive alternatives.\n\n` +
     message;
 
-  const response = await fetch(OPENROUTER_URL, {
+  const response = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${OPENROUTER_API_KEY}`,
       "Content-Type": "application/json",
-      "HTTP-Referer": "https://mascotas-backend.com",
-      "X-Title": "Mascotas Training Assistant",
     },
     body: JSON.stringify({
-      model: "google/gemini-2.0-flash-exp:free",
-      messages: [
+      contents: [
         {
-          role: "user",
-          content: prompt,
+          parts: [
+            {
+              text: prompt,
+            },
+          ],
         },
       ],
     }),
@@ -186,22 +187,24 @@ const getTrainingAdvice = async (message) => {
 
   const data = await response.json();
 
-  // Convert OpenRouter response format to match Gemini format for compatibility
-  return {
-    candidates: [
-      {
-        content: {
-          parts: [
-            {
-              text:
-                data.choices?.[0]?.message?.content ||
-                "Sorry, I couldn't generate a response.",
-            },
-          ],
+  if (data.error) {
+    console.error("Gemini API Error:", data.error);
+    return {
+      candidates: [
+        {
+          content: {
+            parts: [
+              {
+                text: "I apologize, but I am currently unable to access my training knowledge base. Please try again later.",
+              },
+            ],
+          },
         },
-      },
-    ],
-  };
+      ],
+    };
+  }
+
+  return data;
 };
 
 module.exports = {
