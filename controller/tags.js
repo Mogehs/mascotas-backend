@@ -2,6 +2,31 @@ const Tag = require("../model/tags");
 const { saveFile, deleteFile } = require("../utils/fileUpload.helper");
 const fs = require("fs");
 
+const MAX_IMAGE_SIZE_MB = 10;
+const ALLOWED_MIME_TYPES = ["image/png", "image/jpg", "image/jpeg", "image/webp"];
+
+const validateIconFiles = (files) => {
+  const iconFiles = Array.isArray(files) ? files : [files];
+  for (const file of iconFiles) {
+    if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+      return {
+        valid: false,
+        status: 415,
+        message: `Unsupported file type "${file.mimetype}". Only PNG, JPG, JPEG, and WebP images are allowed.`,
+      };
+    }
+    const fileSizeMB = file.size / (1024 * 1024);
+    if (fileSizeMB > MAX_IMAGE_SIZE_MB) {
+      return {
+        valid: false,
+        status: 413,
+        message: `Image "${file.name}" (${fileSizeMB.toFixed(2)}MB) exceeds the maximum allowed size of ${MAX_IMAGE_SIZE_MB}MB. Please compress or resize the image and try again.`,
+      };
+    }
+  }
+  return { valid: true };
+};
+
 // Helper function to parse stringified JSON data
 const parseStringifiedData = (data) => {
   if (typeof data === "string") {
@@ -63,6 +88,14 @@ const createTag = async (req, res) => {
     const iconFiles = Array.isArray(req.files.icons)
       ? req.files.icons
       : [req.files.icons];
+
+    const iconValidation = validateIconFiles(iconFiles);
+    if (!iconValidation.valid) {
+      return res.status(iconValidation.status).json({
+        success: false,
+        message: iconValidation.message,
+      });
+    }
 
     const uploadedIcons = [];
 
@@ -256,6 +289,14 @@ const updateTag = async (req, res) => {
       const iconFiles = Array.isArray(req.files.icons)
         ? req.files.icons
         : [req.files.icons];
+
+      const iconValidation = validateIconFiles(iconFiles);
+      if (!iconValidation.valid) {
+        return res.status(iconValidation.status).json({
+          success: false,
+          message: iconValidation.message,
+        });
+      }
 
       const uploadedIcons = [];
 

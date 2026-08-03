@@ -128,14 +128,18 @@ const businessSchema = new Schema(
         type: String,
         default: "none", // No payment method by default
       },
-      stripe_payment_intent_id: {
+      stripe_customer_id: {
         type: String,
         default: null,
       },
-      // auto_renewal: {
-      //   type: Boolean,
-      //   default: true,
-      // },
+      stripe_subscription_id: {
+        type: String,
+        default: null,
+      },
+      cancel_at_period_end: {
+        type: Boolean,
+        default: false,
+      },
     },
     features: {
       can_create_featured_ads: {

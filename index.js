@@ -5,7 +5,7 @@ const connectToMongo = require("./db");
 const cors = require("cors");
 
 // Import configurations and services
-const configureServer = require("./config/server");
+const { configureServer } = require("./config/server");
 const { initializeSocket } = require("./config/socket");
 const cronService = require("./service/cron.service");
 
@@ -58,6 +58,23 @@ const io = initializeSocket(server);
 
 // Start Medical Checkup Cron Service
 cronService.start();
+
+// Global error handler — must be registered after all routes
+app.use((err, req, res, next) => {
+  if (err.status === 413 || err.type === "entity.too.large") {
+    return res.status(413).json({
+      success: false,
+      message:
+        "Request body too large. Images must not exceed 10MB. Please compress or resize your image and try again.",
+    });
+  }
+
+  console.error("Unhandled error:", err);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || "An unexpected server error occurred.",
+  });
+});
 
 // Start server
 server.listen(process.env.PORT, () => {
